@@ -9,6 +9,9 @@ from .Functions.Operations import *
 
 
 
+
+
+
 urlpatterns = [
     # path('success/', views.success, name='success'),
     path('project_cash_flows/', project_cash_flows_view, name='project_cash_flows'),
