@@ -1,0 +1,168 @@
+{% extends "ALM_APP/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4 text-center">Edit Behavioral Pattern</h2>
+
+    <!-- Display Success or Error Messages -->
+    {% if messages %}
+    <div class="mt-3">
+        {% for message in messages %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Display Errors if any -->
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <!-- Load custom filters -->
+    {% load custom_filters %}
+
+    <form method="post" class="card shadow-sm p-4" onsubmit="return confirmUpdate();">
+        {% csrf_token %}
+        
+        <!-- Product Type Field -->
+        <div class="form-group">
+            <label for="v_prod_type">Product Type:</label>
+            <input type="text" id="v_prod_type" name="v_prod_type" class="form-control" value="{{ v_prod_type|default:'' }}" placeholder="Enter product type" required>
+        </div>
+
+        <!-- Description Field -->
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea id="description" name="description" class="form-control" rows="2" placeholder="Enter description" required>{{ description|default:'' }}</textarea>
+        </div>
+
+        <!-- Behavioral Pattern Entries -->
+        <h5 class="mb-3">Behavioral Pattern Entries</h5>
+        <div id="pattern-entries">
+            {% if tenors %}
+                {% for i in tenors %}
+                <div class="pattern-entry border p-3 rounded mb-2">
+                    <div class="form-row align-items-center">
+                        <div class="form-group col-md-1">
+                            <label for="order">Order:</label>
+                            <input type="number" name="order[]" class="form-control" value="{{ forloop.counter }}" readonly>
+                        </div>
+                        <div class="form-group col-md-3">
+                            <label for="tenor">Tenor:</label>
+                            <input type="number" name="tenor[]" class="form-control" value="{{ i }}" placeholder="Tenor (e.g. 1)" required>
+                        </div>
+                        <div class="form-group col-md-3">
+                            <label for="multiplier">Multiplier:</label>
+                            <select name="multiplier[]" class="form-control">
+                                <option value="Days" {% if multipliers|get_item:forloop.counter0 == "Days" %}selected{% endif %}>Days</option>
+                                <option value="Months" {% if multipliers|get_item:forloop.counter0 == "Months" %}selected{% endif %}>Months</option>
+                                <option value="Years" {% if multipliers|get_item:forloop.counter0 == "Years" %}selected{% endif %}>Years</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-3">
+                            <label for="percentage">Percentage:</label>
+                            <input type="number" name="percentage[]" class="form-control" value="{{ percentages|get_item:forloop.counter0 }}" step="0.001" min="0" max="100" placeholder="0.000" required>
+                        </div>
+                        <div class="form-group col-md-2 text-right">
+                            <button type="button" class="btn btn-danger btn-sm remove-entry">Remove</button>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="col-md-9">
+                            <small class="form-text text-muted">Ensure total percentage across all entries equals 100%.</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <!-- If no entries are present, render a single empty entry -->
+            <div class="pattern-entry border p-3 rounded mb-2">
+                <div class="form-row align-items-center">
+                    <div class="form-group col-md-1">
+                        <label for="order">Order:</label>
+                        <input type="number" name="order[]" class="form-control" value="1" readonly>
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label for="tenor">Tenor:</label>
+                        <input type="number" name="tenor[]" class="form-control" placeholder="Tenor (e.g. 1)" required>
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label for="multiplier">Multiplier:</label>
+                        <select name="multiplier[]" class="form-control">
+                            <option value="Days">Days</option>
+                            <option value="Months">Months</option>
+                            <option value="Years">Years</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label for="percentage">Percentage:</label>
+                        <input type="number" name="percentage[]" class="form-control" step="0.001" min="0" max="100" placeholder="0.000" required>
+                    </div>
+                    <div class="form-group col-md-2 text-right">
+                        <button type="button" class="btn btn-danger btn-sm remove-entry">Remove</button>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="col-md-9">
+                        <small class="form-text text-muted">Ensure total percentage across all entries equals 100%.</small>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Add Entry Button -->
+        <button type="button" class="btn btn-secondary mb-3" id="add-entry">
+            <i class="fas fa-plus"></i> Add Another Entry
+        </button>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary btn-block">Update Behavioral Pattern</button>
+    </form>
+</div>
+
+<!-- Bootstrap JS and dependencies -->
+<script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+<!-- Custom JS to handle adding/removing entries -->
+<script>
+// Dynamically add entry and increment order number
+document.getElementById('add-entry').addEventListener('click', function() {
+    var entry = document.querySelector('.pattern-entry').cloneNode(true);
+    var orderField = entry.querySelector('input[name="order[]"]');
+    
+    // Increment the order number based on the current number of entries
+    var currentEntries = document.querySelectorAll('.pattern-entry').length;
+    orderField.value = currentEntries + 1;  // Set new order value
+    
+    document.getElementById('pattern-entries').appendChild(entry);
+});
+
+document.addEventListener('click', function(event) {
+    if (event.target && event.target.classList.contains('remove-entry')) {
+        event.target.closest('.pattern-entry').remove();
+
+        // Reorder the remaining entries after removal
+        var entries = document.querySelectorAll('.pattern-entry');
+        entries.forEach(function(entry, index) {
+            var orderInput = entry.querySelector('input[name="order[]"]');
+            orderInput.value = index + 1;
+        });
+    }
+});
+</script>
+
+<!-- Confirm before updating -->
+<script>
+function confirmUpdate() {
+    return confirm("Are you sure you want to update this behavioral pattern?");
+}
+</script>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Include Operations Sidebar -->
+        {% include 'operations/operations_sidebar.html' %}
+
+        <!-- Main Content Area -->
+        <div class="col-md-9 ms-sm-auto col-lg-10 px-md-3" style="margin-left: 260px;"> <!-- Adjusted to prevent overlap with sidebar -->
+            <!-- Process Title -->
+            <div class="card shadow mb-4">
+                <div class="card-body text-center">
+                    <h1 class="h3 text-primary">{{ process.process_name }}</h1>
+                </div>
+            </div>
+
+            <!-- Functions in the Process -->
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4>Functions in this Process</h4>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Function Name</th>
+                                <th>Execution Order</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for run_process in run_processes %}
+                            <tr>
+                                <td>{{ run_process.function.function_name }}</td>
+                                <td>{{ run_process.order }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            
+        </div>
+    </div>
+</div>
+
+{% endblock %}

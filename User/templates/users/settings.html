@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-primary text-white">
+            <h2 class="h4 mb-0"><i class="fas fa-cogs mr-2"></i> Settings</h2>
+        </div>
+        <div class="card-body">
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex align-items-center">
+                    <i class="fas fa-user-edit text-primary mr-3" aria-hidden="true"></i>
+                    <a href="{% url 'update_profile' %}" class="text-decoration-none link-primary font-weight-bold">Update Profile</a>
+                </li>
+                <li class="list-group-item d-flex align-items-center">
+                    <i class="fas fa-lock text-primary mr-3" aria-hidden="true"></i>
+                    <a href="{% url 'change_password' %}" class="text-decoration-none link-primary font-weight-bold">Change Password</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Data Entry</h2>
+    <!-- Back Button -->
+    <div class="d-flex justify-content-start mb-4">
+        <a href="{% url 'data_management' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back 
+        </a>
+    </div>
+    <!-- Display any messages (errors, success) -->
+    {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="row justify-content-center">
+        <div class="col-lg-12 col-md-12">
+            <form method="post" id="dataEntryForm" class="shadow p-4 rounded bg-light">
+                {% csrf_token %}
+
+                <!-- Table Selection Form -->
+                <div class="form-group mb-4">
+                    {{ table_form|crispy }}
+                </div>
+
+                <!-- Data Entry Form -->
+                {% if data_form %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-striped">
+                            <thead>
+                                <tr>
+                                    {% for field in data_form %}
+                                        <th>{{ field.label }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody id="formRows">
+                                <!-- First row with inputs -->
+                                <tr class="original-row">
+                                    {% for field in data_form %}
+                                        <td>
+                                            <div class="form-group mb-0">
+                                                {% if field.field.widget.input_type == "date" %}
+                                                    {{ field }}  <!-- Date fields -->
+                                                {% else %}
+                                                    {{ field }}  <!-- Regular fields -->
+                                                {% endif %}
+                                                <small class="text-danger">{{ field.errors }}</small>
+                                            </div>
+                                        </td>
+                                    {% endfor %}
+                                </tr>
+                                <!-- Additional rows will be added here -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" id="addRow" class="btn btn-secondary">Add Row</button>
+                        <button type="submit" class="btn btn-primary">Submit</button>
+                    </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Include Flatpickr CSS and JS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<script>
+    // Initialize Flatpickr on date fields
+    document.addEventListener("DOMContentLoaded", function() {
+        flatpickr(".datepicker", {
+            dateFormat: "Y-m-d",  // Django date format YYYY-MM-DD
+            allowInput: true      // Allow manual typing if necessary
+        });
+
+        // Listen for table selection change
+        const tableSelect = document.getElementById("id_table_name");
+        tableSelect.addEventListener("change", function() {
+            // Automatically submit the form when table is changed
+            document.getElementById("dataEntryForm").submit();
+        });
+
+        // Add row functionality
+        const addRowBtn = document.getElementById("addRow");
+        const formRowsContainer = document.getElementById("formRows");
+        let rowIndex = 1;
+
+        addRowBtn.addEventListener("click", function() {
+            const originalRow = document.querySelector(".original-row");
+            const newRow = originalRow.cloneNode(true);
+            rowIndex++;
+
+            // Clear the inputs in the new row
+            newRow.querySelectorAll("input, select, textarea").forEach((input, index) => {
+                const newId = `${input.id}_row${rowIndex}`;
+                input.id = newId;
+                input.name = input.name.replace(/-\d+-/, `-${rowIndex}-`);  // Update Django's form field name
+                input.value = "";  // Clear the value in the new row
+                input.classList.remove("is-invalid");  // Remove any error classes
+            });
+
+            // Append the new row to the table
+            formRowsContainer.appendChild(newRow);
+
+            // Re-initialize Flatpickr for the new date fields in the cloned row
+            flatpickr(newRow.querySelectorAll(".datepicker"), {
+                dateFormat: "Y-m-d",
+                allowInput: true
+            });
+        });
+
+        // Function to enforce equal label height (if needed)
+        function setEqualLabelHeight() {
+            const labels = document.querySelectorAll(".form-label");
+            let maxHeight = 0;
+
+            // Calculate the max height
+            labels.forEach(label => {
+                const labelHeight = label.offsetHeight;
+                if (labelHeight > maxHeight) {
+                    maxHeight = labelHeight;
+                }
+            });
+
+            // Apply the max height to all labels
+            labels.forEach(label => {
+                label.style.height = `${maxHeight}px`;
+            });
+        }
+
+        // Set equal height on DOM load and after each row addition
+        setEqualLabelHeight();
+        addRowBtn.addEventListener("click", setEqualLabelHeight);
+    });
+</script>
+
+<style>
+    .form-label {
+        font-weight: bold;
+    }
+    .form-control {
+        width: 100%;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        font-size: 14px;
+        border-radius: 5px;
+        border: 1px solid #ced4da;
+    }
+    .alert {
+        padding: 10px;
+        margin-bottom: 20px;
+    }
+    .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    .alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    .table-responsive {
+        overflow-x: auto;
+    }
+    .table th, .table td {
+        vertical-align: middle;
+        text-align: center;
+        white-space: nowrap;
+    }
+</style>
+{% endblock %}

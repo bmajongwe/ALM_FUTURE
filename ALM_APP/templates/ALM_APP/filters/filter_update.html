@@ -1,0 +1,74 @@
+{% extends "ALM_APP/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4 text-center">Edit Product Filter</h2>
+    
+    <!-- Display Success or Error Messages -->
+    <!-- {% if messages %}
+    <div class="mt-3">
+        {% for message in messages %}
+        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %} -->
+    
+    <!-- Edit Form with JavaScript Confirmation and Validation -->
+    <form method="post" class="card shadow-sm p-4" onsubmit="return validateForm();">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="field_name">Field Name:</label>
+            <select id="field_name" name="field_name" class="form-control" required>
+                <option value="" disabled selected>Select a field name</option>
+                {% for value, name in form.field_name.field.choices %}
+                    <option value="{{ value }}" {% if form.instance.field_name == value %}selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="condition">Condition:</label>
+            <select id="condition" name="condition" class="form-control" required>
+                <option value="" disabled selected>Select a condition</option>
+                <option value="equals" {% if form.instance.condition == 'equals' %}selected{% endif %}>Equals</option>
+                <option value="contains" {% if form.instance.condition == 'contains' %}selected{% endif %}>Contains</option>
+                <option value="greater_than" {% if form.instance.condition == 'greater_than' %}selected{% endif %}>Greater Than</option>
+                <option value="less_than" {% if form.instance.condition == 'less_than' %}selected{% endif %}>Less Than</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="value">Value:</label>
+            <input type="text" id="value" name="value" class="form-control" value="{{ form.instance.value }}" placeholder="Enter value" required>
+        </div>
+        
+        <!-- Save and Back Buttons with Confirmation -->
+        <button type="submit" class="btn btn-primary btn-block">Save Changes</button>
+        <a href="{% url 'product_filter_list' %}" class="btn btn-secondary btn-block">Back to List</a>
+    </form>
+</div>
+
+<!-- JavaScript for Confirmation and Validation -->
+<script>
+function validateForm() {
+    // Ensure all fields are filled
+    var fieldName = document.getElementById("field_name").value;
+    var condition = document.getElementById("condition").value;
+    var value = document.getElementById("value").value;
+
+    if (fieldName === "" || condition === "" || value.trim() === "") {
+        alert("Please fill out all fields before saving.");
+        return false;
+    }
+    
+    // Confirm the update action
+    return confirm("Are you sure you want to update this product filter?");
+}
+</script>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% for run_process in run_processes %}
+<tr>
+    <td>
+        <input type="checkbox" name="selected_functions" value="{{ run_process.id }}" checked>
+    </td>
+    <td>{{ run_process.function.function_name }}</td>
+    <td>{{ run_process.order }}</td>
+</tr>
+{% endfor %}

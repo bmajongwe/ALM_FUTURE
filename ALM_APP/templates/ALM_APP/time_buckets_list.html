@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Time Buckets</title>
+</head>
+<body>
+    <h1>Time Buckets List</h1>
+    <table>
+        <tr>
+            <th>Serial Number</th>
+            <th>Frequency</th>
+            <th>Multiplier</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+        </tr>
+        {% for bucket in time_buckets %}
+        <tr>
+            <td>{{ bucket.serial_number }}</td>
+            <td>{{ bucket.frequency }}</td>
+            <td>{{ bucket.multiplier }}</td>
+            <td>{{ bucket.start_date }}</td>
+            <td>{{ bucket.end_date }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <a href="{% url 'define_time_buckets' %}">Add Time Bucket</a>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Dashboard</h1>
+    <p>Here is a summary of the financial overview:</p>
+    <div class="row">
+        <div class="col-md-12">
+            <h3>Monthly Financial Overview</h3>
+            <img src="data:image/png;base64,{{ graph }}" alt="Financial Overview Graph">
+        </div>
+    </div>
+</div>
+{% endblock %}

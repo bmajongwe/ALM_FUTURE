@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALM Application</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        html, body {
+            height: 100%;
+        }
+        .d-flex {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .flex-grow-1 {
+            flex: 1;
+        }
+        footer {
+            background-color: #343a40;
+            color: white;
+            padding: 1rem;
+        }
+    </style>
+</head>
+<body class="d-flex flex-column">
+
+    <!-- Header -->
+    <header class="bg-dark text-white py-2">
+        <div class="container">
+            <h1 class="h5">ALM Application</h1>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow-1 container mt-4">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center">
+        <div class="container">
+            © Scylla. All rights reserved.
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Liquidity Gap Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            color: #333;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+        }
+    
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+            font-size: 2em;
+            margin-top: 20px;
+        }
+    
+        /* Error message styling */
+        .error-message-container {
+            max-width: 800px;
+            margin: 10px auto;
+            padding: 15px;
+            background-color: #ffdddd;
+            border: 1px solid #f44336;
+            border-radius: 5px;
+            text-align: center;
+            color: #f44336;
+            font-weight: bold;
+        }
+    
+        .filter-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+    
+        .apply-button,
+        .reset-button {
+            padding: 10px 20px;
+            font-size: 1em;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    
+        .apply-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+        }
+    
+        .reset-button {
+            background-color: #f44336;
+            color: white;
+            text-decoration: none;
+            border: none;
+        }
+    
+        .report-table-container {
+            max-width: 90%;
+            margin: 20px auto;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            padding: 10px;
+        }
+    
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0 auto;
+            font-size: 14px;
+            table-layout: auto; /* Allow flexible column widths */
+        }
+    
+        .report-table th {
+            background-color: #3b5998;
+            color: white;
+            font-weight: bold;
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+            vertical-align: middle;
+            white-space: nowrap;
+            width: 150px;
+        }
+    
+        .report-table td,
+        .report-table th {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+    
+        .account-type-row {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            text-align: left;
+            padding-left: 10px;
+            vertical-align: top;
+        }
+    
+        .product-name {
+            color: #007bff;
+            font-weight: bold;
+            text-align: left;
+            padding-left: 10px;
+        }
+    
+
+        
+        .footer-row td {
+    background-color: #e0e0e0;
+    font-weight: bold;
+    text-align: left; /* Ensure text alignment to the left */
+    padding-left: 5px; /* Add minimal padding for aesthetics */
+    margin: 10px; /* Remove any default margin */
+    border-top: 2px solid #0e57a0;
+    border-inline-end: 2px solid #0e57a0;
+    border-bottom: 2px solid #0e57a0;
+
+
+    white-space: nowrap; /* Prevent text wrapping if unnecessary */
+}
+    
+        /* Responsive Table Styling */
+        .drill-down-header {
+            word-wrap: break-word;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+    
+        .report-table td {
+            text-align: left;
+        }
+    
+        .report-table th {
+            min-width: 100px; /* Ensure consistent minimum width */
+        }
+    
+        /* Handle horizontal scrolling */
+        .report-table-container::-webkit-scrollbar {
+            height: 10px;
+        }
+    
+        .report-table-container::-webkit-scrollbar-thumb {
+            background-color: #ccc;
+            border-radius: 5px;
+        }
+    
+        .report-table-container::-webkit-scrollbar-track {
+            background-color: #f0f0f0;
+        }
+    </style>
+    
+</head>
+<body>
+    <!-- Load the custom filter -->
+    {% load custom_filters %}
+        <h1>Liquidity Gap Report</h1>
+    
+        <!-- Display error message if present -->
+        {% if messages %}
+        <div class="error-message-container">
+            {% for message in messages %}
+                {{ message }}
+            {% endfor %}
+        </div>
+        {% endif %}
+    
+        <!-- Filter Form -->
+        <div class="filter-container">
+            <form method="get" style="display: flex; flex-wrap: wrap; gap: 15px;">
+                {{ form.as_p }}
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button type="submit" class="apply-button">Apply</button>
+                    <a href="{% url 'liquidity_gap_report' %}" class="reset-button">Reset</a>
+                </div>
+            </form>
+        </div>
+    
+        <!-- Rows per page selector -->
+        <div style="text-align: right; margin: 10px;">
+            <label for="rowsPerPage">Show rows:</label>
+            <select id="rowsPerPage" onchange="updateRowsPerPage()">
+                <option value="10">10</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+    
+<!-- Breadcrumb Navigation with Back Button -->
+<div class="breadcrumb-container" style="margin-bottom: 20px; display: flex; align-items: center; justify-content: center;">
+    {% if drill_down_splits %}
+        <!-- Back to Product Names -->
+        <a href="?drill_down_product={{ drill_down_product }}" class="breadcrumb-link" style="color: #007bff; text-decoration: none; font-weight: bold; font-size: 16px;">
+            ← Back to Product Names
+        </a>
+    {% elif drill_down_product %}
+        <!-- Back to Product Type -->
+        <a href="{% url 'liquidity_gap_report' %}" class="breadcrumb-link" style="color: #007bff; text-decoration: none; font-weight: bold; font-size: 16px;">
+            ← Back to Overview
+        </a>
+    {% endif %}
+</div>
+
+
+<!-- Base Results: Loop through each currency in currency_data -->
+{% for currency, data in currency_data.items %}
+<h3 style="text-align: center; color: #007bff; margin-block-end: 10px;">Amount in {{ currency }}</h3>
+
+<!-- Drill-Down for Splits -->
+{% if drill_down_splits %}
+<div class="report-table-container">
+    <h4 class="drill-down-header" title="Drill-Down for Splits: {{ drill_down_splits }}">
+        Drill-Down for Splits: {{ drill_down_splits }}
+    </h4>
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>Account Type</th>
+                <th>Product</th>
+                <th>v_product_name</th>
+                <th>v_product_splits</th>
+                {% for bucket in date_buckets %}
+                    <th>{{ bucket.bucket_start_date|date:"d-M-Y" }}<br>{{ bucket.bucket_end_date|date:"d-M-Y" }}</th>
+                {% endfor %}
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Total Inflows Section -->
+            <tr>
+                <td rowspan="{{ aggregated_split_details|length|add:1 }}">Total Inflows</td>
+                <td rowspan="{{ aggregated_split_details|length|add:1 }}">{{ drill_down_product }}</td>
+                <td rowspan="{{ aggregated_split_details|length|add:1 }}">{{ drill_down_splits }}</td>
+            </tr>
+            {% for detail in aggregated_split_details %}
+            <tr>
+                <td>{{ detail.v_product_splits }}</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ detail.buckets|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ detail.total|default:"0.00" }}</td>
+            </tr>
+            {% endfor %}
+
+            <!-- Total Outflows Section -->
+            {% if drill_down_splits_details_outflows %}
+            <tr>
+                <td rowspan="{{ drill_down_splits_details_outflows|length|add:1 }}">Total Outflows</td>
+                <td rowspan="{{ drill_down_splits_details_outflows|length|add:1 }}">{{ drill_down_product }}</td>
+                <td rowspan="{{ drill_down_splits_details_outflows|length|add:1 }}">{{ drill_down_splits }}</td>
+            </tr>
+            {% for detail in drill_down_splits_details_outflows %}
+            <tr>
+                <td>{{ detail.v_product_splits }}</td>
+                {% for bucket in date_buckets %}
+                    <td>
+                        {% if bucket.bucket_number == detail.bucket_number %}
+                            {{ detail.total|default:"0.00" }}
+                        {% else %}
+                            0.00
+                        {% endif %}
+                    </td>
+                {% endfor %}
+                <td>{{ detail.total|default:"0.00" }}</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Summary Rows -->
+            <tr class="footer-row">
+                <td colspan="4">Net Liquidity Gap</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ data.net_liquidity_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ data.net_liquidity_gap.total|default:"0.00" }}</td>
+            </tr>
+            <tr class="footer-row">
+                <td colspan="4">Net Gap as % of Total Outflows</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ data.net_gap_percentage|lookup:bucket.bucket_number|default:"0.00"|floatformat:2 }}%</td>
+                {% endfor %}
+                <td>{{ data.net_gap_percentage.total|floatformat:2 }}%</td>
+            </tr>
+            <tr class="footer-row">
+                <td colspan="4">Cumulative Gap</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ data.cumulative_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ data.cumulative_gap.total|default:"0.00" }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+
+
+
+<!-- Drill-Down for Product Names -->
+<!-- Drill-Down for Product Names -->
+{% elif drill_down_product %}
+<div class="report-table-container">
+    <h4 style="text-align: center; color: #ff5733;">Drill-Down for {{ drill_down_product }}</h4>
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>Account Type</th>
+                <th>Product</th>
+                <th>v_product_name</th>
+                {% for bucket in date_buckets %}
+                    <th>{{ bucket.bucket_start_date|date:"d-M-Y" }}<br>{{ bucket.bucket_end_date|date:"d-M-Y" }}</th>
+                {% endfor %}
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Total Inflows Section -->
+            <tr>
+                <td rowspan="{{ aggregated_product_details|length|add:1 }}">Total Inflows</td>
+                <td rowspan="{{ aggregated_product_details|length|add:1 }}">{{ drill_down_product }}</td>
+            </tr>
+            {% for detail in aggregated_product_details %}
+            <tr>
+                <td>
+                    <a href="?drill_down_product={{ drill_down_product }}&drill_down_splits={{ detail.v_product_name }}">
+                        {{ detail.v_product_name }}
+                    </a>
+                </td>
+                {% for bucket in date_buckets %}
+                    <td>
+                        {{ detail.buckets|lookup:bucket.bucket_number|default:"0.00" }}
+                    </td>
+                {% endfor %}
+                <td>{{ detail.total|default:"0.00" }}</td>
+            </tr>
+            {% endfor %}
+
+            <!-- Total Outflows Section -->
+            {% if drill_down_details_outflows %}
+            <tr>
+                <td rowspan="{{ drill_down_details_outflows|length|add:1 }}">Total Outflows</td>
+                <td rowspan="{{ drill_down_details_outflows|length|add:1 }}">{{ drill_down_product }}</td>
+            </tr>
+            {% for detail in drill_down_details_outflows %}
+            <tr>
+                <td>
+                    <a href="?drill_down_product={{ drill_down_product }}&drill_down_splits={{ detail.v_product_name }}">
+                        {{ detail.v_product_name }}
+                    </a>
+                </td>
+                {% for bucket in date_buckets %}
+                    <td>
+                        {% if bucket.bucket_number == detail.bucket_number %}
+                            {{ detail.total|default:"0.00" }}
+                        {% else %}
+                            0.00
+                        {% endif %}
+                    </td>
+                {% endfor %}
+                <td>{{ detail.total|default:"0.00" }}</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Summary Rows -->
+            <tr class="footer-row">
+                <td colspan="3">Net Liquidity Gap</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ data.net_liquidity_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ data.net_liquidity_gap.total|default:"0.00" }}</td>
+            </tr>
+            <tr class="footer-row">
+                <td colspan="3">Net Gap as % of Total Outflows</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ data.net_gap_percentage|lookup:bucket.bucket_number|default:"0.00"|floatformat:2 }}%</td>
+                {% endfor %}
+                <td>{{ data.net_gap_percentage.total|floatformat:2 }}%</td>
+            </tr>
+            <tr class="footer-row">
+                <td colspan="3">Cumulative Gap</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ data.cumulative_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ data.cumulative_gap.total|default:"0.00" }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+
+<!-- Base Results -->
+{% else %}
+<div class="report-table-container">
+    <table class="report-table" id="reportTable{{ forloop.counter }}">
+        <thead>
+            <tr>
+                <th>Account Type</th>
+                <th>Product</th>
+                {% for bucket in date_buckets %}
+                    <th style="text-align: center; width: 150px;">{{ bucket.bucket_start_date|date:"d-M-Y" }}<br>{{ bucket.bucket_end_date|date:"d-M-Y" }}</th>
+                {% endfor %}
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Total Inflows Section -->
+            <tr>
+                <td class="account-type-row" rowspan="{{ data.remaining_inflow_data|length|add:1 }}">Total Inflows</td>
+                <td class="product-name">
+                    <a href="?drill_down_product={{ data.first_inflow_product.0 }}">{{ data.first_inflow_product.0 }}</a>
+                </td>
+                {% for bucket in date_buckets %}
+                    <td>{{ data.first_inflow_product.1|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ data.first_inflow_product.1.total|default:"0.00" }}</td>
+            </tr>
+            {% for product, buckets in data.remaining_inflow_data.items %}
+            <tr>
+                <td class="product-name">
+                    <a href="?drill_down_product={{ product }}">{{ product }}</a>
+                </td>
+                {% for bucket in date_buckets %}
+                    <td>{{ buckets|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ buckets.total|default:"0.00" }}</td>
+            </tr>
+            {% endfor %}
+
+            <!-- Total Outflows Section -->
+            <tr>
+                <td class="account-type-row" rowspan="{{ data.remaining_outflow_data|length|add:1 }}">Total Outflows</td>
+                <td class="product-name">
+                    <a href="?drill_down_product={{ data.first_outflow_product.0 }}">{{ data.first_outflow_product.0 }}</a>
+                </td>
+                {% for bucket in date_buckets %}
+                    <td>{{ data.first_outflow_product.1|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ data.first_outflow_product.1.total|default:"0.00" }}</td>
+            </tr>
+            {% for product, buckets in data.remaining_outflow_data.items %}
+            <tr>
+                <td class="product-name">
+                    <a href="?drill_down_product={{ product }}">{{ product }}</a>
+                </td>
+                {% for bucket in date_buckets %}
+                    <td>{{ buckets|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ buckets.total|default:"0.00" }}</td>
+            </tr>
+            {% endfor %}
+
+            <!-- Summary Rows -->
+            <tr class="footer-row">
+                <td colspan="2">Net Liquidity Gap</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ data.net_liquidity_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ data.net_liquidity_gap.total|default:"0.00" }}</td>
+            </tr>
+            <tr class="footer-row">
+                <td colspan="2">Net Gap as % of Total Outflows</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ data.net_gap_percentage|lookup:bucket.bucket_number|default:"0.00"|floatformat:2 }}%</td>
+                {% endfor %}
+                <td>{{ data.net_gap_percentage.total|floatformat:2 }}%</td>
+            </tr>
+            <tr class="footer-row">
+                <td colspan="2">Cumulative Gap</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ data.cumulative_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ data.cumulative_gap.total|default:"0.00" }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endfor %}
+
+
+
+    <!-- Consolidated Results Section -->
+    {% if cons_data %}
+    <h3 style="text-align: center; color: #FF5733;">Consolidated Results</h3>
+    <div class="report-table-container">
+        <table class="report-table">
+            <thead>
+                <tr>
+                    <th>Account Type</th>
+                    <th>Product</th>
+                    {% for bucket in date_buckets %}
+                        <th style="text-align: center; width: 150px;">{{ bucket.bucket_start_date|date:"d-M-Y" }}<br>{{ bucket.bucket_end_date|date:"d-M-Y" }}</th>
+                    {% endfor %}
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Total Inflows Section -->
+                <tr>
+                    <td class="account-type-row" rowspan="{{ cons_data.remaining_inflow_data|length|add:1 }}">Total Inflows</td>
+                    <td class="product-name">{{ cons_data.first_inflow_product.0 }}</td>
+                    {% for bucket in date_buckets %}
+                        <td>{{ cons_data.first_inflow_product.1|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                    {% endfor %}
+                    <td>{{ cons_data.first_inflow_product.1.total|default:"0.00" }}</td>
+                </tr>
+                {% for product, buckets in cons_data.remaining_inflow_data.items %}
+                <tr>
+                    <td class="product-name">{{ product }}</td>
+                    {% for bucket in date_buckets %}
+                        <td>{{ buckets|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                    {% endfor %}
+                    <td>{{ buckets.total|default:"0.00" }}</td>
+                </tr>
+                {% endfor %}
+
+                <!-- Total Outflows Section -->
+                <tr>
+                    <td class="account-type-row" rowspan="{{ cons_data.remaining_outflow_data|length|add:1 }}">Total Outflows</td>
+                    <td class="product-name">{{ cons_data.first_outflow_product.0 }}</td>
+                    {% for bucket in date_buckets %}
+                        <td>{{ cons_data.first_outflow_product.1|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                    {% endfor %}
+                    <td>{{ cons_data.first_outflow_product.1.total|default:"0.00" }}</td>
+                </tr>
+                {% for product, buckets in cons_data.remaining_outflow_data.items %}
+                <tr>
+                    <td class="product-name">{{ product }}</td>
+                    {% for bucket in date_buckets %}
+                        <td>{{ buckets|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                    {% endfor %}
+                    <td>{{ buckets.total|default:"0.00" }}</td>
+                </tr>
+                {% endfor %}
+
+                <!-- Summary Rows -->
+                <tr class="footer-row">
+                    <td colspan="2">Net Liquidity Gap</td>
+                    {% for bucket in date_buckets %}
+                        <td>{{ cons_data.net_liquidity_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                    {% endfor %}
+                    <td>{{ cons_data.net_liquidity_gap.total|default:"0.00" }}</td>
+                </tr>
+                <tr class="footer-row">
+                    <td colspan="2">Net Gap as % of Total Outflows</td>
+                    {% for bucket in date_buckets %}
+                        <td>{{ cons_data.net_gap_percentage|lookup:bucket.bucket_number|default:"0.00"|floatformat:2 }}%</td>
+                    {% endfor %}
+                    <td>{{ cons_data.net_gap_percentage.total|floatformat:2 }}%</td>
+                </tr>
+                <tr class="footer-row">
+                    <td colspan="2">Cumulative Gap</td>
+                    {% for bucket in date_buckets %}
+                        <td>{{ cons_data.cumulative_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                    {% endfor %}
+                    <td>{{ cons_data.cumulative_gap.total|default:"0.00" }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+{% endif %}
+
+
+    <!-- Export Consolidated Results to Excel -->
+    <div style="text-align: right; margin: 10px;">
+        <form method="get" action="{% url 'export_liquidity_gap_cons_to_excel' %}">
+            <input type="hidden" name="fic_mis_date" value="{{ fic_mis_date }}">
+            {% for key, value in request.GET.items %}
+                {% if key != 'fic_mis_date' %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                {% endif %}
+            {% endfor %}
+            <button type="submit" class="apply-button">Export Consolidated Results to Excel</button>
+        </form>
+    </div>
+
+    <!-- Export Base Results to Excel -->
+    <div style="text-align: right; margin: 10px;">
+        <form method="get" action="{% url 'export_liquidity_gap_to_excel' %}">
+            <input type="hidden" name="fic_mis_date" value="{{ fic_mis_date }}">
+            {% for key, value in request.GET.items %}
+                {% if key != 'fic_mis_date' %}
+                    <input type="hidden" name="{{ key }}" value="{{ value }}">
+                {% endif %}
+            {% endfor %}
+            <button type="submit" class="apply-button">Export Base Results to Excel</button>
+        </form>
+    </div>
+
+    <script>
+        function updateRowsPerPage() {
+            const rowsPerPage = parseInt(document.getElementById('rowsPerPage').value);
+            document.querySelectorAll('.report-table tbody').forEach(tbody => {
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                
+                rows.forEach((row, index) => {
+                    row.style.display = index < rowsPerPage ? '' : 'none';
+                });
+            });
+        }
+
+        // Initialize row display based on default or selected rows per page
+        updateRowsPerPage();
+    </script>
+</body>
+</html>

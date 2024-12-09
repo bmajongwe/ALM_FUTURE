@@ -1,0 +1,143 @@
+{% extends "ALM_APP/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4 text-center">Create Time Bucket Definition</h2>
+    
+    <!-- Display Success or Error Messages -->
+    {% if messages %}
+    <div class="mt-3">
+        {% for message in messages %}
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Load custom filters -->
+    {% load custom_filters %}
+
+    <form method="post" class="card shadow-sm p-4">
+        {% csrf_token %}
+        
+        <!-- Time Bucket Name Field -->
+        <div class="form-group">
+            <label for="name">Time Bucket Name:</label>
+            <input type="text" id="name" name="name" class="form-control" value="{{ name|default:'' }}" placeholder="Enter time bucket name" required>
+        </div>
+
+        <!-- Time Bucket Entries -->
+        <h5 class="mb-3">Time Bucket Entries</h5>
+        <div id="bucket-entries">
+            <div class="bucket-entry border p-3 rounded mb-2">
+                <div class="form-row align-items-center">
+                    <div class="form-group col-md-1">
+                        <label for="serial_number">Order:</label>
+                        <input type="number" name="serial_number[]" class="form-control" value="1" readonly>
+                    </div>
+                    <div class="form-group col-md-2">
+                        <label for="frequency">Frequency:</label>
+                        <input type="number" name="frequency[]" class="form-control frequency-input" placeholder="Frequency" required>
+                    </div>
+                    <div class="form-group col-md-2">
+                        <label for="multiplier">Multiplier:</label>
+                        <select name="multiplier[]" class="form-control multiplier-input">
+                            <option value="Days">Days</option>
+                            <option value="Months">Months</option>
+                            <option value="Years">Years</option>
+                        </select>
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label for="start_date">Start Date:</label>
+                        <input type="date" name="start_date[]" class="form-control start-date" readonly>
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label for="end_date">End Date:</label>
+                        <input type="date" name="end_date[]" class="form-control end-date" readonly>
+                    </div>
+                    <div class="form-group col-md-1 text-right">
+                        <button type="button" class="btn btn-danger btn-sm remove-entry">Remove</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Entry Button -->
+        <button type="button" class="btn btn-secondary mb-3" id="add-entry">
+            <i class="fas fa-plus-circle"></i> Add Another Entry
+        </button>
+
+        <!-- Submit Button -->
+        <button type="submit" class="btn btn-primary btn-block">Save Time Bucket</button>
+    </form>
+</div>
+
+<!-- JavaScript to handle adding/removing entries and calculating dates -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var today = new Date().toISOString().split('T')[0];
+    document.querySelector('.start-date').value = today;
+});
+
+document.getElementById('add-entry').addEventListener('click', function() {
+    var entry = document.querySelector('.bucket-entry').cloneNode(true);
+
+    // Update order number for the new entry
+    var orderInput = entry.querySelector('input[name="serial_number[]"]');
+    var newOrder = document.querySelectorAll('.bucket-entry').length + 1;
+    orderInput.value = newOrder;
+
+    // Set the start date of the new entry as the end date of the previous entry
+    var lastEntryEndDate = document.querySelectorAll('.end-date');
+    var previousEndDate = lastEntryEndDate[lastEntryEndDate.length - 1].value;
+    entry.querySelector('.start-date').value = previousEndDate;
+    entry.querySelector('.end-date').value = '';
+
+    // Clear frequency and multiplier in the new entry
+    entry.querySelector('input[name="frequency[]"]').value = '';
+    entry.querySelector('select[name="multiplier[]"]').selectedIndex = 0;
+
+    document.getElementById('bucket-entries').appendChild(entry);
+});
+
+document.addEventListener('click', function(event) {
+    if (event.target && event.target.classList.contains('remove-entry')) {
+        event.target.closest('.bucket-entry').remove();
+
+        // Reorder the remaining entries after removal
+        var entries = document.querySelectorAll('.bucket-entry');
+        entries.forEach(function(entry, index) {
+            var orderInput = entry.querySelector('input[name="serial_number[]"]');
+            orderInput.value = index + 1;
+        });
+    }
+});
+
+document.addEventListener('input', function(event) {
+    if (event.target.classList.contains('frequency-input') || event.target.classList.contains('multiplier-input')) {
+        calculateEndDate(event.target.closest('.bucket-entry'));
+    }
+});
+
+function calculateEndDate(entry) {
+    var frequency = parseInt(entry.querySelector('.frequency-input').value) || 0;
+    var multiplier = entry.querySelector('.multiplier-input').value;
+    var startDate = new Date(entry.querySelector('.start-date').value);
+    var endDate = new Date(startDate);
+
+    if (multiplier === 'Days') {
+        endDate.setDate(startDate.getDate() + frequency);
+    } else if (multiplier === 'Months') {
+        endDate.setMonth(startDate.getMonth() + frequency);
+    } else if (multiplier === 'Years') {
+        endDate.setFullYear(startDate.getFullYear() + frequency);
+    }
+
+    entry.querySelector('.end-date').value = endDate.toISOString().split('T')[0];
+}
+</script>
+{% endblock %}

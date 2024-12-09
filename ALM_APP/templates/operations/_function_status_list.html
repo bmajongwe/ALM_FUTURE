@@ -1,0 +1,46 @@
+{% for run_process in run_processes %}
+<tr>
+    <td>{{ run_process.function.function_name }}</td>
+    <td>{{ run_process.execution_order }}</td>
+    <td>
+        {% if run_process.status == "Success" %}
+            <span class="badge badge-success">{{ run_process.status }}</span>
+        {% elif run_process.status == "Ongoing" %}
+            <span class="badge badge-warning">{{ run_process.status }}</span>
+        {% elif run_process.status == "Pending" %}
+            <span class="badge badge-primary">{{ run_process.status }}</span>
+        {% else %}
+            <span class="badge badge-danger">{{ run_process.status }}</span>
+        {% endif %}
+    </td>
+    <td>{{ run_process.process_run_id }}</td>
+    <td>
+        {% if run_process.execution_start_date %}
+            {{ run_process.execution_start_date|date:"M d, Y, g:i a" }}
+        {% else %}
+            --
+        {% endif %}
+    </td>
+    <td>
+        {% if run_process.execution_end_date %}
+            {{ run_process.execution_end_date|date:"M d, Y, g:i a" }}
+        {% else %}
+            --
+        {% endif %}
+    </td>
+    <td>
+        {% if run_process.total_seconds %}
+            {% if run_process.minutes > 0 %}
+                {{ run_process.minutes }} minutes 
+                {% if run_process.remaining_seconds > 0 %}
+                    {{ run_process.remaining_seconds }} seconds
+                {% endif %}
+            {% else %}
+                {{ run_process.remaining_seconds }} seconds
+            {% endif %}
+        {% else %}
+            --
+        {% endif %}
+    </td>
+</tr>
+{% endfor %}

@@ -1,0 +1,26 @@
+{% extends "ALM_APP/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4 text-center">Product Filter Details</h2>
+    
+    <div class="card shadow-sm p-4">
+        <div class="form-group">
+            <strong>Field Name:</strong>
+            <p>{{ filter.field_name }}</p>
+        </div>
+        <div class="form-group">
+            <strong>Condition:</strong>
+            <p>{{ filter.condition }}</p>
+        </div>
+        <div class="form-group">
+            <strong>Value:</strong>
+            <p>{{ filter.value }}</p>
+        </div>
+    </div>
+    
+    <div class="text-center mt-4">
+        <a href="{% url 'product_filter_list' %}" class="btn btn-secondary">Back to List</a>
+    </div>
+</div>
+{% endblock %}

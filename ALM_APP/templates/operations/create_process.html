@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Include Operations Sidebar -->
+        {% include 'operations/operations_sidebar.html' %}
+
+        <!-- Main Content Area -->
+        <div class="col-md-9 ms-sm-auto col-lg-10 px-md-3" style="margin-left: 260px;"> <!-- Adjusted to prevent overlap with sidebar -->
+            
+            <!-- Back Button -->
+            <!-- <a href="{% url 'process_list' %}" class="btn btn-outline-secondary mb-3">
+                <i class="fas fa-arrow-left"></i> Back to Process List
+            </a> -->
+
+            <h1 class="mt-4">{{ title }}</h1>
+            <div class="row">
+                <div class="col-md-10 offset-md-1">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">{{ title }}</div>
+                        <div class="card-body">
+                            {% if messages %}
+                                <div class="alert alert-danger">
+                                    {% for message in messages %}
+                                        {{ message }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <form method="post" id="process-form">
+                                {% csrf_token %}
+                                {{ form|crispy }}
+                                {{ formset.management_form }}
+                                <fieldset>
+                                    <legend>Select Functions and Define Execution Order</legend>
+                                    <table class="table table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th>Function</th>
+                                                <th>Execution Order</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="formset-container">
+                                            {% for item_form in formset %}
+                                            <tr class="formset-item" id="form-{{ forloop.counter }}">
+                                                <td>{{ item_form.function.errors }}{{ item_form.function }}</td>
+                                                <td>{{ item_form.order.errors }}{{ item_form.order }}</td>
+                                                <td>
+                                                    <button type="button" class="btn btn-danger btn-sm" onclick="removeForm(this)">Delete</button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </fieldset>
+                                <div class="d-flex justify-content-between mt-3">
+                                    <button type="button" class="btn btn-secondary" id="add-form-button">Add another Function</button>
+                                    <button type="submit" class="btn btn-primary">Save Process</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const formsetContainer = document.getElementById('formset-container');
+        const totalForms = document.getElementById('id_runprocess_set-TOTAL_FORMS');  // Adjust this ID according to your formset name.
+        let formNum = formsetContainer.children.length;  // Initial number of forms
+
+        // Function to add a new formset row
+        document.getElementById('add-form-button').addEventListener('click', function() {
+            const newForm = formsetContainer.children[0].cloneNode(true);  // Clone the first form
+
+            // Update the form's index for the new form
+            const formRegex = new RegExp(`runprocess_set-(\\d+)-`, 'g');
+            newForm.innerHTML = newForm.innerHTML.replace(formRegex, `runprocess_set-${formNum}-`);
+
+            // Clear the values of the new form fields and update their IDs and names
+            newForm.querySelectorAll('input, select').forEach(input => {
+                if (input.type !== "hidden") {  // Only clear visible fields
+                    input.value = '';  // Clear values for new form
+                }
+                const name = input.getAttribute('name');
+                if (name) {
+                    // Update the name attribute
+                    input.setAttribute('name', name.replace(formRegex, `runprocess_set-${formNum}-`));
+                }
+                const id = input.getAttribute('id');
+                if (id) {
+                    // Update the id attribute
+                    input.setAttribute('id', id.replace(formRegex, `runprocess_set-${formNum}-`));
+                }
+            });
+
+            // Append the new form to the container
+            formsetContainer.appendChild(newForm);
+
+            // Increment the form number and update TOTAL_FORMS
+            formNum++;
+            totalForms.value = formNum;
+
+            console.log("Total forms:", totalForms.value);  // Debugging: Ensure that TOTAL_FORMS is updated correctly
+        });
+
+        // Function to remove a formset row
+        formsetContainer.addEventListener('click', function(event) {
+            if (event.target.classList.contains('btn-danger')) {
+                const formRow = event.target.closest('.formset-item');
+                formRow.remove();
+
+                // Update the TOTAL_FORMS count
+                formNum--;
+                totalForms.value = formNum;
+
+                console.log("Total forms after removal:", totalForms.value);  // Debugging: Ensure that TOTAL_FORMS is decremented
+            }
+        });
+
+        document.getElementById('process-form').onsubmit = function() {
+            const functionSelects = document.querySelectorAll('select[name$="function"]');
+            for (let i = 0; i < functionSelects.length; i++) {
+                if (!functionSelects[i].value) {
+                    alert("Please select a valid function for all items.");
+                    return false;  // Prevent form submission
+                }
+            }
+            return true;
+        };
+    });
+</script>
+
+<style>
+    .table-responsive {
+        overflow-x: auto;
+    }
+    .table {
+        table-layout: fixed;
+        word-wrap: break-word;
+    }
+    .table th, .table td {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .formset-item td input, .formset-item td select {
+        width: 100%;
+    }
+</style>
+
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "ALM_APP/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center">Add Product Filter</h2>
+    <form method="post" action="{% url 'create_filter' %}" onsubmit="return validateForm()">
+        {% csrf_token %}
+        <div class="card p-4 shadow-sm">
+            <!-- Field Name Selection -->
+            <div class="form-group">
+                <label for="field_name">Field name:</label>
+                <select id="field_name" name="field_name" class="form-control" required>
+                    <option value="">Select a field</option>
+                    {% for value, name in form.field_name.field.choices %}
+                        <option value="{{ value }}">{{ name }}</option>
+                    {% endfor %}
+                </select>
+                <small id="fieldNameError" class="form-text text-danger" style="display: none;">Please select a field name.</small>
+            </div>
+
+            <!-- Condition Selection -->
+            <div class="form-group">
+                <label for="condition">Condition:</label>
+                <select id="condition" name="condition" class="form-control" required>
+                    <option value="">Select a condition</option>
+                    <option value="equals">Equals</option>
+                    <option value="contains">Contains</option>
+                    <option value="greater_than">Greater Than</option>
+                    <option value="less_than">Less Than</option>
+                </select>
+                <small id="conditionError" class="form-text text-danger" style="display: none;">Please select a condition.</small>
+            </div>
+
+            <!-- Value Input -->
+            <div class="form-group">
+                <label for="value">Value:</label>
+                <input type="text" id="value" name="value" class="form-control" placeholder="Enter value" required>
+                <small id="valueError" class="form-text text-danger" style="display: none;">Please enter a value.</small>
+            </div>
+
+            <!-- Save Filter Button -->
+            <button type="submit" class="btn btn-primary btn-block">Save Filter</button>
+            
+            <!-- Back Button -->
+            <a href="{% url 'product_filter_list' %}" class="btn btn-secondary btn-block mt-2">Back</a>
+        </div>
+    </form>
+</div>
+
+<!-- JavaScript for Front-End Validation -->
+<script>
+function validateForm() {
+    let isValid = true;
+    
+    // Get form fields
+    const fieldName = document.getElementById("field_name");
+    const condition = document.getElementById("condition");
+    const value = document.getElementById("value");
+    
+    // Get error display elements
+    const fieldNameError = document.getElementById("fieldNameError");
+    const conditionError = document.getElementById("conditionError");
+    const valueError = document.getElementById("valueError");
+
+    // Field Name Validation
+    if (fieldName.value === "") {
+        fieldNameError.style.display = "block";
+        isValid = false;
+    } else {
+        fieldNameError.style.display = "none";
+    }
+
+    // Condition Validation
+    if (condition.value === "") {
+        conditionError.style.display = "block";
+        isValid = false;
+    } else {
+        conditionError.style.display = "none";
+    }
+
+    // Value Validation
+    if (value.value.trim() === "") {
+        valueError.style.display = "block";
+        isValid = false;
+    } else {
+        valueError.style.display = "none";
+    }
+
+    return isValid;  // Form will only submit if isValid remains true
+}
+</script>
+{% endblock %}

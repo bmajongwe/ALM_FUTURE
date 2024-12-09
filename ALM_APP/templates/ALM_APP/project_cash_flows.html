@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Project Cash Flows</title>
+</head>
+<body>
+    <h2>Project Cash Flows for a Given Date</h2>
+    
+    <form method="POST">
+        {% csrf_token %}
+        <label for="fic_mis_date">Enter FIC MIS Date (YYYY-MM-DD):</label>
+        <input type="date" id="fic_mis_date" name="fic_mis_date" required>
+
+        <button type="submit">Project Cash Flows</button>
+    </form>
+
+    <form method="POST" >
+        {% csrf_token %}
+        <label for="fic_mis_date">Enter FIC MIS Date:</label>
+        <input type="date" name="fic_mis_date" required>
+        <button type="submit">Aggregate Product-Level Cashflows</button>
+    </form>
+    
+</body>
+</html>

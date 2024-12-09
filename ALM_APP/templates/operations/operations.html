@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-2">
+
+    
+    <h1 class="h3 text-primary text-center">Operations</h1>
+
+    <!-- Operations Options -->
+    <div class="row justify-content-center mt-4">
+
+        <!-- Operations Card -->
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card shadow-sm text-center h-100">
+                <div class="card-body">
+                    <i class="bi bi-shield-fill" style="font-size: 50px; color: #007bff;" aria-hidden="true"></i>
+                    <h5 class="card-title mt-1">Operations</h5>
+                    <p class="card-text text-muted">Manage application operations.</p>
+
+                    <!-- Direct Buttons for Operations -->
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'process_list' %}" class="btn btn-primary btn-block">Create Run Process</a>
+                        <a href="{% url 'execute_process_view' %}" class="btn btn-primary btn-block">Run Execution Process</a>
+                        <a href="{% url 'monitor_running_process_view' %}" class="btn btn-primary btn-block">Monitor Running Process</a>
+                        <a href="{% url 'running_processes' %}" class="btn btn-danger btn-block">Cancel Running Process</a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Custom Styles -->
+<style>
+    .card {
+        padding: 20px;
+        border-radius: 10px;
+        transition: box-shadow 0.3s ease;
+    }
+    .card:hover {
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    }
+    .card-title {
+        font-weight: bold;
+        color: #333;
+    }
+    .card-text {
+        font-size: 1rem;
+    }
+    .btn {
+        padding: 0.75rem;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+    .btn-primary {
+        background-color: #007bff;
+        border-color: #007bff;
+    }
+    .btn-danger {
+        background-color: #dc3545;
+        border-color: #dc3545;
+    }
+    .btn-secondary {
+        margin-bottom: 20px;
+    }
+    .btn-secondary i {
+        margin-right: 5px;
+    }
+</style>
+{% endblock %}

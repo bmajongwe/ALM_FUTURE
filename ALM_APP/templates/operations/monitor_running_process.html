@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid mt-5">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-2 pe-0">
+            {% include 'operations/operations_sidebar.html' %}
+        </div>
+
+        <!-- Main Content -->
+        <div class="col-md-10 ps-2">
+            <h1 class="h3 text-primary text-center mb-4">Monitor Running Process</h1>
+
+            <!-- Date Selection Form -->
+            <form method="GET" action="{% url 'monitor_running_process_view' %}" class="mb-4">
+                <div class="row g-1 align-items-center justify-content-center">
+                    <div class="col-auto">
+                        <label for="date" class="form-label fw-bold text-secondary mb-0">Select Process Date:</label>
+                    </div>
+                    <div class="col-auto">
+                        <select 
+                            name="selected_date" 
+                            id="date" 
+                            class="form-select rounded-pill shadow-sm border-primary" 
+                            style="padding: 5px 15px; font-size: 0.875rem;" 
+                            required>
+                            <option value="" disabled selected>Select a date</option>
+                            {% for date in available_dates %}
+                                <option value="{{ date|date:'Y-m-d' }}" {% if date|date:'Y-m-d' == selected_date %}selected{% endif %}>
+                                    {{ date|date:'Y-m-d' }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-primary rounded-pill shadow-sm" style="padding: 5px 20px; font-size: 0.875rem;">
+                            <i class="fas fa-search"></i> Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+
+            
+
+            <!-- Conditionally show processes only if a date is selected -->
+            {% if selected_date %}
+
+            <!-- Additional Search Bar -->
+            <div class="d-flex justify-content-end mb-4" style="max-width: 600px; margin: 0 auto;">
+                <input 
+                    type="text" 
+                    id="table-search-input" 
+                    class="form-control rounded-pill shadow-sm" 
+                    placeholder="Search for processes..."
+                    style="padding-left: 40px; width: 100%;"
+                >
+                <i 
+                   
+                    style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 1.3rem;">
+                </i>
+                <button 
+                    id="table-search-button" 
+                    class="btn btn-primary rounded-pill ms-2 shadow-sm" 
+                    style="padding: 5px 20px;" 
+                    onclick="handleTableSearch()">
+                    Search
+                </button>
+            </div>
+
+            <h4 class="fw-bold text-secondary mt-4">Select a Process for {{ selected_date }}</h4>
+            <div class="table-responsive fixed-table-container">
+                <table id="process-table" class="table table-bordered table-hover align-middle">
+                    <thead class="table-primary text-center">
+                        <tr>
+                            <th>Select</th>
+                            <th>Process Name</th>
+                            <th>Process ID</th>
+                            <th>Overall Status</th>
+                            <th>Execution Start Time</th>
+                            <th>Execution End Time</th>
+                            <th>Total Duration (mins)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if processes %}
+                            {% for process in processes %}
+                            <tr>
+                                <td class="text-center">
+                                    <input type="radio" name="process_id" value="{{ process.process_run_id }}" class="process-selector">
+                                </td>
+                                <td>{{ process.process__process_name }}</td>
+                                <td>{{ process.process_run_id }}</td>
+                                <td>
+                                    {% if process.overall_status == "Success" %}
+                                        <span class="badge bg-success">{{ process.overall_status }}</span>
+                                    {% elif process.overall_status == "Failed" %}
+                                        <span class="badge bg-danger">{{ process.overall_status }}</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">{{ process.overall_status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ process.start_time|date:"M d, Y, g:i a" }}</td>
+                                <td>{{ process.end_time|date:"M d, Y, g:i a" }}</td>
+                                <td>{{ process.duration|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">No processes found for this date.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+         
+            {% endif %}
+
+            <!-- Function Execution Status -->
+            <div id="function-status-section" class="mt-5" style="display: none;">
+                <h4 class="fw-bold text-secondary">Function Execution Status</h4>
+                <div class="table-responsive fixed-table-container">
+                    <table id="function-status-table" class="table table-bordered table-hover align-middle">
+                        <thead class="table-info text-center">
+                            <tr>
+                                <th>Function Name</th>
+                                <th>Execution Order</th>
+                                <th>Status</th>
+                                <th>Process Run ID</th>
+                                <th>Execution Start Time</th>
+                                <th>Execution End Time</th>
+                                <th>Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody id="function-status-tbody">
+                            <!-- Function statuses will be loaded dynamically here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include jQuery and DataTables library -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css"/>
+
+<script>
+$(document).ready(function() {
+    // Initialize DataTables for pagination in the process table
+    $('#process-table').DataTable({
+        "paging": true,
+        "lengthChange": true,
+        "pageLength": 5,
+        "lengthMenu": [5, 10, 25, 50],
+        "searching": false,
+        "ordering": true,
+        "order": [[2, "desc"]],
+        "info": true,
+        "autoWidth": false,
+    });
+
+    var selectedProcessRunId = null;
+    var intervalId = null;
+
+    // Handle AJAX call to dynamically load function statuses
+    $(document).on('change', '.process-selector', function() {
+        selectedProcessRunId = $(this).val();
+        loadFunctionStatuses();
+        $('#function-status-section').show();
+
+        if (intervalId) clearInterval(intervalId);
+        intervalId = setInterval(loadFunctionStatuses, 3000);
+    });
+
+    function loadFunctionStatuses() {
+        if (selectedProcessRunId) {
+            $.ajax({
+                url: '/ajax/get_process_function_status/' + selectedProcessRunId,
+                type: 'GET',
+                success: function(data) {
+                    $('#function-status-tbody').html(data.html);
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error loading function statuses:", status, error);
+                }
+            });
+        }
+    }
+
+    // Handle additional search bar for table
+    $('#table-search-button').on('click', function() {
+        const searchValue = $('#table-search-input').val().toLowerCase();
+        const rows = $('#process-table tbody tr');
+
+        rows.each(function() {
+            const rowText = $(this).text().toLowerCase();
+            $(this).toggle(rowText.includes(searchValue));
+        });
+    });
+});
+</script>
+
+<style>
+/* Search Button Styling */
+#table-search-input {
+    border-radius: 50px;
+    border: 2px solid #007bff;
+    padding: 10px 15px;
+    font-size: 1rem;
+    background-color: #f8f9fa;
+    box-shadow: none;
+    transition: all 0.3s ease;
+}
+
+#table-search-input:focus {
+    border-color: #0056b3;
+    outline: none;
+    background-color: #fff;
+}
+
+#table-search-button {
+    font-size: 1rem;
+    border: none;
+    background-color: #007bff;
+    color: white;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+#table-search-button:hover {
+    background-color: #0056b3;
+    transform: scale(1.05);
+}
+
+#table-search-button:active {
+    background-color: #003d80;
+    transform: scale(0.95);
+}
+
+/* Reduce dropdown and button appearance */
+.form-select {
+    background-color: #f8f9fa;
+    border-color: #007bff;
+    transition: border-color 0.3s ease-in-out;
+}
+
+.form-select:focus {
+    border-color: #0056b3;
+    box-shadow: 0 0 0 0.1rem rgba(0, 123, 255, 0.25);
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border: none;
+    transition: background-color 0.3s ease-in-out, transform 0.2s ease-in-out;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    transform: scale(1.05);
+}
+</style>
+{% endblock %}

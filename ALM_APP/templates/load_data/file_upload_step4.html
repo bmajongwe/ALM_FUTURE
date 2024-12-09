@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block content %}
+<head>
+    <!-- Include jQuery -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+    <!-- Include Bootstrap CSS and JS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Include ProgressBar.js for animated circular progress bar -->
+    <script src="https://cdn.jsdelivr.net/npm/progressbar.js"></script>
+
+    <style>
+        /* Center content with a professional layout */
+        .container {
+            max-width: 600px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+
+        /* Top and bottom buttons with consistent styling */
+        .top-button, .bottom-button {
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+        
+        /* Smooth rotation animation */
+        @keyframes rotating {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .rotating {
+            animation: rotating 1s linear infinite;
+        }
+
+        /* Circular progress bar styling */
+        #circular-progress .progress-text {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        /* Status message styling */
+        .status-message {
+            font-size: 1rem;
+            margin-top: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<div class="container mt-5 text-center">
+    <!-- Top Upload Button -->
+    <a href="{% url 'file_upload' %}" class="btn btn-outline-primary top-button">Upload Another File</a>
+
+    <h2 class="mb-4">Data Upload</h2>
+
+    <!-- Submit Button -->
+    <button id="submit-button" class="btn btn-primary mb-3">Start Upload</button>
+
+    <!-- Circular Progress Bar Container (Initially hidden) -->
+    <div id="circular-progress" class="mt-4" style="width: 150px; height: 150px; margin: 0 auto; display: none;"></div>
+
+    <!-- Status Message -->
+    <div id="status-message" class="status-message"></div>
+
+    <!-- Bottom Back Button -->
+    <div class="mt-4">
+        <a href="{% url 'map_columns' %}" class="btn btn-outline-secondary bottom-button">Back</a>
+    </div>
+
+    <script>
+        // Function to get CSRF token from cookies
+        function getCSRFToken() {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken' + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Initialize the circular progress bar with ProgressBar.js
+        const circularProgress = new ProgressBar.Circle('#circular-progress', {
+            color: '#3498db',
+            strokeWidth: 6,
+            duration: 1000,
+            easing: 'easeInOut',
+            from: { color: '#3498db', width: 4 },
+            to: { color: '#4caf50', width: 6 },
+            text: {
+                value: 'Loading...',
+                className: 'progress-text',
+                style: {
+                    color: '#3498db',
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    padding: 0,
+                    margin: 0,
+                    transform: {
+                        prefix: true,
+                        value: 'translate(-50%, -50%)'
+                    }
+                }
+            },
+            step: function(state, circle) {
+                circle.path.setAttribute('stroke', state.color);
+                const value = Math.round(circle.value() * 100);
+                if (value === 0) {
+                    circle.setText('Loading...');
+                } else if (value < 100) {
+                    circle.setText(value + '%');
+                } else {
+                    circle.setText('100%');
+                }
+            }
+        });
+
+        // Function to check upload progress
+        function checkProgress() {
+            $.ajax({
+                url: "{% url 'check_progress' %}",
+                type: "GET",
+                success: function(data) {
+                    let progress = data.progress / 100;  // Convert to decimal for ProgressBar.js
+                    circularProgress.animate(progress);  // Animate to the current progress
+
+                    if (data.progress < 100) {
+                        setTimeout(checkProgress, 1000); // Check progress every second
+                    } else {
+                        circularProgress.set(1);  // Set to 100%
+                        circularProgress.stop();
+                        $("#circular-progress").removeClass("rotating");
+                    }
+                },
+                error: function() {
+                    $("#status-message").html('<div class="alert alert-danger">Error checking upload progress.</div>');
+                }
+            });
+        }
+
+        // Start upload and monitor progress when submit button is clicked
+        $("#submit-button").on("click", function() {
+            $("#status-message").html("");           // Clear any previous messages
+            circularProgress.set(0);                 // Reset progress to 0%
+            $("#submit-button").hide();              // Hide the submit button
+            $("#circular-progress").show();          // Show the progress bar
+            $("#circular-progress").addClass("rotating");  // Add rotating animation
+
+            $.ajax({
+                url: "{% url 'submit_to_database' %}",
+                type: "POST",
+                headers: { "X-CSRFToken": getCSRFToken() },
+                data: {},
+                success: function(response) {
+                    if (response.status === 'success') {
+                        checkProgress();  // Start polling for progress updates
+                        // Show success message with the number of records uploaded
+                        $("#status-message").html('<div class="alert alert-success mt-4">' + response.message + '</div>');
+                    } else if (response.status === 'error') {
+                        // Display database error message from the server
+                        $("#status-message").html('<div class="alert alert-danger">' + response.message + '</div>');
+                        $("#submit-button").show();   // Re-show button if there's an error
+                        $("#circular-progress").hide();  // Hide the progress bar if error occurs
+                    }
+                },
+                error: function(response) {
+                    // Handle generic error response
+                    const errorMessage = response.responseJSON && response.responseJSON.message 
+                        ? response.responseJSON.message 
+                        : "Error starting data upload.";
+                    $("#status-message").html('<div class="alert alert-danger">' + errorMessage + '</div>');
+                    $("#submit-button").show();       // Re-show button if there's an error
+                    $("#circular-progress").hide();   // Hide the progress bar if error occurs
+                }
+            });
+        });
+    </script>
+</div>
+{% endblock %}

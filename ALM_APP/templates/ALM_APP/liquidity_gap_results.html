@@ -1,0 +1,121 @@
+{% load custom_filters %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Liquidity Gap Report</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .vertical-date {
+            display: block;
+        }
+        .negative {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Liquidity Gap Report</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th>Account Type</th>
+            <th>Product Name Level18</th>
+            <!-- Loop through unique date ranges -->
+            {% for start_date, end_date in unique_date_ranges %}
+                <th>
+                    <span class="vertical-date">{{ start_date }}</span><br>
+                    <span class="vertical-date">{{ end_date }}</span>
+                </th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Loop through each product -->
+        {% for product_name, product_data in products.items %}
+        <tr>
+            <td>{{ product_data.account_type }}</td>
+            <td>{{ product_name }}</td>
+            <!-- Loop through the inflows or outflows per date range -->
+            {% for start_date, end_date in unique_date_ranges %}
+                {% with date_key=start_date|stringformat:"Y-m-d" ~ "_" ~ end_date|stringformat:"Y-m-d" %}
+                    <td>{{ product_data.data|get:date_key|default:"0.00" }}</td>
+                {% endwith %}
+            {% endfor %}
+        </tr>
+        {% endfor %}
+
+        <!-- Display Total Inflows row -->
+        <tr>
+            <td>Total Inflows</td>
+            <td></td>
+            <!-- Loop through inflows for each date range -->
+            {% for inflow in inflows_total_per_date %}
+                <td>{{ inflow|default:"0.00" }}</td>
+            {% endfor %}
+        </tr>
+
+        <!-- Display Total Outflows row -->
+        <tr>
+            <td>Total Outflows</td>
+            <td></td>
+            <!-- Loop through outflows for each date range -->
+            {% for outflow in outflows_total_per_date %}
+                <td>{{ outflow|default:"0.00" }}</td>
+            {% endfor %}
+        </tr>
+
+        <!-- Display the Net Liquidity Gap row -->
+        <tr>
+            <td>Net Liquidity Gap</td>
+            <td></td>
+            <!-- Loop through the pre-calculated net_liquidity_gap list -->
+            {% for gap in net_liquidity_gap %}
+                <td class="{% if gap < 0 %}negative{% endif %}">
+                    {{ gap|floatformat:2 }}
+                </td>
+            {% endfor %}
+        </tr>
+
+        <!-- Display the Net Gap as % of Total Outflows row -->
+        <tr>
+            <td>Net Gap as % of Total Outflows</td>
+            <td></td>
+            <!-- Loop through the pre-calculated net_gap_percent list -->
+            {% for gap_percent in net_gap_percent %}
+                <td class="{% if gap_percent < 0 %}negative{% endif %}">
+                    {{ gap_percent|floatformat:2 }}%
+                </td>
+            {% endfor %}
+        </tr>
+
+        <!-- Display the Cumulative Gap row -->
+        <tr>
+            <td>Cumulative Gap</td>
+            <td></td>
+            <!-- Loop through the pre-calculated cumulative_gap list -->
+            {% for gap in cumulative_gap %}
+                <td class="{% if gap < 0 %}negative{% endif %}">
+                    {{ gap|floatformat:2 }}
+                </td>
+            {% endfor %}
+        </tr>
+    </tbody>
+</table>
+
+</body>
+</html>

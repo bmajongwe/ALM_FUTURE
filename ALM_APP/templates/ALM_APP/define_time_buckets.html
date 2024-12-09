@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Buckets Form</title>
+    <script type="text/javascript">
+        function addRow() {
+            var table = document.getElementById("time-buckets-table");
+            var newRow = table.insertRow(-1);
+
+            var cell1 = newRow.insertCell(0);
+            var cell2 = newRow.insertCell(1);
+            var cell3 = newRow.insertCell(2);
+
+            cell1.innerHTML = '<input type="text" name="serial_number[]" value=""/>';
+            cell2.innerHTML = '<input type="text" name="frequency[]" value=""/>';
+            cell3.innerHTML = '<select name="multiplier[]"><option value="Days">Days</option><option value="Months">Months</option><option value="Years">Years</option></select>';
+        }
+
+        function removeRow() {
+            var table = document.getElementById("time-buckets-table");
+            if (table.rows.length > 2) {  // Ensure at least one row remains
+                table.deleteRow(-1);
+            }
+        }
+    </script>
+</head>
+<body>
+    <h2>Define Time Buckets</h2>
+    <form method="POST">
+        {% csrf_token %}
+        
+        <!-- Time Bucket Definition Name Field -->
+        <label for="time_bucket_name">Time Bucket Definition Name:</label>
+        <input type="text" id="time_bucket_name" name="time_bucket_name" placeholder="Enter name for time bucket definition" required><br><br>
+
+        <!-- Optional Start Date Field -->
+        <label for="start_date">Start Date (optional):</label>
+        <input type="date" id="start_date" name="start_date"><br><br>
+
+        <!-- Time Buckets Table -->
+        <table id="time-buckets-table" border="1">
+            <tr>
+                <th>Serial Number</th>
+                <th>Frequency</th>
+                <th>Multiplier</th>
+            </tr>
+            <tr>
+                <td><input type="text" name="serial_number[]" value="1" required/></td>
+                <td><input type="text" name="frequency[]" value="7" required/></td>
+                <td>
+                    <select name="multiplier[]" required>
+                        <option value="Days">Days</option>
+                        <option value="Months">Months</option>
+                        <option value="Years">Years</option>
+                    </select>
+                </td>
+            </tr>
+        </table>
+
+        <br>
+
+        <!-- Buttons to Add and Remove Rows -->
+        <button type="button" onclick="addRow()">Add Row</button>
+        <button type="button" onclick="removeRow()">Remove Row</button><br><br>
+
+        <!-- Save Button -->
+        <button type="submit">Save Time Buckets</button>
+    </form>
+</body>
+</html>

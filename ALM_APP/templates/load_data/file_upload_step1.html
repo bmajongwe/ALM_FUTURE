@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-5">
+
+    <!-- Back Button -->
+    <div class="d-flex justify-content-start mb-4">
+        <a href="{% url 'data_management' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back 
+        </a>
+    </div>
+    
+    <h2 class="mb-4">Upload File</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="table_name">Select Table:</label>
+            <select name="table_name" id="table_name" class="form-control" required>
+                <!-- Placeholder option to ensure no table is selected by default -->
+                <option value="" disabled {% if not table_name %}selected{% endif %}>-- Please select a table --</option>
+                {% for table in stg_tables %}
+                    <option value="{{ table }}" 
+                        {% if table == table_name %}selected{% endif %}>
+                        {{ table }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="file">Select a file:</label>
+            {{ form.file }}
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-4">Upload</button>
+    </form>
+
+    {% if preview_data %}
+    <div class="mt-5">
+        <h5>File Name: {{ file_name }}</h5>
+        <h5>Submitting to Table: {{ table_name }}</h5>
+        <h5>File Contents Preview (First 10 Rows)</h5>
+        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        {% for header in preview_data.headers %}
+                        <th>{{ header }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in preview_data.rows %}
+                    <tr>
+                        {% for cell in row %}
+                        <td>{{ cell }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if show_next_button %}
+    <form method="get" action="{% url 'select_columns' %}">
+        <button type="submit" class="btn btn-primary mt-3">Next</button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

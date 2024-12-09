@@ -1,0 +1,77 @@
+{% load custom_filters %}
+
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="card shadow mb-4">
+        <div class="card-body text-center">
+            <h2 class="h4 text-primary font-weight-bold">Process Execution Status</h2>
+        </div>
+    </div>
+
+    <!-- Status Table with Overlay Effect -->
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white text-center">
+            <h5 class="mb-0">Function Execution Details</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover table-bordered">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Function Name</th>
+                        <th>Execution Order</th>
+                        <th>Status</th>
+                        <th>Execution Start Date</th>
+                        <th>Execution End Date</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for status in function_statuses %}
+                    <tr class="table-row-overlay">
+                        <td>{{ status.function.function_name }}</td>
+                        <td class="text-center">{{ status.execution_order }}</td>
+                        <td>
+                            {% if status.status == 'Success' %}
+                                <span class="badge badge-success p-2">{{ status.status }}</span>
+                            {% elif status.status == 'Ongoing' %}
+                                <span class="badge badge-warning p-2">{{ status.status }}</span>
+                            {% elif status.status == 'Cancelled' %}
+                                <span class="badge badge-secondary p-2">{{ status.status }}</span>
+                            {% else %}
+                                <span class="badge badge-danger p-2">{{ status.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ status.execution_start_date|date:"M d, Y, g:i a" }}</td>
+                        <td>
+                            {% if status.execution_end_date %}
+                                {{ status.execution_end_date|date:"M d, Y, g:i a" }}
+                            {% else %}
+                                --
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if status.duration %}
+                                {% if status.duration.total_seconds < 60 %}
+                                    {{ status.duration.total_seconds|floatformat:2 }} seconds
+                                {% else %}
+                                    {{ status.total_seconds|divide_by_60 }} minutes
+                                {% endif %}
+                            {% else %}
+                                --
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Overlay effect on table rows */
+    .table-row-overlay:hover {
+        background-color: rgba(0, 123, 255, 0.1); /* Light blue overlay with transparency */
+        transition: background-color 0.3s ease;
+    }
+</style>

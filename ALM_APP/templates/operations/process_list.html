@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Include Operations Sidebar -->
+        <div class="col-md-2 pe-0">
+            {% include 'operations/operations_sidebar.html' %}
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="col-md-10 ps-3 ">
+            <!-- Error Message Section -->
+            {% if messages %}
+            <div class="alert-container mb-4">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle"></i> {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <h1 class="h4 text-primary mb-4 d-flex justify-content-between align-items-center">
+                <!-- Create New Process Button -->
+                <a 
+                href="{% url 'create_process' %}" 
+                class="btn btn-success rounded-pill padding: 8px 15px shadow-sm d-flex align-items-center"
+                style="font-size: 0.9rem; padding: 8px 15px;">
+                <i class="fas fa-plus-circle me-2 mr-2"></i>  Create Process
+                </a>
+                <!-- Enhanced Search Bar -->
+                <div class="d-flex" style="max-width: 400px; position: relative;">
+                    <input 
+                        type="text" 
+                        id="search-input" 
+                        class="form-control rounded-pill shadow-sm" 
+                        placeholder="Search processes..."
+                        style="padding-left: 40px;">
+                    <i 
+                        class="fas fa-search" 
+                        style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 1.3rem;">
+                    </i>
+                    <button 
+                        id="search-button" 
+                        class="btn btn-primary rounded-pill ms-2 shadow-sm" 
+                        style="padding: 5px 20px;" 
+                        onclick="handleSearch()">
+                        Search
+                    </button>
+                </div>
+                
+            </h1>
+
+            <!-- Process List Table -->
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Process List</h5>
+                </div>
+                
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table id="process-table" class="table table-striped table-hover mb-0">
+                            <thead class="table-dark text-center">
+                                <tr>
+                                    <th>Process ID</th>
+                                    <th>Process Description</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for process in processes %}
+                                <tr>
+                                    <td class="text-center">{{ process.id }}</td>
+                                    <td>{{ process.process_name }}</td>
+                                    <td class="text-center">
+                                        <!-- View Button -->
+                                        <a href="{% url 'process_detail' process.id %}" class="btn btn-info btn-sm">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        <!-- Edit Button -->
+                                        <a href="{% url 'edit_process' process.id %}" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                        <!-- Delete Button -->
+                                        <button 
+                                            type="button" 
+                                            class="btn btn-danger btn-sm" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#deleteModal-{{ process.id }}">
+                                            <i class="fas fa-trash"></i> Delete
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <!-- Delete Confirmation Modal -->
+                                <div class="modal fade" id="deleteModal-{{ process.id }}" tabindex="-1" aria-labelledby="deleteModalLabel-{{ process.id }}" aria-hidden="true">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title" id="deleteModalLabel-{{ process.id }}">Confirm Deletion</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                Are you sure you want to delete the process <strong>"{{ process.process_name }}"</strong>?
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                                <form action="{% url 'delete_process' process.id %}" method="POST">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Pagination Controls -->
+                <div class="card-footer d-flex justify-content-center align-items-center">
+                    <button class="btn btn-secondary btn-sm me-3" id="prev-btn">Previous</button>
+                    <span class="badge bg-light text-dark" id="page-indicator">1</span>
+                    <button class="btn btn-secondary btn-sm ms-3" id="next-btn">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const rowsPerPage = 10;
+    const table = document.getElementById("process-table");
+    const rows = table.getElementsByTagName("tbody")[0].getElementsByTagName("tr");
+    const totalRows = rows.length;
+    const pageIndicator = document.getElementById("page-indicator");
+    let currentPage = 1;
+
+    function updateTable() {
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = currentPage * rowsPerPage;
+        for (let i = 0; i < totalRows; i++) {
+            rows[i].style.display = i >= start && i < end ? "" : "none";
+        }
+        pageIndicator.textContent = currentPage;
+    }
+
+    document.getElementById("prev-btn").addEventListener("click", function() {
+        if (currentPage > 1) {
+            currentPage--;
+            updateTable();
+        }
+    });
+
+    document.getElementById("next-btn").addEventListener("click", function() {
+        if (currentPage * rowsPerPage < totalRows) {
+            currentPage++;
+            updateTable();
+        }
+    });
+
+    updateTable(); // Initial rendering
+});
+
+function handleSearch() {
+    const searchValue = document.getElementById("search-input").value.toLowerCase();
+    const table = document.getElementById("process-table");
+    const rows = table.getElementsByTagName("tbody")[0].getElementsByTagName("tr");
+
+    for (let i = 0; i < rows.length; i++) {
+        const cells = rows[i].getElementsByTagName("td");
+        let rowVisible = false;
+
+        for (let j = 0; j < cells.length; j++) {
+            if (cells[j].textContent.toLowerCase().includes(searchValue)) {
+                rowVisible = true;
+                break;
+            }
+        }
+
+        rows[i].style.display = rowVisible ? "" : "none";
+    }
+}
+</script>
+
+<style>
+.table-dark th {
+    font-size: 1rem;
+    font-weight: bold;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.table td {
+    vertical-align: middle;
+    text-align: center;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+    transition: background-color 0.3s ease;
+}
+
+.card-footer .badge {
+    font-size: 1.1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+}
+</style>
+{% endblock %}

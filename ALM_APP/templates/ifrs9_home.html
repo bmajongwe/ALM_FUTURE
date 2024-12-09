@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="video-background">
+    <video autoplay loop muted playsinline class="background-video">
+        <source src="{% static 'videos/background.mp4' %}" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+
+    <div class="container-fluid py-4 content-overlay">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="h3 text-primary"><i class="fas fa-home mr-2"></i> Home</h1>
+        </div>
+
+        <div class="row">
+            <!-- Data Management Card -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-database fa-3x text-success mb-3"></i>
+                        <h5 class="card-title">Data Management</h5>
+                        <p class="card-text">Manage your data efficiently and securely.</p>
+                        <a href="{% url 'data_management' %}" class="btn btn-outline-primary custom-link">Go to Data Management</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Operations Card -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-shield-alt fa-3x text-success mb-3"></i>
+                        <h5 class="card-title">Operations</h5>
+                        <p class="card-text">Manage application operations.</p>
+                        <a href="{% url 'execute_process_view' %}" class="btn btn-outline-dark custom-link">Operations</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Credit Risk Models Card -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-line fa-3x text-success mb-3"></i>
+                        <h5 class="card-title">Credit Risk Models</h5>
+                        <p class="card-text">Analyze and manage credit risk models.</p>
+                        <a href="#" class="btn btn-outline-success custom-link">Explore Models</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reporting & Analytics Card -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-bar fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">Reporting & Analytics</h5>
+                        <p class="card-text">Generate and view detailed reports and analytics.</p>
+                        <a href="#" class="btn btn-outline-info custom-link">View Reports</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IFRS9 Configuration Card -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-cogs fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">IFRS9 Configuration</h5>
+                        <p class="card-text">Configure system settings and IFRS9 preferences.</p>
+                        <a href="#" class="btn btn-outline-warning custom-link">Configure System</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help & Support Card -->
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card shadow-sm border-0 h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-life-ring fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">Help & Support</h5>
+                        <p class="card-text">Access help and support resources.</p>
+                        <a href="#" class="btn btn-outline-danger custom-link">Get Support</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .video-background {
+        position: relative;
+        overflow: hidden;
+    }
+    .background-video {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: translate(-50%, -50%);
+        z-index: -1;
+    }
+    .content-overlay {
+        position: relative;
+        z-index: 1;
+        color: #ffffff; /* Text color for readability */
+    }
+    .custom-link {
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    .custom-link:hover {
+        text-decoration: none;
+    }
+    .card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #f8f9fa; /* Slightly brighter white for titles */
+    }
+    .card-text {
+        font-size: 0.95rem;
+        color: #dcdcdc; /* Softer grey text for descriptions */
+    }
+    .card {
+        background-color: rgba(40, 40, 40, 0.7); /* Slightly lighter transparency */
+        border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle border for definition */
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5); /* Softer shadow */
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        color: #ffffff;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+    .btn-outline-primary.custom-link,
+    .btn-outline-dark.custom-link,
+    .btn-outline-success.custom-link,
+    .btn-outline-info.custom-link,
+    .btn-outline-warning.custom-link,
+    .btn-outline-danger.custom-link {
+        color: #ffffff; /* White text for buttons */
+        border-color: #ffffff; /* White border for buttons */
+    }
+    .btn-outline-primary.custom-link:hover,
+    .btn-outline-dark.custom-link:hover,
+    .btn-outline-success.custom-link:hover,
+    .btn-outline-info.custom-link:hover,
+    .btn-outline-warning.custom-link:hover,
+    .btn-outline-danger.custom-link:hover {
+        background-color: #ffffff; /* White background on hover */
+        color: #333333; /* Dark text color on hover */
+    }
+</style>
+{% endblock %}

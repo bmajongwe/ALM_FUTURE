@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Update Profile</h2>
+    <form method="post" action="{% url 'update_profile' %}" id="update-profile-form">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="name">First Name:</label>
+            <input type="text" id="name" name="name" class="form-control" value="{{ user.name }}" required>
+        </div>
+        <div class="form-group">
+            <label for="surname">Surname:</label>
+            <input type="text" id="surname" name="surname" class="form-control" value="{{ user.surname }}" required>
+        </div>
+        <div class="form-group">
+            <label for="phone_number">Phone Number:</label>
+            <input type="text" id="phone_number" name="phone_number" class="form-control" value="{{ user.phone_number }}" required>
+        </div>
+
+        <div class="form-group">
+            <label for="date_of_birth">Date of Birth:</label>
+            <input type="text" id="date_of_birth" name="date_of_birth" class="form-control" value="{{ user.date_of_birth|date:"d/m/Y" }}" required>
+        </div>
+        <div class="form-group">
+            <label for="gender">Gender:</label>
+            <select id="gender" name="gender" class="form-control">
+                <option value="male" {% if user.gender == "male" %}selected{% endif %}>Male</option>
+                <option value="female" {% if user.gender == "female" %}selected{% endif %}>Female</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Update Profile</button>
+    </form>
+</div>
+
+<!-- jQuery and jQuery UI for DatePicker -->
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+<script src="https://code.jquery.com/jquery-3.5.1.min.js" crossorigin="anonymous"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js" crossorigin="anonymous"></script>
+<script>
+    $(document).ready(function() {
+        $('#date_of_birth').datepicker({
+            dateFormat: 'dd/mm/yy',
+            changeMonth: true,
+            changeYear: true,
+            yearRange: '-100:+0'
+        });
+
+        $('#update-profile-form').on('submit', function(e) {
+            var dateOfBirth = $('#date_of_birth').val();
+            var regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/\d{4}$/;
+
+            if (!regex.test(dateOfBirth)) {
+                alert('Invalid date format. Use dd/mm/yyyy.');
+                e.preventDefault();
+            }
+        });
+    });
+</script>
+{% endblock %}

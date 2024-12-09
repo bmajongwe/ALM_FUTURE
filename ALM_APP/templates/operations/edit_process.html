@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Include Operations Sidebar -->
+        {% include 'operations/operations_sidebar.html' %}
+
+        <!-- Main Content Area -->
+        <div class="col-md-9 ms-sm-auto col-lg-10 px-md-3" style="margin-left: 260px;">
+            <h1 class="mt-4">{{ title }}</h1>
+            <div class="row">
+                <div class="col-md-10 offset-md-1">
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            {{ title }}
+                        </div>
+                        <div class="card-body">
+                            <!-- Display form errors -->
+                            {% if form.errors %}
+                                <div class="alert alert-danger">
+                                    <h5>Form Errors:</h5>
+                                    <ul>
+                                        {% for field, errors in form.errors.items %}
+                                            <li><strong>{{ field }}:</strong> {{ errors|join:", " }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                            <!-- Display formset errors -->
+                            {% if formset.errors %}
+                                <div class="alert alert-danger">
+                                    <h5>Formset Errors:</h5>
+                                    <ul>
+                                        {% for form_errors in formset.errors %}
+                                            {% for field, errors in form_errors.items %}
+                                                <li><strong>{{ field }}:</strong> {{ errors|join:", " }}</li>
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+                            <form method="post" id="process-form">
+                                {% csrf_token %}
+                                {{ form|crispy }}
+                                {{ formset.management_form }}
+                                <fieldset>
+                                    <legend>Select Functions and Define Execution Order</legend>
+                                    <table class="table table-bordered">
+                                        <thead class="table-primary">
+                                            <tr>
+                                                <th>Function</th>
+                                                <th>Execution Order</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="formset-container">
+                                            {% for item_form in formset %}
+                                            <tr class="formset-item" id="form-{{ forloop.counter }}">
+                                                <td>
+                                                    {{ item_form.id }}
+                                                    {{ item_form.function.errors }}
+                                                    {{ item_form.function }}
+                                                </td>
+                                                <td>
+                                                    {{ item_form.order.errors }}
+                                                    {{ item_form.order }}
+                                                </td>
+                                                <td>
+                                                    <div class="d-flex align-items-center justify-content-center">
+                                                        {{ item_form.DELETE }}
+                                                        <button type="button" class="btn btn-danger btn-sm ms-2 delete-button">Delete</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </fieldset>
+                                <div class="d-flex justify-content-between mt-3">
+                                    <button type="button" class="btn btn-secondary" id="add-form-button">Add Function</button>
+                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const formsetContainer = document.getElementById("formset-container");
+        const totalForms = document.getElementById("id_runprocess_set-TOTAL_FORMS");
+        let formNum = formsetContainer.children.length;
+
+        // Function to add a new formset row
+        document.getElementById("add-form-button").addEventListener("click", function () {
+            const newForm = formsetContainer.children[0].cloneNode(true);
+
+            // Update the form's index for the new form
+            const formRegex = new RegExp(`runprocess_set-(\\d+)-`, "g");
+            newForm.innerHTML = newForm.innerHTML.replace(formRegex, `runprocess_set-${formNum}-`);
+
+            // Clear the values of the new form fields
+            newForm.querySelectorAll("input, select").forEach((input) => {
+                if (input.type !== "hidden" && input.type !== "checkbox") {
+                    input.value = ""; // Clear visible fields only
+                }
+                const name = input.getAttribute("name");
+                if (name) {
+                    input.setAttribute("name", name.replace(formRegex, `runprocess_set-${formNum}-`));
+                }
+                const id = input.getAttribute("id");
+                if (id) {
+                    input.setAttribute("id", id.replace(formRegex, `runprocess_set-${formNum}-`));
+                }
+            });
+
+            formsetContainer.appendChild(newForm);
+            formNum++;
+            totalForms.value = formNum;
+        });
+
+        // Function to remove a formset row
+        formsetContainer.addEventListener("click", function (event) {
+            if (event.target.classList.contains("delete-button")) {
+                const formRow = event.target.closest(".formset-item");
+                const deleteInput = formRow.querySelector("input[type='checkbox'][name*='DELETE']");
+                if (deleteInput) {
+                    deleteInput.checked = true; // Mark the item for deletion
+                    formRow.style.display = "none"; // Hide the row visually
+                } else {
+                    // If no DELETE checkbox exists (newly added rows), simply remove the row
+                    formRow.remove();
+                    formNum--;
+                    totalForms.value = formNum;
+                }
+            }
+        });
+    });
+</script>
+
+<style>
+    .table-responsive {
+        overflow-x: auto;
+    }
+    .table th, .table td {
+        text-align: center;
+        white-space: nowrap;
+    }
+    .formset-item td input, .formset-item td select {
+        width: 100%;
+    }
+    .btn-danger {
+        padding: 5px 10px;
+    }
+    .btn-secondary {
+        padding: 5px 20px;
+    }
+    /* Hide the DELETE checkbox but keep it functional */
+    input[type="checkbox"][name*="DELETE"] {
+        display: none;
+    }
+</style>
+
+{% endblock %}

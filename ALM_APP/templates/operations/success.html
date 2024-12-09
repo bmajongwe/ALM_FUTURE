@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-5">
+    <div class="alert alert-success">
+        {{ message }}
+    </div>
+    <a href="{% url 'process_list' %}" class="btn btn-secondary">Back to Process List</a>
+</div>
+{% endblock %}

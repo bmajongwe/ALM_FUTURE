@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="bg-light py-3 shadow-sm border-bottom">
+
+    
+    <div class="container">
+        <ul class="nav nav-pills justify-content-center">
+            <li class="nav-item">
+                <a class="nav-link custom-link" href="{% url 'file_upload' %}">Data Upload as File</a>
+            </li>
+          
+            <li class="nav-item">
+                <a class="nav-link custom-link" href="{% url 'view_data' %}">View Data</a>
+            </li>
+        </ul>
+    </div>
+</div>
+<!-- Back Button -->
+<div class="d-flex justify-content-start mb-4">
+    <a href="{% url 'ifrs9_home' %}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back 
+    </a>
+</div>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Data Upload as File</h5>
+                    <p class="card-text">Upload data through a file (CSV, Excel).</p>
+                    <a href="{% url 'file_upload' %}" class="btn btn-primary custom-link">Upload File</a>
+                </div>
+            </div>
+        </div>
+
+     
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">View Data</h5>
+                    <p class="card-text">View the uploaded data.</p>
+                    <a href="{% url 'view_data' %}" class="btn btn-info custom-link">View Data</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .custom-link {
+        font-weight: bold;
+        color: darkblue;
+    }
+    .custom-link:hover {
+        color: darkblue;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,17 @@
+<!-- cashflow_projection.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cash Flow Projections</title>
+</head>
+<body>
+    <h1>Generate Cash Flow Projections</h1>
+    
+    <form method="post">
+        {% csrf_token %}
+        <label for="fic_mis_date">Select Date:</label>
+        <input type="date" id="fic_mis_date" name="fic_mis_date" required>
+        <button type="submit">Generate Projections</button>
+    </form>
+</body>
+</html>
