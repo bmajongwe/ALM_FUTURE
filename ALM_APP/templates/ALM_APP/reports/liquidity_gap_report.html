@@ -494,84 +494,280 @@
 
 
     <!-- Consolidated Results Section -->
-    {% if cons_data %}
     <h3 style="text-align: center; color: #FF5733;">Consolidated Results</h3>
-    <div class="report-table-container">
-        <table class="report-table">
-            <thead>
-                <tr>
-                    <th>Account Type</th>
-                    <th>Product</th>
-                    {% for bucket in date_buckets %}
-                        <th style="text-align: center; width: 150px;">{{ bucket.bucket_start_date|date:"d-M-Y" }}<br>{{ bucket.bucket_end_date|date:"d-M-Y" }}</th>
-                    {% endfor %}
-                    <th>Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Total Inflows Section -->
-                <tr>
-                    <td class="account-type-row" rowspan="{{ cons_data.remaining_inflow_data|length|add:1 }}">Total Inflows</td>
-                    <td class="product-name">{{ cons_data.first_inflow_product.0 }}</td>
-                    {% for bucket in date_buckets %}
-                        <td>{{ cons_data.first_inflow_product.1|lookup:bucket.bucket_number|default:"0.00" }}</td>
-                    {% endfor %}
-                    <td>{{ cons_data.first_inflow_product.1.total|default:"0.00" }}</td>
-                </tr>
-                {% for product, buckets in cons_data.remaining_inflow_data.items %}
-                <tr>
-                    <td class="product-name">{{ product }}</td>
-                    {% for bucket in date_buckets %}
-                        <td>{{ buckets|lookup:bucket.bucket_number|default:"0.00" }}</td>
-                    {% endfor %}
-                    <td>{{ buckets.total|default:"0.00" }}</td>
-                </tr>
-                {% endfor %}
 
-                <!-- Total Outflows Section -->
-                <tr>
-                    <td class="account-type-row" rowspan="{{ cons_data.remaining_outflow_data|length|add:1 }}">Total Outflows</td>
-                    <td class="product-name">{{ cons_data.first_outflow_product.0 }}</td>
-                    {% for bucket in date_buckets %}
-                        <td>{{ cons_data.first_outflow_product.1|lookup:bucket.bucket_number|default:"0.00" }}</td>
-                    {% endfor %}
-                    <td>{{ cons_data.first_outflow_product.1.total|default:"0.00" }}</td>
-                </tr>
-                {% for product, buckets in cons_data.remaining_outflow_data.items %}
-                <tr>
-                    <td class="product-name">{{ product }}</td>
-                    {% for bucket in date_buckets %}
-                        <td>{{ buckets|lookup:bucket.bucket_number|default:"0.00" }}</td>
-                    {% endfor %}
-                    <td>{{ buckets.total|default:"0.00" }}</td>
-                </tr>
-                {% endfor %}
 
-                <!-- Summary Rows -->
-                <tr class="footer-row">
-                    <td colspan="2">Net Liquidity Gap</td>
-                    {% for bucket in date_buckets %}
-                        <td>{{ cons_data.net_liquidity_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
-                    {% endfor %}
-                    <td>{{ cons_data.net_liquidity_gap.total|default:"0.00" }}</td>
-                </tr>
-                <tr class="footer-row">
-                    <td colspan="2">Net Gap as % of Total Outflows</td>
-                    {% for bucket in date_buckets %}
-                        <td>{{ cons_data.net_gap_percentage|lookup:bucket.bucket_number|default:"0.00"|floatformat:2 }}%</td>
-                    {% endfor %}
-                    <td>{{ cons_data.net_gap_percentage.total|floatformat:2 }}%</td>
-                </tr>
-                <tr class="footer-row">
-                    <td colspan="2">Cumulative Gap</td>
-                    {% for bucket in date_buckets %}
-                        <td>{{ cons_data.cumulative_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
-                    {% endfor %}
-                    <td>{{ cons_data.cumulative_gap.total|default:"0.00" }}</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+    <!-- Base Results: Loop through each currency in cons_data -->
+<h3 style="text-align: center; color: #007bff; margin-block-end: 10px;">Amount in {{ currency }}</h3>
+
+<!-- Drill-Down for Splits -->
+{% if drill_down_splits_cons %}
+<div class="report-table-container">
+    <h4 class="drill-down-header" title="Drill-Down for Splits: {{ drill_down_splits_cons }}">
+        Drill-Down for Splits: {{ drill_down_splits_cons }}
+    </h4>
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>Account Type</th>
+                <th>Product</th>
+                <th>v_product_name</th>
+                <th>v_product_splits</th>
+                {% for bucket in date_buckets %}
+                    <th>{{ bucket.bucket_start_date|date:"d-M-Y" }}<br>{{ bucket.bucket_end_date|date:"d-M-Y" }}</th>
+                {% endfor %}
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Total Inflows Section -->
+            <tr>
+                <td rowspan="{{ aggregated_split_details_cons|length|add:1 }}">Total Inflows</td>
+                <td rowspan="{{ aggregated_split_details_cons|length|add:1 }}">{{ drill_down_product_cons }}</td>
+                <td rowspan="{{ aggregated_split_details_cons|length|add:1 }}">{{ drill_down_splits_cons }}</td>
+            </tr>
+            {% for detail in aggregated_split_details_cons %}
+            <tr>
+                <td>{{ detail.v_product_splits }}</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ detail.buckets|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ detail.total|default:"0.00" }}</td>
+            </tr>
+            {% endfor %}
+
+            <!-- Total Outflows Section -->
+            {% if drill_down_splits_details_outflows_cons %}
+            <tr>
+                <td rowspan="{{ drill_down_splits_details_outflows_cons|length|add:1 }}">Total Outflows</td>
+                <td rowspan="{{ drill_down_splits_details_outflows_cons|length|add:1 }}">{{ drill_down_product_cons }}</td>
+                <td rowspan="{{ drill_down_splits_details_outflows_cons|length|add:1 }}">{{ drill_down_splits_cons }}</td>
+            </tr>
+            {% for detail in drill_down_splits_details_outflows_cons %}
+            <tr>
+                <td>{{ detail.v_product_splits }}</td>
+                {% for bucket in date_buckets %}
+                    <td>
+                        {% if bucket.bucket_number == detail.bucket_number %}
+                            {{ detail.total|default:"0.00" }}
+                        {% else %}
+                            0.00
+                        {% endif %}
+                    </td>
+                {% endfor %}
+                <td>{{ detail.total|default:"0.00" }}</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Summary Rows -->
+            <tr class="footer-row">
+                <td colspan="4">Net Liquidity Gap</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ cons_data.net_liquidity_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ cons_data.net_liquidity_gap.total|default:"0.00" }}</td>
+            </tr>
+            <tr class="footer-row">
+                <td colspan="4">Net Gap as % of Total Outflows</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ cons_data.net_gap_percentage|lookup:bucket.bucket_number|default:"0.00"|floatformat:2 }}%</td>
+                {% endfor %}
+                <td>{{ cons_data.net_gap_percentage.total|floatformat:2 }}%</td>
+            </tr>
+            <tr class="footer-row">
+                <td colspan="4">Cumulative Gap</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ cons_data.cumulative_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ cons_data.cumulative_gap.total|default:"0.00" }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+
+
+
+<!-- Drill-Down for Product Names -->
+<!-- Drill-Down for Product Names -->
+{% elif drill_down_product_cons %}
+<div class="report-table-container">
+    <h4 style="text-align: center; color: #ff5733;">Drill-Down for {{ drill_down_product_cons }}</h4>
+    <table class="report-table">
+        <thead>
+            <tr>
+                <th>Account Type</th>
+                <th>Product</th>
+                <th>v_product_name</th>
+                {% for bucket in date_buckets %}
+                    <th>{{ bucket.bucket_start_date|date:"d-M-Y" }}<br>{{ bucket.bucket_end_date|date:"d-M-Y" }}</th>
+                {% endfor %}
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Total Inflows Section -->
+            <tr>
+                <td rowspan="{{ aggregated_product_details_cons|length|add:1 }}">Total Inflows</td>
+                <td rowspan="{{ aggregated_product_details_cons|length|add:1 }}">{{ drill_down_product_cons }}</td>
+            </tr>
+            {% for detail in aggregated_product_details_cons %}
+            <tr>
+                <td>
+                    <a href="?drill_down_product_cons={{ drill_down_product_cons }}&drill_down_splits_cons={{ detail.v_product_name }}">
+                        {{ detail.v_product_name }}
+                    </a>
+                </td>
+                {% for bucket in date_buckets %}
+                    <td>
+                        {{ detail.buckets|lookup:bucket.bucket_number|default:"0.00" }}
+                    </td>
+                {% endfor %}
+                <td>{{ detail.total|default:"0.00" }}</td>
+            </tr>
+            {% endfor %}
+
+            <!-- Total Outflows Section -->
+            {% if drill_down_splits_details_outflows_cons %}
+            <tr>
+                <td rowspan="{{ drill_down_splits_details_outflows_cons|length|add:1 }}">Total Outflows</td>
+                <td rowspan="{{ drill_down_splits_details_outflows_cons|length|add:1 }}">{{ drill_down_product_cons }}</td>
+            </tr>
+            {% for detail in drill_down_splits_details_outflows_cons %}
+            <tr>
+                <td>
+                    <a href="?drill_down_product_cons={{ drill_down_product_cons }}&drill_down_splits_cons={{ detail.v_product_name }}">
+                        {{ detail.v_product_name }}
+                    </a>
+                </td>
+                {% for bucket in date_buckets %}
+                    <td>
+                        {% if bucket.bucket_number == detail.bucket_number %}
+                            {{ detail.total|default:"0.00" }}
+                        {% else %}
+                            0.00
+                        {% endif %}
+                    </td>
+                {% endfor %}
+                <td>{{ detail.total|default:"0.00" }}</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Summary Rows -->
+            <tr class="footer-row">
+                <td colspan="3">Net Liquidity Gap</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ cons_data.net_liquidity_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ cons_data.net_liquidity_gap.total|default:"0.00" }}</td>
+            </tr>
+            <tr class="footer-row">
+                <td colspan="3">Net Gap as % of Total Outflows</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ cons_data.net_gap_percentage|lookup:bucket.bucket_number|default:"0.00"|floatformat:2 }}%</td>
+                {% endfor %}
+                <td>{{ cons_data.net_gap_percentage.total|floatformat:2 }}%</td>
+            </tr>
+            <tr class="footer-row">
+                <td colspan="3">Cumulative Gap</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ cons_data.cumulative_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ cons_data.cumulative_gap.total|default:"0.00" }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+
+<!-- Base Results -->
+{% else %}
+<div class="report-table-container">
+    <table class="report-table" id="reportTable{{ forloop.counter }}">
+        <thead>
+            <tr>
+                <th>Account Type</th>
+                <th>Product</th>
+                {% for bucket in date_buckets %}
+                    <th style="text-align: center; width: 150px;">{{ bucket.bucket_start_date|date:"d-M-Y" }}<br>{{ bucket.bucket_end_date|date:"d-M-Y" }}</th>
+                {% endfor %}
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Total Inflows Section -->
+            <tr>
+                <td class="account-type-row" rowspan="{{ cons_data.remaining_inflow_data|length|add:1 }}">Total Inflows</td>
+                <td class="product-name">
+                    <a href="?drill_down_product_cons={{ cons_data.first_inflow_product.0 }}">{{ cons_data.first_inflow_product.0 }}</a>
+                </td>
+                {% for bucket in date_buckets %}
+                    <td>{{ cons_data.first_inflow_product.1|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ cons_data.first_inflow_product.1.total|default:"0.00" }}</td>
+            </tr>
+            {% for product, buckets in cons_data.remaining_inflow_data.items %}
+            <tr>
+                <td class="product-name">
+                    <a href="?drill_down_product_cons={{ product }}">{{ product }}</a>
+                </td>
+                {% for bucket in date_buckets %}
+                    <td>{{ buckets|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ buckets.total|default:"0.00" }}</td>
+            </tr>
+            {% endfor %}
+
+            <!-- Total Outflows Section -->
+            <tr>
+                <td class="account-type-row" rowspan="{{ cons_data.remaining_outflow_data|length|add:1 }}">Total Outflows</td>
+                <td class="product-name">
+                    <a href="?drill_down_product_cons={{ cons_data.first_outflow_product.0 }}">{{ cons_data.first_outflow_product.0 }}</a>
+                </td>
+                {% for bucket in date_buckets %}
+                    <td>{{ cons_data.first_outflow_product.1|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ cons_data.first_outflow_product.1.total|default:"0.00" }}</td>
+            </tr>
+            {% for product, buckets in cons_data.remaining_outflow_data.items %}
+            <tr>
+                <td class="product-name">
+                    <a href="?drill_down_product_cons={{ product }}">{{ product }}</a>
+                </td>
+                {% for bucket in date_buckets %}
+                    <td>{{ buckets|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ buckets.total|default:"0.00" }}</td>
+            </tr>
+            {% endfor %}
+
+            <!-- Summary Rows -->
+            <tr class="footer-row">
+                <td colspan="2">Net Liquidity Gap</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ cons_data.net_liquidity_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ cons_data.net_liquidity_gap.total|default:"0.00" }}</td>
+            </tr>
+            <tr class="footer-row">
+                <td colspan="2">Net Gap as % of Total Outflows</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ cons_data.net_gap_percentage|lookup:bucket.bucket_number|default:"0.00"|floatformat:2 }}%</td>
+                {% endfor %}
+                <td>{{ cons_data.net_gap_percentage.total|floatformat:2 }}%</td>
+            </tr>
+            <tr class="footer-row">
+                <td colspan="2">Cumulative Gap</td>
+                {% for bucket in date_buckets %}
+                    <td>{{ cons_data.cumulative_gap|lookup:bucket.bucket_number|default:"0.00" }}</td>
+                {% endfor %}
+                <td>{{ cons_data.cumulative_gap.total|default:"0.00" }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
 {% endif %}
 
 

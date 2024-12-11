@@ -474,15 +474,6 @@ class ProcessDeleteView(DeleteView):
 
 
 
-
-
-
-
-
-
-
-
-
 from django.shortcuts import render
 from .models import LiquidityGapResultsBase, LiquidityGapResultsCons
 from .forms import LiquidityGapReportFilterForm
@@ -516,16 +507,24 @@ def liquidity_gap_report(request):
     # Check if this is a drill-down request for product or splits
     drill_down_product = request.GET.get('drill_down_product', None)
     drill_down_splits = request.GET.get('drill_down_splits', None)
+    drill_down_product_cons = request.GET.get('drill_down_product_cons', None)
+    drill_down_splits_cons = request.GET.get('drill_down_splits_cons', None)
 
     # Filter base and consolidated querysets by form fields
     base_queryset = filter_queryset_by_form(form, base_queryset).filter(fic_mis_date=fic_mis_date)
     cons_queryset = filter_queryset_by_form(form, cons_queryset).filter(fic_mis_date=fic_mis_date)
+    
 
-    # Prepare drill-down details for products or splits
+    # Prepare drill-down details for products or splits on cons and base
     drill_down_details = None
     drill_down_splits_details = None
     aggregated_product_details = None
     aggregated_split_details = None
+
+    drill_down_details_cons = None
+    drill_down_splits_details_cons = None
+    aggregated_product_details_cons = None
+    aggregated_split_details_cons = None
 
     if drill_down_splits:  # Drill-down for splits
         drill_down_splits_details = list(
@@ -581,6 +580,59 @@ def liquidity_gap_report(request):
                 'total': sum(buckets.values())   # Total for the product name
             }
             for product_name, buckets in grouped_data.items()
+        ]
+
+
+    if drill_down_splits_cons:  # Drill-down for splits in cons
+        drill_down_splits_details_cons = list(
+            cons_queryset.filter(v_product_name=drill_down_splits_cons)
+            .values('v_product_splits', 'bucket_number')
+            .annotate(
+                inflows_total=Sum('inflows'),
+                outflows_total=Sum('outflows'),
+                total=Sum(F('inflows') - F('outflows'))
+            )
+        )
+
+        grouped_split_data_cons = defaultdict(lambda: {bucket['bucket_number']: 0 for bucket in date_buckets})
+        for detail in drill_down_splits_details_cons:
+            split_name = detail.get('v_product_splits')
+            bucket_number = detail['bucket_number']
+            grouped_split_data_cons[split_name][bucket_number] += detail.get('total', 0)
+
+        aggregated_split_details_cons = [
+            {
+                'v_product_splits': split_name,
+                'buckets': buckets,
+                'total': sum(buckets.values())
+            }
+            for split_name, buckets in grouped_split_data_cons.items()
+        ]
+
+    elif drill_down_product_cons:  # Drill-down for product names in cons
+        drill_down_details_cons = list(
+            cons_queryset.filter(v_prod_type=drill_down_product_cons)
+            .values('v_product_name', 'bucket_number')
+            .annotate(
+                inflows_total=Sum('inflows'),
+                outflows_total=Sum('outflows'),
+                total=Sum(F('inflows') - F('outflows'))
+            )
+        )
+
+        grouped_data_cons = defaultdict(lambda: {bucket['bucket_number']: 0 for bucket in date_buckets})
+        for detail in drill_down_details_cons:
+            product_name = detail.get('v_product_name')
+            bucket_number = detail['bucket_number']
+            grouped_data_cons[product_name][bucket_number] += detail.get('total', 0)
+
+        aggregated_product_details_cons = [
+            {
+                'v_product_name': product_name,
+                'buckets': buckets,
+                'total': sum(buckets.values())
+            }
+            for product_name, buckets in grouped_data_cons.items()
         ]
 
     # Prepare base results
@@ -680,6 +732,8 @@ def liquidity_gap_report(request):
         'cumulative_gap': cons_cumulative_gap,
     }
 
+    print("Consolidated Data:", cons_data)
+
     context = {
         'form': form,
         'fic_mis_date': fic_mis_date,
@@ -689,11 +743,263 @@ def liquidity_gap_report(request):
         'total_columns': len(date_buckets) + 3,
         'drill_down_product': drill_down_product,
         'drill_down_splits': drill_down_splits,
+        'drill_down_product_cons': drill_down_product_cons,
+        'drill_down_splits_cons': drill_down_splits_cons,
         'aggregated_product_details': aggregated_product_details,
         'aggregated_split_details': aggregated_split_details,
+        'aggregated_product_details_cons': aggregated_product_details_cons,
+        'aggregated_split_details_cons': aggregated_split_details_cons
     }
 
     return render(request, 'ALM_APP/reports/liquidity_gap_report.html', context)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# from django.shortcuts import render
+# from .models import LiquidityGapResultsBase, LiquidityGapResultsCons
+# from .forms import LiquidityGapReportFilterForm
+# from .Functions.liquidity_gap_utils import *
+# from django.contrib import messages
+# from django.db.models import Sum, F
+# from collections import defaultdict
+
+# def liquidity_gap_report(request):
+#     # Initialize the form with GET parameters
+#     form = LiquidityGapReportFilterForm(request.GET or None)
+
+#     # Start with the full queryset for base and consolidated results
+#     base_queryset = LiquidityGapResultsBase.objects.all()
+#     cons_queryset = LiquidityGapResultsCons.objects.all()
+
+#     # Get fic_mis_date from the form or fallback to the latest date in Dim_Dates
+#     fic_mis_date = form.cleaned_data.get('fic_mis_date') if form.is_valid() else None
+#     if not fic_mis_date:
+#         fic_mis_date = get_latest_fic_mis_date()
+#         if not fic_mis_date:
+#             messages.error(request, "No data available for the selected filters.")
+#             return render(request, 'ALM_APP/reports/liquidity_gap_report.html', {'form': form})
+
+#     # Get date buckets for fic_mis_date
+#     date_buckets = get_date_buckets(fic_mis_date)
+#     if not date_buckets.exists():
+#         messages.error(request, "No date buckets available for the selected filters.")
+#         return render(request, 'ALM_APP/reports/liquidity_gap_report.html', {'form': form})
+
+#     # Check if this is a drill-down request for product or splits
+#     drill_down_product = request.GET.get('drill_down_product', None)
+#     drill_down_splits = request.GET.get('drill_down_splits', None)
+
+#     # Filter base and consolidated querysets by form fields
+#     base_queryset = filter_queryset_by_form(form, base_queryset).filter(fic_mis_date=fic_mis_date)
+#     cons_queryset = filter_queryset_by_form(form, cons_queryset).filter(fic_mis_date=fic_mis_date)
+
+#     # Prepare drill-down details for products or splits
+#     drill_down_details = None
+#     drill_down_splits_details = None
+#     aggregated_product_details = None
+#     aggregated_split_details = None
+
+#     if drill_down_splits:  # Drill-down for splits
+#         drill_down_splits_details = list(
+#             base_queryset.filter(v_product_name=drill_down_splits)
+#             .values('v_product_splits', 'bucket_number')
+#             .annotate(
+#                 inflows_total=Sum('inflows'),
+#                 outflows_total=Sum('outflows'),
+#                 total=Sum(F('inflows') - F('outflows'))
+#             )
+#         )
+
+#         # Group data by product splits and bucket
+#         grouped_split_data = defaultdict(lambda: {bucket['bucket_number']: 0 for bucket in date_buckets})
+#         for detail in drill_down_splits_details:
+#             split_name = detail.get('v_product_splits')  # Get product split name
+#             bucket_number = detail['bucket_number']  # Get bucket number
+#             grouped_split_data[split_name][bucket_number] += detail.get('total', 0)  # Aggregate figures by bucket
+
+#         # Convert grouped data into a list for the template
+#         aggregated_split_details = [
+#             {
+#                 'v_product_splits': split_name,  # Include split name
+#                 'buckets': buckets,              # Figures grouped by buckets
+#                 'total': sum(buckets.values())   # Total for the product split
+#             }
+#             for split_name, buckets in grouped_split_data.items()
+#         ]
+
+#     elif drill_down_product:  # Drill-down for product names
+#         drill_down_details = list(
+#             base_queryset.filter(v_prod_type=drill_down_product)
+#             .values('v_product_name', 'bucket_number')
+#             .annotate(
+#                 inflows_total=Sum('inflows'),
+#                 outflows_total=Sum('outflows'),
+#                 total=Sum(F('inflows') - F('outflows'))
+#             )
+#         )
+
+#         # Group data by product name and bucket
+#         grouped_data = defaultdict(lambda: {bucket['bucket_number']: 0 for bucket in date_buckets})
+#         for detail in drill_down_details:
+#             product_name = detail.get('v_product_name')  # Get product name
+#             bucket_number = detail['bucket_number']  # Get bucket number
+#             grouped_data[product_name][bucket_number] += detail.get('total', 0)  # Aggregate figures by bucket
+
+#         # Convert grouped data into a list for the template
+#         aggregated_product_details = [
+#             {
+#                 'v_product_name': product_name,  # Include product name
+#                 'buckets': buckets,              # Figures grouped by buckets
+#                 'total': sum(buckets.values())   # Total for the product name
+#             }
+#             for product_name, buckets in grouped_data.items()
+#         ]
+
+#     # Prepare base results
+#     currency_data = defaultdict(lambda: {
+#         'inflow_data': {}, 'outflow_data': {},
+#         'net_liquidity_gap': {}, 'net_gap_percentage': {}, 'cumulative_gap': {},
+#         'first_inflow_product': None, 'remaining_inflow_data': {},
+#         'first_outflow_product': None, 'remaining_outflow_data': {}
+#     })
+
+#     currencies = base_queryset.values_list('v_ccy_code', flat=True).distinct()
+#     for currency in currencies:
+#         # Filter by currency
+#         currency_queryset = base_queryset.filter(v_ccy_code=currency)
+
+#         if drill_down_product:
+#             currency_queryset = currency_queryset.filter(v_prod_type=drill_down_product)
+#         if drill_down_splits:
+#             currency_queryset = currency_queryset.filter(v_product_name=drill_down_splits)
+
+#         inflow_data, outflow_data = prepare_inflow_outflow_data(currency_queryset)
+
+#         net_liquidity_gap, net_gap_percentage, cumulative_gap = calculate_totals(date_buckets, inflow_data, outflow_data)
+
+#         for product, buckets in inflow_data.items():
+#             inflow_data[product]['total'] = sum(buckets.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+
+#         for product, buckets in outflow_data.items():
+#             outflow_data[product]['total'] = sum(buckets.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+
+#         net_liquidity_gap['total'] = sum(net_liquidity_gap.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+#         net_gap_percentage['total'] = (
+#             sum(net_gap_percentage.get(bucket['bucket_number'], 0) for bucket in date_buckets) / len(date_buckets)
+#         ) if len(date_buckets) > 0 else 0
+
+#         last_bucket = date_buckets.last()
+#         cumulative_gap['total'] = cumulative_gap.get(last_bucket['bucket_number'], 0) if last_bucket else 0
+
+#         if inflow_data:
+#             first_inflow_product = list(inflow_data.items())[0]
+#             remaining_inflow_data = inflow_data.copy()
+#             remaining_inflow_data.pop(first_inflow_product[0], None)
+#         else:
+#             first_inflow_product = None
+#             remaining_inflow_data = {}
+
+#         if outflow_data:
+#             first_outflow_product = list(outflow_data.items())[0]
+#             remaining_outflow_data = outflow_data.copy()
+#             remaining_outflow_data.pop(first_outflow_product[0], None)
+#         else:
+#             first_outflow_product = None
+#             remaining_outflow_data = {}
+
+#         currency_data[currency].update({
+#             'inflow_data': inflow_data,
+#             'outflow_data': outflow_data,
+#             'first_inflow_product': first_inflow_product,
+#             'remaining_inflow_data': remaining_inflow_data,
+#             'first_outflow_product': first_outflow_product,
+#             'remaining_outflow_data': remaining_outflow_data,
+#             'net_liquidity_gap': net_liquidity_gap,
+#             'net_gap_percentage': net_gap_percentage,
+#             'cumulative_gap': cumulative_gap,
+#         })
+
+#     cons_inflow_data, cons_outflow_data = prepare_inflow_outflow_data(cons_queryset)
+#     cons_net_liquidity_gap, cons_net_gap_percentage, cons_cumulative_gap = calculate_totals(
+#         date_buckets, cons_inflow_data, cons_outflow_data
+#     )
+
+#     if cons_inflow_data:
+#         cons_first_inflow_product = list(cons_inflow_data.items())[0]
+#         cons_remaining_inflow_data = cons_inflow_data.copy()
+#         cons_remaining_inflow_data.pop(cons_first_inflow_product[0], None)
+#     else:
+#         cons_first_inflow_product = None
+#         cons_remaining_inflow_data = {}
+
+#     if cons_outflow_data:
+#         cons_first_outflow_product = list(cons_outflow_data.items())[0]
+#         cons_remaining_outflow_data = cons_outflow_data.copy()
+#         cons_remaining_outflow_data.pop(cons_first_outflow_product[0], None)
+#     else:
+#         cons_first_outflow_product = None
+#         cons_remaining_outflow_data = {}
+
+#     cons_data = {
+#         'inflow_data': cons_inflow_data,
+#         'outflow_data': cons_outflow_data,
+#         'first_inflow_product': cons_first_inflow_product,
+#         'remaining_inflow_data': cons_remaining_inflow_data,
+#         'first_outflow_product': cons_first_outflow_product,
+#         'remaining_outflow_data': cons_remaining_outflow_data,
+#         'net_liquidity_gap': cons_net_liquidity_gap,
+#         'net_gap_percentage': cons_net_gap_percentage,
+#         'cumulative_gap': cons_cumulative_gap,
+#     }
+
+#     context = {
+#         'form': form,
+#         'fic_mis_date': fic_mis_date,
+#         'date_buckets': date_buckets,
+#         'currency_data': dict(currency_data),
+#         'cons_data': cons_data,
+#         'total_columns': len(date_buckets) + 3,
+#         'drill_down_product': drill_down_product,
+#         'drill_down_splits': drill_down_splits,
+#         'aggregated_product_details': aggregated_product_details,
+#         'aggregated_split_details': aggregated_split_details,
+#     }
+
+#     return render(request, 'ALM_APP/reports/liquidity_gap_report.html', context)
 
 
 
