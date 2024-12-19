@@ -25,9 +25,38 @@ def finalize_process_creation(request):
         description=process_description,
         uses_behavioral_patterns=use_behavioral_patterns_bool,  # Save boolean value
         status='Pending',  # Assuming default status is 'Pending'
-        created_by=request.user.username if request.user.is_authenticated else 'System',
-        modified_by=request.user.username if request.user.is_authenticated else 'System',
+        created_by=request.user.name if request.user.is_authenticated else 'System',
+        modified_by=request.user.name if request.user.is_authenticated else 'System',
     )
 
     # Add logic to save filters or other related data if needed
+    return process
+
+
+
+
+def finalize_process_update(process, data):
+    """
+    Finalize the update of the process by saving changes to the database.
+
+    Args:
+        process (Process): The existing process to update.
+        data (dict): A dictionary containing updated fields.
+    """
+    # Update process fields with the provided data
+    process.name = data.get('name', process.name)
+    process.description = data.get('description', process.description)
+    process.uses_behavioral_patterns = data.get('use_behavioral_patterns', 'no') == 'yes'
+
+    # Update modified_by field
+    process.modified_by = data.get('modified_by', 'System')
+
+    # Update filters if provided
+    filters = data.get('filters', [])
+    if filters:
+        process.filters.set(filters)
+
+    # Save the updated process
+    process.save()
+
     return process

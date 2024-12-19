@@ -5,11 +5,11 @@ import threading
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from ..models import Process_Rn, RunProcess,Function,FunctionExecutionStatus
-from ..forms import ProcessForm, RunProcessForm
+from ..forms import ProcessFormOp, RunProcessForm
 from django.db import transaction
 from django.db.models import Q
 from django.db.models import Count
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.template.loader import render_to_string
 from django.db.models import Max
 from django.db.models import Min
@@ -17,7 +17,21 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from django.utils.module_loading import import_string  # Used for dynamic function calling
 import sys
-#from ..Functions.cashflow import *
+from ..Functions.cashflow import *
+from ..Functions.Aggregated_Prod_Cashflow_Base import *
+from ..Functions.populate_liquidity_gap_results_base import *
+from ..Functions.ldn_update import *
+from ..Functions.aggregate_cashflows import *
+from ..Functions.Aggregated_Acc_level_cashflows import *
+from ..Functions.behavioral_pattern_utils import define_behavioral_pattern_from_form_data, delete_behavioral_pattern_by_id, update_behavioral_pattern_from_form_data
+from ..Functions.time_bucket_utils import define_time_bucket_from_form_data, update_time_bucket_from_form_data, delete_time_bucket_by_id
+from ..Functions.populate_dim import populate_dim_product
+from ..Functions.Dim_dates import *
+from ..Functions.product_filter_utils import *
+from ..Functions.process_utils import *
+from ..Functions.cashflow import *
+from ..Functions.data import *
+from ..Functions.Operations import *
 
 from django.db.models import Min, Max
 
@@ -55,7 +69,7 @@ def create_process(request, process_id=None):
     form_title = 'Create Process'
 
     if request.method == 'POST':
-        form = ProcessForm(request.POST, instance=process)
+        form = ProcessFormOp(request.POST, instance=process)
         formset = RunProcessFormSet(request.POST)
 
         # Print the formset POST data for debugging
@@ -109,13 +123,15 @@ def create_process(request, process_id=None):
             print("Formset Errors:", formset.errors)
             messages.error(request, "Please correct the errors below.")
     else:
-        form = ProcessForm(instance=process)
+        form = ProcessFormOp(instance=process)
         formset = RunProcessFormSet(instance=process)
 
     return render(request, 'operations/create_process.html', {
         'form': form,
         'formset': formset,
         'title': form_title,
+        'filters': []  # Override with an empty list
+
     })
 
 def edit_process(request, process_id):
@@ -136,7 +152,7 @@ def edit_process(request, process_id):
     form_title = "Edit Process"
 
     if request.method == "POST":
-        form = ProcessForm(request.POST, instance=process)
+        form = ProcessFormOp(request.POST, instance=process)
         formset = RunProcessFormSet(request.POST, instance=process)
 
         # Debugging: Log errors for clarity
@@ -165,7 +181,7 @@ def edit_process(request, process_id):
                 "There were errors in the form. Please correct them and try again.",
             )
     else:
-        form = ProcessForm(instance=process)
+        form = ProcessFormOp(instance=process)
         formset = RunProcessFormSet(instance=process)
 
     return render(
@@ -181,8 +197,15 @@ def edit_process(request, process_id):
 
 
 @login_required
+
 def delete_process(request, process_id):
+    try:
+        process_id = int(process_id)  # Explicitly ensure it's an integer
+    except ValueError:
+        raise Http404("Invalid process ID")
+
     process = get_object_or_404(Process_Rn, id=process_id)
+
     if request.method == 'POST':
         try:
             process.delete()
@@ -190,7 +213,9 @@ def delete_process(request, process_id):
         except Exception as e:
             messages.error(request, f'Error deleting process: {e}')
         return redirect('process_list')
+
     return render(request, 'operations/delete_process.html', {'process': process})
+
 ##############################################################################################3
 # Display and search for processes
 @login_required
@@ -502,26 +527,11 @@ def cancel_running_process(request, process_run_id):
 
 
 # INSERT INTO `dim_function` (`function_name`, `description`) VALUES 
-# ('perform_interpolation', 'Performs interpolation on the given data.'),
-# ('project_cash_flows', 'Projects future cash flows based on data.'),
-# ('update_cash_flows_with_ead', 'Updates cash flows using the exposure at default.'),
-# ('insert_fct_stage', 'Inserts records into the FCT Stage Determination.'),
-# ('update_stage', 'Determines and updates the current stage of accounts.'),
-# ('process_cooling_period_for_accounts', 'Processes the cooling period for accounts.'),
-# ('update_stage_determination', 'Updates the stage determination logic.'),
-# ('update_stage_determination_accrued_interest_and_ead', 'Updates stage determination with accrued interest and EAD.'),
-# ('update_stage_determination_eir', 'Updates stage determination based on the effective interest rate.'),
-# ('update_lgd_for_stage_determination_term_structure', 'Updates loss given default for stage determination.'),
-# ('update_lgd_for_stage_determination_collateral', 'Updates loss given default for stage determination.'),
-# ('calculate_pd_for_accounts', 'Calculates probability of default for accounts.'),
-# ('insert_cash_flow_data', 'Inserts cash flow data into the system.'),
-# ('update_financial_cash_flow', 'Updates financial cash flow records.'),
-# ('update_cash_flow_with_pd_buckets', 'Updates cash flows with probability of default buckets.'),
-# ('update_marginal_pd', 'Updates marginal probability of default calculations.'),
-# ('calculate_expected_cash_flow', 'Calculates expected cash flow projections.'),
-# ('calculate_discount_factors', 'Calculates discount factors for cash flows.'),
-# ('calculate_cashflow_fields', 'Calculates various cash flow fields.'),
-# ('calculate_forward_loss_fields', 'Calculates forward-looking loss fields.'),
-# ('populate_fct_reporting_lines', 'Populates reporting lines for FCT.'),
-# ('calculate_ecl_based_on_method', 'Calculates expected credit loss based on selected method.'),
-# ('update_reporting_lines_with_exchange_rate', 'Updates reporting lines with the  exchange rates.');
+# ('populate_liquidity_gap_results_base', 'Populates liquidity gap results with aggregated cashflows.'),
+# ('update_date', 'Performs LDN updates based on specified logic.'),
+# ('populate_dim_product', 'Populates the Dim Product table with product-related data.'),
+# ('populate_dim_dates_from_time_buckets', 'Populates the Dim Dates table with required date ranges and structures.'),
+# ('project_cash_flows', 'Projects future cash flows based on product and financial data.'),
+# ('aggregate_by_prod_code', 'Aggregates cashflows at the product level for base tables.'),
+# ('aggregate_cashflows_to_product_level', 'Aggregates cashflows at the account level for reporting.'),
+# ('calculate_time_buckets_and_spread', 'Manages general operations like file processing and batch updates.');

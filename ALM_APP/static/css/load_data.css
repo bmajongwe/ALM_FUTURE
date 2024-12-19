@@ -1,0 +1,16 @@
+.sidebar {
+    height: 100vh; /* Full viewport height */
+    position: sticky;
+    top: 0;
+    border-right: 1px solid #ddd;
+}
+
+.content {
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.d-none {
+    display: none;
+}
+

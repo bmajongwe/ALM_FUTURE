@@ -1,5 +1,5 @@
 from django.contrib import messages, auth
-from django.contrib.auth import login,logout, authenticate
+from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from .forms import CustomPasswordChangeForm
@@ -26,11 +26,11 @@ def login_view(request):
         user = auth.authenticate(email=email, password=password)
         if user is not None:
             auth.login(request, user)
-            return redirect('ifrs9_home')
+            return redirect('ALM_home')
         else:
             messages.error(request, 'Incorrect password.')
             return redirect('login')
-            
+
     return render(request, 'users/login.html')
 
 
@@ -51,13 +51,13 @@ def update_profile(request):
         user.gender = gender
         user.save()
 
-        messages.success(request, 'Your profile has been updated successfully.')
+        messages.success(
+            request, 'Your profile has been updated successfully.')
         return redirect('settings')
 
     return render(request, 'users/update_profile.html', {
         'user': user,
     })
-
 
 
 @login_required
@@ -66,7 +66,8 @@ def change_password(request):
         form = CustomPasswordChangeForm(request.POST, user=request.user)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Your password has been changed successfully.')
+            messages.success(
+                request, 'Your password has been changed successfully.')
             return redirect('settings')
         else:
             messages.error(request, 'Please correct the errors below.')

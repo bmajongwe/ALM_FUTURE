@@ -23,8 +23,24 @@ def lookup(dict_data, key):
             return "0.00"
     except Exception:
         return "0.00"
-    
-    
+
+
+@register.filter
+def divide_by_60(value):
+    """
+    Custom template filter to divide a given value by 60.
+    """
+    try:
+        return float(value) / 60
+    except (ValueError, TypeError):
+        return 0  # Return 0 if the value is invalid  
+
+
+# @register.filter
+# def divide_by_60(value):
+#     if value is not None:
+#         return round(value / 60, 2)
+#     return None
 
 @register.filter
 def get_bucket_value(detail, bucket_number):

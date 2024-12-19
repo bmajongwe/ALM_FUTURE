@@ -220,6 +220,21 @@ class InterestMethodForm(forms.ModelForm):
         }
 
 
+class ProcessFormOp(forms.ModelForm):
+    class Meta:
+        model = Process_Rn
+        fields = ['process_name']
+        widgets = {
+            'process_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter Process Name'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super(ProcessFormOp, self).__init__(*args, **kwargs)
+        self.helper = FormHelper(self)
+        self.helper.form_method = 'post'
+        self.helper.add_input(Submit('submit', 'Save Process'))
+
+
 class RunProcessForm(forms.ModelForm):
     class Meta:
         model = RunProcess

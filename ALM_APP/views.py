@@ -1,3 +1,16 @@
+from .models import LiquidityGapResultsCons
+from .Functions.liquidity_gap_utils import filter_queryset_by_form, get_date_buckets, prepare_inflow_outflow_data, calculate_totals
+from .models import LiquidityGapResultsBase
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
+from openpyxl import Workbook
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
+from django.db.models import Sum, F
+from django.contrib import messages
+from .Functions.liquidity_gap_utils import *
+from .forms import LiquidityGapReportFilterForm
+from .models import LiquidityGapResultsBase, LiquidityGapResultsCons
+from django.shortcuts import render
 from collections import defaultdict
 import os
 from django.views.generic.detail import DetailView
@@ -35,18 +48,14 @@ from .Functions.cashflow import *
 
 from datetime import datetime, timedelta
 from django.shortcuts import render, redirect
-from .models import TimeBuckets, TimeBucketDefinition,product_level_cashflows
+from .models import TimeBuckets, TimeBucketDefinition, product_level_cashflows
 
-
-
-
-
-
+@login_required
 def create_behavioral_pattern(request):
     if request.method == 'POST':
         # Call the function to process the form data
         result = define_behavioral_pattern_from_form_data(request)
-        
+
         # Check if there is an error
         if 'error' in result:
             # Use Django messages framework to display the error on the frontend
@@ -64,19 +73,25 @@ def create_behavioral_pattern(request):
         # If no error, assume success and redirect using the PRG pattern
         if 'success' in result:
             messages.success(request, "Behavioral pattern saved successfully!")
-            return redirect('behavioral_patterns_list')  # Redirect to a success page or list
+            # Redirect to a success page or list
+            return redirect('behavioral_patterns_list')
 
     # If it's not a POST request, render the form
-    return render(request, 'ALM_APP/behavioral/create_behavioral_pattern.html') # Redirect to the behavioral patterns list page
+    # Redirect to the behavioral patterns list page
+    return render(request, 'ALM_APP/behavioral/create_behavioral_pattern.html')
 
 # View for Behavioral Pattern List
+
+@login_required
 def behavioral_patterns_list(request):
-    patterns = BehavioralPatternConfig.objects.all().order_by('-created_at')  # Fetching all patterns sorted by newest first
+    patterns = BehavioralPatternConfig.objects.all().order_by(
+        '-created_at')  # Fetching all patterns sorted by newest first
     return render(request, 'ALM_APP/behavioral/behavioral_patterns_list.html', {'patterns': patterns})
 
 # View for Editing Behavioral Pattern
 # In your views.py
 
+@login_required
 def edit_behavioral_pattern(request, id):
     try:
         # Get the pattern to edit
@@ -97,8 +112,10 @@ def edit_behavioral_pattern(request, id):
                 })
 
             # If successful, display the success message and redirect
-            messages.success(request, "Behavioral pattern updated successfully!")
-            return redirect('behavioral_patterns_list')  # Redirect back to the patterns list
+            messages.success(
+                request, "Behavioral pattern updated successfully!")
+            # Redirect back to the patterns list
+            return redirect('behavioral_patterns_list')
 
         # If GET request, prepopulate the form with the current data
         return render(request, 'ALM_APP/behavioral/edit_behavioral_pattern.html', {
@@ -112,11 +129,10 @@ def edit_behavioral_pattern(request, id):
     except BehavioralPatternConfig.DoesNotExist:
         messages.error(request, "Behavioral pattern not found.")
         return redirect('behavioral_patterns_list')
-    
-    
 
 
 # View for Deleting Behavioral Pattern
+@login_required
 def delete_behavioral_pattern(request, id):
     if request.method == 'POST':
         result = delete_behavioral_pattern_by_id(id)
@@ -124,36 +140,35 @@ def delete_behavioral_pattern(request, id):
         if 'error' in result:
             messages.error(request, result['error'])
         else:
-            messages.success(request, "Behavioral pattern deleted successfully!")
+            messages.success(
+                request, "Behavioral pattern deleted successfully!")
 
         return redirect('behavioral_patterns_list')
-    
 
+@login_required
 def view_behavioral_pattern(request, id):
     behavioral_pattern = get_object_or_404(BehavioralPatternConfig, id=id)
-    pattern_entries = BehavioralPatternEntry.objects.filter(pattern=behavioral_pattern).order_by('order')
-    
+    pattern_entries = BehavioralPatternEntry.objects.filter(
+        pattern=behavioral_pattern).order_by('order')
+
     return render(request, 'ALM_APP/behavioral/view_behavioral_pattern.html', {
         'behavioral_pattern': behavioral_pattern,
         'pattern_entries': pattern_entries
     })
 
 
-
-
-
-
-
+@login_required
 def create_time_bucket(request):
     # Check if a Time Bucket Definition already exists
     if TimeBucketDefinition.objects.exists():
         messages.error(request, "Only one Time Bucket Definition is allowed.")
-        return redirect('time_bucket_list')  # Redirect to the list page if one already exists
+        # Redirect to the list page if one already exists
+        return redirect('time_bucket_list')
 
     if request.method == 'POST':
         # Call the function to process the form data
         result = define_time_bucket_from_form_data(request)
-        
+
         # Check if there is an error
         if 'error' in result:
             # Use Django messages framework to display the error on the frontend
@@ -171,19 +186,24 @@ def create_time_bucket(request):
         # If no error, assume success and redirect using the PRG pattern
         if 'success' in result:
             messages.success(request, "Time bucket saved successfully!")
-            return redirect('time_bucket_list')  # Redirect to a success page or list
+            # Redirect to a success page or list
+            return redirect('time_bucket_list')
 
     # If it's not a POST request, render the form
-    return render(request, 'ALM_APP/time_buckets/create_time_bucket.html')  # Redirect to the time buckets list page
+    # Redirect to the time buckets list page
+    return render(request, 'ALM_APP/time_buckets/create_time_bucket.html')
 
 
 # View for Listing Time Buckets
+@login_required
 def time_buckets_list(request):
-    time_buckets = TimeBucketDefinition.objects.all().order_by('-created_at')  # Fetching all time buckets sorted by newest first
+    time_buckets = TimeBucketDefinition.objects.all().order_by(
+        '-created_at')  # Fetching all time buckets sorted by newest first
     return render(request, 'ALM_APP/time_buckets/time_bucket_list.html', {'time_buckets': time_buckets})
 
 
 # View for Editing a Time Bucket
+@login_required
 def edit_time_bucket(request, id):
     try:
         # Get the time bucket definition to edit
@@ -205,7 +225,8 @@ def edit_time_bucket(request, id):
 
             # If successful, display the success message and redirect
             messages.success(request, "Time bucket updated successfully!")
-            return redirect('time_bucket_list')  # Redirect back to the time buckets list
+            # Redirect back to the time buckets list
+            return redirect('time_bucket_list')
 
         # If GET request, prepopulate the form with the current data
         return render(request, 'ALM_APP/time_buckets/edit_time_bucket.html', {
@@ -222,6 +243,7 @@ def edit_time_bucket(request, id):
 
 
 # View for Deleting a Time Bucket
+@login_required
 def delete_time_bucket(request, id):
     if request.method == 'POST':
         result = delete_time_bucket_by_id(id)
@@ -232,8 +254,9 @@ def delete_time_bucket(request, id):
             messages.success(request, "Time bucket deleted successfully!")
 
         return redirect('time_bucket_list')
-    
 
+
+@login_required
 def view_time_bucket(request, id):
     # Retrieve the specific Time Bucket Definition
     time_bucket = get_object_or_404(TimeBucketDefinition, id=id)
@@ -245,29 +268,12 @@ def view_time_bucket(request, id):
     })
 
 
-
-
-
-
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
 # ProductFilter Views
 class ProductFilterListView(ListView):
     model = ProductFilter
     template_name = 'ALM_APP/filters/filter_list.html'
     context_object_name = 'filters'
+
 
 class ProductFilterCreateView(CreateView):
     model = ProductFilter
@@ -280,6 +286,7 @@ class ProductFilterCreateView(CreateView):
         messages.success(self.request, 'Product filter created successfully.')
         return redirect(self.success_url)
 
+
 class ProductFilterUpdateView(UpdateView):
     model = ProductFilter
     form_class = ProductFilterForm
@@ -287,9 +294,11 @@ class ProductFilterUpdateView(UpdateView):
     success_url = reverse_lazy('product_filter_list')
 
     def form_valid(self, form):
-        create_or_update_filter(filter_id=self.object.id, data=form.cleaned_data)
+        create_or_update_filter(
+            filter_id=self.object.id, data=form.cleaned_data)
         messages.success(self.request, 'Product filter updated successfully.')
         return redirect(self.success_url)
+
 
 class ProductFilterDeleteView(View):
     success_url = reverse_lazy('product_filter_list')
@@ -300,7 +309,8 @@ class ProductFilterDeleteView(View):
         delete_filter(filter_id=product_filter.id)
         messages.success(request, 'Product filter deleted successfully.')
         return redirect(self.success_url)
-    
+
+
 class ProductFilterDetailView(DetailView):
     model = ProductFilter
     template_name = 'ALM_APP/filters/filter_detail.html'
@@ -309,7 +319,7 @@ class ProductFilterDetailView(DetailView):
     def get_object(self):
         # Fetch the filter based on ID or raise a 404 error
         filter_id = self.kwargs.get('pk')
-        return get_object_or_404(ProductFilter, pk=filter_id)  
+        return get_object_or_404(ProductFilter, pk=filter_id)
 
 
 # Process Views
@@ -318,6 +328,7 @@ class ProcessListView(ListView):
     template_name = 'ALM_APP/filters/process_list.html'
     context_object_name = 'processes'
 
+@login_required
 def process_create_view(request):
     step = request.session.get('step', 1)
     print(f"\n=== Current Step: {step} ===")
@@ -327,7 +338,8 @@ def process_create_view(request):
         if request.method == 'POST':
             process_name = request.POST.get('name')
             process_description = request.POST.get('description')
-            use_behavioral_patterns = request.POST.get('use_behavioral_patterns')
+            use_behavioral_patterns = request.POST.get(
+                'use_behavioral_patterns')
 
             # Validate Process Name
             if not process_name:
@@ -367,7 +379,8 @@ def process_create_view(request):
     elif step == 3:
         process_name = request.session.get('process_name')
         process_description = request.session.get('process_description')
-        use_behavioral_patterns = request.session.get('use_behavioral_patterns')
+        use_behavioral_patterns = request.session.get(
+            'use_behavioral_patterns')
         selected_filters = request.session.get('selected_filters', [])
         filters = ProductFilter.objects.filter(id__in=selected_filters)
 
@@ -378,16 +391,17 @@ def process_create_view(request):
             else:
                 # Save the process
                 process = finalize_process_creation(request)
-                messages.success(request, f"Process '{process.name}' created successfully.")
-                
+                messages.success(request, f"Process '{
+                                 process.name}' created successfully.")
+
                 # Clear session
                 request.session.pop('process_name', None)
                 request.session.pop('process_description', None)
                 request.session.pop('use_behavioral_patterns', None)
                 request.session.pop('selected_filters', None)
                 request.session.pop('step', None)
-                
-                return redirect('process_list')
+
+                return redirect('processes_list')
 
         return render(request, 'ALM_APP/filters/process_create.html', {
             'step': step,
@@ -400,11 +414,7 @@ def process_create_view(request):
     request.session['step'] = 1
     return redirect('process_create')
 
-
-
-
-
-
+@login_required
 def execute_alm_process_view(request):
     if request.method == 'POST':
         process_id = request.POST.get('process_id')
@@ -413,75 +423,167 @@ def execute_alm_process_view(request):
         try:
             datetime.strptime(fic_mis_date, "%Y-%m-%d")
         except ValueError:
-            messages.error(request, "Invalid date format. Please use YYYY-MM-DD.")
-            return redirect('process_list')
+            messages.error(
+                request, "Invalid date format. Please use YYYY-MM-DD.")
+            return redirect('processes_list')
 
         process = get_object_or_404(Process, id=process_id)
 
         try:
             if process.uses_behavioral_patterns:
                 # If the process uses behavioral patterns, skip filtering and use the behavioral patterns directly
-                calculate_behavioral_pattern_distribution(process.name, fic_mis_date)
+                calculate_behavioral_pattern_distribution(
+                    process.name, fic_mis_date)
             else:
                 # Normal process without behavioral patterns
                 calculate_time_buckets_and_spread(process.name, fic_mis_date)
 
-            messages.success(request, f"Process '{process.name}' executed successfully.")
+            messages.success(request, f"Process '{
+                             process.name}' executed successfully.")
         except Exception as e:
             messages.error(request, f"Error executing process: {e}")
 
-        return redirect('process_list')
+        return redirect('processes_list')
 
     return render(request, 'ALM_APP/filters/process_execute.html')
-class ProcessUpdateView(UpdateView):
-    model = Process
-    form_class = ProcessForm
-    template_name = 'ALM_APP/filters/process_form.html'
-    success_url = reverse_lazy('process_list')
-
-    def form_valid(self, form):
-        create_or_update_process(process_id=self.object.id, data=form.cleaned_data)
-        messages.success(self.request, 'Process updated successfully.')
-        return redirect(self.success_url)
-
-class ProcessDeleteView(DeleteView):
-    model = Process
-    template_name = 'ALM_APP/filters/process_confirm_delete.html'
-    success_url = reverse_lazy('process_list')
-
-    def delete(self, request, *args, **kwargs):
-        delete_process(process_id=self.get_object().id)
-        messages.success(request, 'Process deleted successfully.')
-        return redirect(self.success_url)
 
 
 
 
 
+def ProcessUpdateView(request, process_id):
+    process = get_object_or_404(Process, id=process_id)
+    step = request.session.get('edit_step', 1)
+    print(f"\n=== Current Edit Step: {step} ===")
+
+    if step == 1:
+        if request.method == 'POST':
+            process_name = request.POST.get('name')
+            process_description = request.POST.get('description')
+            use_behavioral_patterns = request.POST.get('use_behavioral_patterns')
+
+            if not process_name:
+                messages.error(request, "Process name is required.")
+                return render(request, 'ALM_APP/filters/process_edit.html', {
+                    'step': step,
+                    'process': process,
+                })
+
+            request.session['edit_process_name'] = process_name
+            request.session['edit_process_description'] = process_description
+            request.session['edit_use_behavioral_patterns'] = use_behavioral_patterns
+
+            if use_behavioral_patterns == 'yes':
+                request.session['edit_step'] = 3
+            else:
+                request.session['edit_step'] = 2
+            return redirect('process_update', process_id=process_id)
+
+        return render(request, 'ALM_APP/filters/process_edit.html', {
+            'step': step,
+            'process': process,
+            'process_name': process.name,
+            'process_description': process.description,
+            'use_behavioral_patterns': 'yes' if process.uses_behavioral_patterns else 'no',
+        })
+
+    elif step == 2:
+        filters = ProductFilter.objects.all()
+        selected_filters = request.session.get('edit_selected_filters', process.filters.values_list('id', flat=True))
+
+        if request.method == 'POST':
+            if 'previous' in request.POST:
+                request.session['edit_step'] = 1
+                return redirect('process_update', process_id=process_id)
+            else:
+                selected_filters = request.POST.getlist('filters')
+                request.session['edit_selected_filters'] = selected_filters
+                request.session['edit_step'] = 3
+                return redirect('process_update', process_id=process_id)
+
+        return render(request, 'ALM_APP/filters/process_edit.html', {
+            'step': step,
+            'process': process,
+            'filters': filters,
+            'selected_filters': selected_filters,
+        })
+
+    elif step == 3:
+        process_name = request.session.get('edit_process_name', process.name)
+        process_description = request.session.get('edit_process_description', process.description)
+        use_behavioral_patterns = request.session.get('edit_use_behavioral_patterns', 'no')
+        selected_filters = request.session.get('edit_selected_filters', process.filters.values_list('id', flat=True))
+        filters = ProductFilter.objects.filter(id__in=selected_filters)
+
+        if request.method == 'POST':
+            if 'previous' in request.POST:
+                request.session['edit_step'] = 2 if use_behavioral_patterns == 'no' else 1
+                return redirect('process_update', process_id=process_id)
+            else:
+                finalize_process_update(process, {
+                    'name': process_name,
+                    'description': process_description,
+                    'use_behavioral_patterns': use_behavioral_patterns,
+                    'filters': filters,
+                })
+                messages.success(request, f"Process '{process_name}' updated successfully.")
+
+                # Clear session
+                request.session.pop('edit_process_name', None)
+                request.session.pop('edit_process_description', None)
+                request.session.pop('edit_use_behavioral_patterns', None)
+                request.session.pop('edit_selected_filters', None)
+                request.session.pop('edit_step', None)
+
+                return redirect('processes_list')
+
+        return render(request, 'ALM_APP/filters/process_edit.html', {
+            'step': step,
+            'process': process,
+            'process_name': process_name,
+            'process_description': process_description,
+            'selected_filters': filters,
+            'use_behavioral_patterns': use_behavioral_patterns,
+        })
+
+    request.session['edit_step'] = 1
+    return redirect('process_update', process_id=process_id)
+
+
+#########################################################################
+def processes_view(request, process_id):
+    """
+    Displays the details of a specific process.
+    """
+    process = get_object_or_404(Process, id=process_id)
+    filters = process.filters.all()  # Assuming Process has a filters relationship
+    return render(request, 'ALM_APP/filters/process_detail.html', {
+        'process': process,
+        'filters': filters,
+    })
 
 
 
+####################################################################################
+
+def ProcessDeleteView(request, process_id):
+    if request.method == 'POST':
+        process = get_object_or_404(Process, id=process_id)
+        try:
+            process.delete()
+            messages.success(request, 'Process deleted successfully.')
+        except Exception as e:
+            messages.error(request, f'Failed to delete process: {e}')
+        return redirect('processes_list')
+
+    elif request.method == 'GET':
+        process = get_object_or_404(Process, id=process_id)
+        return render(request, 'ALM_APP/filters/process_confirm_delete.html', {'object': process})
+
+    return HttpResponseForbidden("Invalid request method")
 
 
-
-
-
-
-
-
-
-
-
-
-
-from django.shortcuts import render
-from .models import LiquidityGapResultsBase, LiquidityGapResultsCons
-from .forms import LiquidityGapReportFilterForm
-from .Functions.liquidity_gap_utils import *
-from django.contrib import messages
-from django.db.models import Sum, F
-from collections import defaultdict
-
+@login_required
 def liquidity_gap_report(request):
     # Initialize the form with GET parameters
     form = LiquidityGapReportFilterForm(request.GET or None)
@@ -491,17 +593,20 @@ def liquidity_gap_report(request):
     cons_queryset = LiquidityGapResultsCons.objects.all()
 
     # Get fic_mis_date from the form or fallback to the latest date in Dim_Dates
-    fic_mis_date = form.cleaned_data.get('fic_mis_date') if form.is_valid() else None
+    fic_mis_date = form.cleaned_data.get(
+        'fic_mis_date') if form.is_valid() else None
     if not fic_mis_date:
         fic_mis_date = get_latest_fic_mis_date()
         if not fic_mis_date:
-            messages.error(request, "No data available for the selected filters.")
+            messages.error(
+                request, "No data available for the selected filters.")
             return render(request, 'ALM_APP/reports/liquidity_gap_report.html', {'form': form})
 
     # Get date buckets for fic_mis_date
     date_buckets = get_date_buckets(fic_mis_date)
     if not date_buckets.exists():
-        messages.error(request, "No date buckets available for the selected filters.")
+        messages.error(
+            request, "No date buckets available for the selected filters.")
         return render(request, 'ALM_APP/reports/liquidity_gap_report.html', {'form': form})
 
     # Check if this is a drill-down request for product or splits
@@ -511,9 +616,10 @@ def liquidity_gap_report(request):
     drill_down_splits_cons = request.GET.get('drill_down_splits_cons', None)
 
     # Filter base and consolidated querysets by form fields
-    base_queryset = filter_queryset_by_form(form, base_queryset).filter(fic_mis_date=fic_mis_date)
-    cons_queryset = filter_queryset_by_form(form, cons_queryset).filter(fic_mis_date=fic_mis_date)
-    
+    base_queryset = filter_queryset_by_form(
+        form, base_queryset).filter(fic_mis_date=fic_mis_date)
+    cons_queryset = filter_queryset_by_form(
+        form, cons_queryset).filter(fic_mis_date=fic_mis_date)
 
     # Prepare drill-down details for products or splits on cons and base
     drill_down_details = None
@@ -538,11 +644,15 @@ def liquidity_gap_report(request):
         )
 
         # Group data by product splits and bucket
-        grouped_split_data = defaultdict(lambda: {bucket['bucket_number']: 0 for bucket in date_buckets})
+        grouped_split_data = defaultdict(
+            lambda: {bucket['bucket_number']: 0 for bucket in date_buckets})
         for detail in drill_down_splits_details:
-            split_name = detail.get('v_product_splits')  # Get product split name
+            # Get product split name
+            split_name = detail.get('v_product_splits')
             bucket_number = detail['bucket_number']  # Get bucket number
-            grouped_split_data[split_name][bucket_number] += detail.get('total', 0)  # Aggregate figures by bucket
+            # Aggregate figures by bucket
+            grouped_split_data[split_name][bucket_number] += detail.get(
+                'total', 0)
 
         # Convert grouped data into a list for the template
         aggregated_split_details = [
@@ -566,11 +676,13 @@ def liquidity_gap_report(request):
         )
 
         # Group data by product name and bucket
-        grouped_data = defaultdict(lambda: {bucket['bucket_number']: 0 for bucket in date_buckets})
+        grouped_data = defaultdict(
+            lambda: {bucket['bucket_number']: 0 for bucket in date_buckets})
         for detail in drill_down_details:
             product_name = detail.get('v_product_name')  # Get product name
             bucket_number = detail['bucket_number']  # Get bucket number
-            grouped_data[product_name][bucket_number] += detail.get('total', 0)  # Aggregate figures by bucket
+            # Aggregate figures by bucket
+            grouped_data[product_name][bucket_number] += detail.get('total', 0)
 
         # Convert grouped data into a list for the template
         aggregated_product_details = [
@@ -581,7 +693,6 @@ def liquidity_gap_report(request):
             }
             for product_name, buckets in grouped_data.items()
         ]
-
 
     if drill_down_splits_cons:  # Drill-down for splits in cons
         drill_down_splits_details_cons = list(
@@ -594,11 +705,13 @@ def liquidity_gap_report(request):
             )
         )
 
-        grouped_split_data_cons = defaultdict(lambda: {bucket['bucket_number']: 0 for bucket in date_buckets})
+        grouped_split_data_cons = defaultdict(
+            lambda: {bucket['bucket_number']: 0 for bucket in date_buckets})
         for detail in drill_down_splits_details_cons:
             split_name = detail.get('v_product_splits')
             bucket_number = detail['bucket_number']
-            grouped_split_data_cons[split_name][bucket_number] += detail.get('total', 0)
+            grouped_split_data_cons[split_name][bucket_number] += detail.get(
+                'total', 0)
 
         aggregated_split_details_cons = [
             {
@@ -620,11 +733,13 @@ def liquidity_gap_report(request):
             )
         )
 
-        grouped_data_cons = defaultdict(lambda: {bucket['bucket_number']: 0 for bucket in date_buckets})
+        grouped_data_cons = defaultdict(
+            lambda: {bucket['bucket_number']: 0 for bucket in date_buckets})
         for detail in drill_down_details_cons:
             product_name = detail.get('v_product_name')
             bucket_number = detail['bucket_number']
-            grouped_data_cons[product_name][bucket_number] += detail.get('total', 0)
+            grouped_data_cons[product_name][bucket_number] += detail.get(
+                'total', 0)
 
         aggregated_product_details_cons = [
             {
@@ -649,27 +764,36 @@ def liquidity_gap_report(request):
         currency_queryset = base_queryset.filter(v_ccy_code=currency)
 
         if drill_down_product:
-            currency_queryset = currency_queryset.filter(v_prod_type=drill_down_product)
+            currency_queryset = currency_queryset.filter(
+                v_prod_type=drill_down_product)
         if drill_down_splits:
-            currency_queryset = currency_queryset.filter(v_product_name=drill_down_splits)
+            currency_queryset = currency_queryset.filter(
+                v_product_name=drill_down_splits)
 
-        inflow_data, outflow_data = prepare_inflow_outflow_data(currency_queryset)
+        inflow_data, outflow_data = prepare_inflow_outflow_data(
+            currency_queryset)
 
-        net_liquidity_gap, net_gap_percentage, cumulative_gap = calculate_totals(date_buckets, inflow_data, outflow_data)
+        net_liquidity_gap, net_gap_percentage, cumulative_gap = calculate_totals(
+            date_buckets, inflow_data, outflow_data)
 
         for product, buckets in inflow_data.items():
-            inflow_data[product]['total'] = sum(buckets.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+            inflow_data[product]['total'] = sum(buckets.get(
+                bucket['bucket_number'], 0) for bucket in date_buckets)
 
         for product, buckets in outflow_data.items():
-            outflow_data[product]['total'] = sum(buckets.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+            outflow_data[product]['total'] = sum(buckets.get(
+                bucket['bucket_number'], 0) for bucket in date_buckets)
 
-        net_liquidity_gap['total'] = sum(net_liquidity_gap.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+        net_liquidity_gap['total'] = sum(net_liquidity_gap.get(
+            bucket['bucket_number'], 0) for bucket in date_buckets)
         net_gap_percentage['total'] = (
-            sum(net_gap_percentage.get(bucket['bucket_number'], 0) for bucket in date_buckets) / len(date_buckets)
+            sum(net_gap_percentage.get(bucket['bucket_number'], 0)
+                for bucket in date_buckets) / len(date_buckets)
         ) if len(date_buckets) > 0 else 0
 
         last_bucket = date_buckets.last()
-        cumulative_gap['total'] = cumulative_gap.get(last_bucket['bucket_number'], 0) if last_bucket else 0
+        cumulative_gap['total'] = cumulative_gap.get(
+            last_bucket['bucket_number'], 0) if last_bucket else 0
 
         if inflow_data:
             first_inflow_product = list(inflow_data.items())[0]
@@ -699,7 +823,8 @@ def liquidity_gap_report(request):
             'cumulative_gap': cumulative_gap,
         })
 
-    cons_inflow_data, cons_outflow_data = prepare_inflow_outflow_data(cons_queryset)
+    cons_inflow_data, cons_outflow_data = prepare_inflow_outflow_data(
+        cons_queryset)
     cons_net_liquidity_gap, cons_net_gap_percentage, cons_cumulative_gap = calculate_totals(
         date_buckets, cons_inflow_data, cons_outflow_data
     )
@@ -752,41 +877,6 @@ def liquidity_gap_report(request):
     }
 
     return render(request, 'ALM_APP/reports/liquidity_gap_report.html', context)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 # from django.shortcuts import render
@@ -1002,39 +1092,7 @@ def liquidity_gap_report(request):
 #     return render(request, 'ALM_APP/reports/liquidity_gap_report.html', context)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-from datetime import datetime
-from django.http import HttpResponse, HttpResponseBadRequest
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
-from openpyxl.utils import get_column_letter
-from .models import LiquidityGapResultsBase
-from .Functions.liquidity_gap_utils import filter_queryset_by_form, get_date_buckets, prepare_inflow_outflow_data, calculate_totals
-
+@login_required
 def export_liquidity_gap_to_excel(request):
     # Parse the fic_mis_date from request
     raw_fic_mis_date = request.GET.get('fic_mis_date')
@@ -1046,7 +1104,8 @@ def export_liquidity_gap_to_excel(request):
         )
 
     # Query data filtered by fic_mis_date
-    queryset = LiquidityGapResultsBase.objects.filter(fic_mis_date=fic_mis_date)
+    queryset = LiquidityGapResultsBase.objects.filter(
+        fic_mis_date=fic_mis_date)
     form = LiquidityGapReportFilterForm(request.GET or None)
     queryset = filter_queryset_by_form(form, queryset)
 
@@ -1060,8 +1119,10 @@ def export_liquidity_gap_to_excel(request):
     currency_data = {}
     for currency in currencies:
         currency_queryset = queryset.filter(v_ccy_code=currency)
-        inflow_data, outflow_data = prepare_inflow_outflow_data(currency_queryset)
-        net_liquidity_gap, net_gap_percentage, cumulative_gap = calculate_totals(date_buckets, inflow_data, outflow_data)
+        inflow_data, outflow_data = prepare_inflow_outflow_data(
+            currency_queryset)
+        net_liquidity_gap, net_gap_percentage, cumulative_gap = calculate_totals(
+            date_buckets, inflow_data, outflow_data)
         currency_data[currency] = {
             "inflow_data": inflow_data,
             "outflow_data": outflow_data,
@@ -1078,7 +1139,8 @@ def export_liquidity_gap_to_excel(request):
 
         # Define styles
         header_font = Font(bold=True, color="FFFFFF")
-        header_fill = PatternFill(start_color="3B5998", end_color="3B5998", fill_type="solid")
+        header_fill = PatternFill(
+            start_color="3B5998", end_color="3B5998", fill_type="solid")
         border = Border(
             left=Side(border_style="thin"),
             right=Side(border_style="thin"),
@@ -1090,8 +1152,10 @@ def export_liquidity_gap_to_excel(request):
 
         # Write the heading
         heading_text = f"Amount in {currency}"
-        total_columns = len(date_buckets) + 3  # Number of columns (Account Type, Product, Date Buckets, Total)
-        sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_columns)
+        # Number of columns (Account Type, Product, Date Buckets, Total)
+        total_columns = len(date_buckets) + 3
+        sheet.merge_cells(start_row=1, start_column=1,
+                          end_row=1, end_column=total_columns)
         heading_cell = sheet.cell(row=1, column=1)
         heading_cell.value = heading_text
         heading_cell.font = heading_font
@@ -1099,12 +1163,14 @@ def export_liquidity_gap_to_excel(request):
 
         # Write the header row (starts from row 2 now because of the heading)
         headers = ["Account Type", "Product"] + [
-            f"{bucket['bucket_start_date'].strftime('%d-%b-%Y')} to {bucket['bucket_end_date'].strftime('%d-%b-%Y')}"
+            f"{bucket['bucket_start_date'].strftime(
+                '%d-%b-%Y')} to {bucket['bucket_end_date'].strftime('%d-%b-%Y')}"
             for bucket in date_buckets
         ] + ["Total"]
         sheet.append(headers)
         for col_num, header in enumerate(headers, 1):
-            cell = sheet.cell(row=2, column=col_num)  # Adjusted row number for headers
+            # Adjusted row number for headers
+            cell = sheet.cell(row=2, column=col_num)
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = alignment_center
@@ -1162,7 +1228,8 @@ def export_liquidity_gap_to_excel(request):
             for cell in col:
                 if cell.value and not isinstance(cell, openpyxl.cell.cell.MergedCell):
                     max_length = max(max_length, len(str(cell.value)))
-            col_letter = get_column_letter(col_letter)  # Convert column index to letter
+            # Convert column index to letter
+            col_letter = get_column_letter(col_letter)
             sheet.column_dimensions[col_letter].width = max_length + 2
 
     # Remove the default sheet created by openpyxl
@@ -1173,20 +1240,12 @@ def export_liquidity_gap_to_excel(request):
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    response['Content-Disposition'] = f'attachment; filename="LiquidityGapReport_{fic_mis_date}.xlsx"'
+    response['Content-Disposition'] = f'attachment; filename="LiquidityGapReport_{
+        fic_mis_date}.xlsx"'
     workbook.save(response)
     return response
 
-
-
-
-
-
-
-
-
-from datetime import datetime
-
+@login_required
 def parse_date(date_str):
     """
     Parse the date string to handle multiple formats.
@@ -1206,16 +1265,7 @@ def parse_date(date_str):
             continue
     return None
 
-
-
-from datetime import datetime
-from django.http import HttpResponse, HttpResponseBadRequest
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill, Border, Side
-from openpyxl.utils import get_column_letter
-from .models import LiquidityGapResultsCons
-from .Functions.liquidity_gap_utils import filter_queryset_by_form, get_date_buckets, prepare_inflow_outflow_data, calculate_totals
-
+@login_required
 def export_liquidity_gap_cons_to_excel(request):
     # Parse the fic_mis_date from request
     raw_fic_mis_date = request.GET.get('fic_mis_date')
@@ -1227,7 +1277,8 @@ def export_liquidity_gap_cons_to_excel(request):
         )
 
     # Query data filtered by fic_mis_date
-    queryset = LiquidityGapResultsCons.objects.filter(fic_mis_date=fic_mis_date)
+    queryset = LiquidityGapResultsCons.objects.filter(
+        fic_mis_date=fic_mis_date)
     form = LiquidityGapReportFilterForm(request.GET or None)
     queryset = filter_queryset_by_form(form, queryset)
 
@@ -1258,7 +1309,8 @@ def export_liquidity_gap_cons_to_excel(request):
 
     # Define styles
     header_font = Font(bold=True, color="FFFFFF")
-    header_fill = PatternFill(start_color="3B5998", end_color="3B5998", fill_type="solid")
+    header_fill = PatternFill(start_color="3B5998",
+                              end_color="3B5998", fill_type="solid")
     border = Border(
         left=Side(border_style="thin"),
         right=Side(border_style="thin"),
@@ -1270,8 +1322,10 @@ def export_liquidity_gap_cons_to_excel(request):
 
     # Write the heading
     heading_text = "Consolidated Liquidity Gap Results"
-    total_columns = len(date_buckets) + 3  # Number of columns (Account Type, Product, Date Buckets, Total)
-    sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_columns)
+    # Number of columns (Account Type, Product, Date Buckets, Total)
+    total_columns = len(date_buckets) + 3
+    sheet.merge_cells(start_row=1, start_column=1,
+                      end_row=1, end_column=total_columns)
     heading_cell = sheet.cell(row=1, column=1)
     heading_cell.value = heading_text
     heading_cell.font = heading_font
@@ -1279,12 +1333,14 @@ def export_liquidity_gap_cons_to_excel(request):
 
     # Write the header row (starts from row 2 now because of the heading)
     headers = ["Account Type", "Product"] + [
-        f"{bucket['bucket_start_date'].strftime('%d-%b-%Y')} to {bucket['bucket_end_date'].strftime('%d-%b-%Y')}"
+        f"{bucket['bucket_start_date'].strftime(
+            '%d-%b-%Y')} to {bucket['bucket_end_date'].strftime('%d-%b-%Y')}"
         for bucket in date_buckets
     ] + ["Total"]
     sheet.append(headers)
     for col_num, header in enumerate(headers, 1):
-        cell = sheet.cell(row=2, column=col_num)  # Adjusted row number for headers
+        # Adjusted row number for headers
+        cell = sheet.cell(row=2, column=col_num)
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = alignment_center
@@ -1342,20 +1398,18 @@ def export_liquidity_gap_cons_to_excel(request):
         for cell in col:
             if cell.value and not isinstance(cell, openpyxl.cell.cell.MergedCell):
                 max_length = max(max_length, len(str(cell.value)))
-        col_letter = get_column_letter(col_letter)  # Convert column index to letter
+        # Convert column index to letter
+        col_letter = get_column_letter(col_letter)
         sheet.column_dimensions[col_letter].width = max_length + 2
 
     # Save the workbook to the HTTP response
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    response['Content-Disposition'] = f'attachment; filename="LiquidityGapReport_Consolidated_{fic_mis_date}.xlsx"'
+    response['Content-Disposition'] = f'attachment; filename="LiquidityGapReport_Consolidated_{
+        fic_mis_date}.xlsx"'
     workbook.save(response)
     return response
-
-
-
-
 
 
 # from django.shortcuts import render
@@ -1461,7 +1515,7 @@ def export_liquidity_gap_cons_to_excel(request):
 #     # Calculate Net Liquidity Gap, Net Gap as % of Total Outflows, and Cumulative Gap
 #     net_liquidity_gap = {bucket: total_inflows_by_bucket[bucket] - total_outflows_by_bucket[bucket] for bucket in total_inflows_by_bucket}
 #     net_gap_percentage = {bucket: (net_liquidity_gap[bucket] / total_outflows_by_bucket[bucket] * 100) if total_outflows_by_bucket[bucket] else 0 for bucket in total_outflows_by_bucket}
-    
+
 #     cumulative_gap = {}
 #     cumulative_total = 0
 #     for bucket in date_buckets:
@@ -1491,76 +1545,60 @@ def export_liquidity_gap_cons_to_excel(request):
 #     return render(request, 'ALM_APP/reports/liquidity_gap_report.html', context)
 
 
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
 # View to project cash flows based on the fic_mis_date parameter
+@login_required
 def project_cash_flows_view(request):
-    process_name='Blessmoe'
+    process_name = 'Blessmoe'
     fic_mis_date = '2024-08-31'
     # status = populate_dim_dates_from_time_buckets(fic_mis_date)
     # status=populate_dim_product(fic_mis_date)
     # status= aggregate_by_prod_code(fic_mis_date, process_name)
     # status=update_date(fic_mis_date)
-    status=populate_liquidity_gap_results_base(fic_mis_date, process_name)
+    status = populate_liquidity_gap_results_base(fic_mis_date, process_name)
     # status= calculate_time_buckets_and_spread(process_name, fic_mis_date)
     # status= aggregate_cashflows_to_product_level(fic_mis_date)
-    # status= project_cash_flows(fic_mis_date)       
+    # status= project_cash_flows(fic_mis_date)
 
     print(status)
-    # project_cash_flows(fic_mis_date)       
+    # project_cash_flows(fic_mis_date)
     return render(request, 'ALM_APP/project_cash_flows.html')
 
-
-
-
-
+@login_required
 def dashboard_view(request):
     # Example data for financial graphs
     mis_date = '2024-07-31'  # Input date in 'YYYY-MM-DD' format
-    #perform_interpolation(mis_date) 
-    #project_cash_flows(mis_date)
-    #update_cash_flows_with_ead(mis_date)
+    # perform_interpolation(mis_date)
+    # project_cash_flows(mis_date)
+    # update_cash_flows_with_ead(mis_date)
     # # #Insert records into FCT_Stage_Determination with the numeric date
-    #insert_fct_stage(mis_date)
+    # insert_fct_stage(mis_date)
     # # #determine stage
-    #update_stage(mis_date)
-    #process_cooling_period_for_accounts(mis_date)
-    #update_stage_determination(mis_date)
-    #update_stage_determination_accrued_interest_and_ead(mis_date)
-    #update_stage_determination_eir(mis_date)
-    #update_lgd_for_stage_determination_term_structure(mis_date)
-    #calculate_pd_for_accounts(mis_date)
-    #insert_cash_flow_data(mis_date)
-    #update_financial_cash_flow(mis_date)
-    #update_cash_flow_with_pd_buckets(mis_date)
-    #update_marginal_pd(mis_date)
-    #calculate_expected_cash_flow(mis_date)
-    #calculate_discount_factors(mis_date)
-    #calculate_cashflow_fields(mis_date)
-    #calculate_forward_loss_fields(mis_date)
-    #populate_fct_reporting_lines(mis_date)
-    #calculate_ecl_based_on_method(mis_date)
-    #update_reporting_lines_with_exchange_rate(mis_date)
+    # update_stage(mis_date)
+    # process_cooling_period_for_accounts(mis_date)
+    # update_stage_determination(mis_date)
+    # update_stage_determination_accrued_interest_and_ead(mis_date)
+    # update_stage_determination_eir(mis_date)
+    # update_lgd_for_stage_determination_term_structure(mis_date)
+    # calculate_pd_for_accounts(mis_date)
+    # insert_cash_flow_data(mis_date)
+    # update_financial_cash_flow(mis_date)
+    # update_cash_flow_with_pd_buckets(mis_date)
+    # update_marginal_pd(mis_date)
+    # calculate_expected_cash_flow(mis_date)
+    # calculate_discount_factors(mis_date)
+    # calculate_cashflow_fields(mis_date)
+    # calculate_forward_loss_fields(mis_date)
+    # populate_fct_reporting_lines(mis_date)
+    # calculate_ecl_based_on_method(mis_date)
+    # update_reporting_lines_with_exchange_rate(mis_date)
 
-    return render(request, 'dashboard.html')
+    return render(request, 'ALM_home.html')
 
 
 @login_required
-def ifrs9_home_view(request):
+def ALM_home_view(request):
     context = {
         'title': ' Home',
         # You can pass any additional context if needed
     }
-    return render(request, 'ifrs9_home.html', context)
+    return render(request, 'ALM_home.html', context)

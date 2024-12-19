@@ -1,63 +1,66 @@
-{% extends "ALM_APP/base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2 class="mb-4 text-center">Create Time Bucket Definition</h2>
-    
+
+<!-- Include Operations Sidebar -->
+{% include 'configurations/configurations_sidebar.html' %}
+
+<div class="container mt-5">
+    <h2 class="text-center mb-5" style="font-size: 2.5rem; font-weight: bold; color: #007bff;">Create Time Bucket Definition</h2>
+
     <!-- Display Success or Error Messages -->
     {% if messages %}
     <div class="mt-3">
         {% for message in messages %}
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert" style="font-size: 1rem;">
             {{ message }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         {% endfor %}
     </div>
     {% endif %}
 
     <!-- Load custom filters -->
-    {% load custom_filters %}
+ {% load custom_filters %}
 
-    <form method="post" class="card shadow-sm p-4">
+
+    <form method="post" class="card shadow-lg border-0 p-4">
         {% csrf_token %}
-        
+
         <!-- Time Bucket Name Field -->
-        <div class="form-group">
-            <label for="name">Time Bucket Name:</label>
-            <input type="text" id="name" name="name" class="form-control" value="{{ name|default:'' }}" placeholder="Enter time bucket name" required>
+        <div class="form-group mb-4">
+            <label for="name" style="font-size: 1.2rem; font-weight: bold;">Time Bucket Name:</label>
+            <input type="text" id="name" name="name" class="form-control" value="{{ name|default:'' }}" placeholder="Enter time bucket name" required style="font-size: 1rem;">
         </div>
 
         <!-- Time Bucket Entries -->
-        <h5 class="mb-3">Time Bucket Entries</h5>
-        <div id="bucket-entries">
+        <h5 class="mb-3" style="font-size: 1.5rem; font-weight: bold;">Time Bucket Entries</h5>
+        <div id="bucket-entries" style="max-height: 700px; overflow-y: auto;">
             <div class="bucket-entry border p-3 rounded mb-2">
                 <div class="form-row align-items-center">
                     <div class="form-group col-md-1">
-                        <label for="serial_number">Order:</label>
-                        <input type="number" name="serial_number[]" class="form-control" value="1" readonly>
+                        <label for="serial_number" style="font-size: 1rem;">Order:</label>
+                        <input type="number" name="serial_number[]" class="form-control" value="1" readonly style="font-size: 1rem;">
                     </div>
                     <div class="form-group col-md-2">
-                        <label for="frequency">Frequency:</label>
-                        <input type="number" name="frequency[]" class="form-control frequency-input" placeholder="Frequency" required>
+                        <label for="frequency" style="font-size: 1rem;">Frequency:</label>
+                        <input type="number" name="frequency[]" class="form-control frequency-input" placeholder="Frequency" required style="font-size: 1rem;">
                     </div>
                     <div class="form-group col-md-2">
-                        <label for="multiplier">Multiplier:</label>
-                        <select name="multiplier[]" class="form-control multiplier-input">
+                        <label for="multiplier" style="font-size: 1rem;">Multiplier:</label>
+                        <select name="multiplier[]" class="form-control multiplier-input" style="font-size: 1rem;">
                             <option value="Days">Days</option>
                             <option value="Months">Months</option>
                             <option value="Years">Years</option>
                         </select>
                     </div>
                     <div class="form-group col-md-3">
-                        <label for="start_date">Start Date:</label>
-                        <input type="date" name="start_date[]" class="form-control start-date" readonly>
+                        <label for="start_date" style="font-size: 1rem;">Start Date:</label>
+                        <input type="date" name="start_date[]" class="form-control start-date" readonly style="font-size: 1rem;">
                     </div>
                     <div class="form-group col-md-3">
-                        <label for="end_date">End Date:</label>
-                        <input type="date" name="end_date[]" class="form-control end-date" readonly>
+                        <label for="end_date" style="font-size: 1rem;">End Date:</label>
+                        <input type="date" name="end_date[]" class="form-control end-date" readonly style="font-size: 1rem;">
                     </div>
                     <div class="form-group col-md-1 text-right">
                         <button type="button" class="btn btn-danger btn-sm remove-entry">Remove</button>
@@ -67,77 +70,89 @@
         </div>
 
         <!-- Add Entry Button -->
-        <button type="button" class="btn btn-secondary mb-3" id="add-entry">
+        <button type="button" class="btn btn-outline-secondary mb-3" id="add-entry">
             <i class="fas fa-plus-circle"></i> Add Another Entry
         </button>
 
-        <!-- Submit Button -->
-        <button type="submit" class="btn btn-primary btn-block">Save Time Bucket</button>
+        <!-- Save and Cancel Buttons -->
+        <div class="d-flex justify-content-between mt-4">
+            <a href="{% url 'time_bucket_list' %}" class="btn btn-outline-danger btn-lg" style="font-size: 1.2rem;">
+                <i class="fas fa-times-circle"></i> Cancel
+            </a>
+            <button type="submit" class="btn btn-primary btn-lg" style="font-size: 1.2rem;">
+                <i class="fas fa-save"></i> Save Time Bucket
+            </button>
+        </div>
     </form>
 </div>
 
 <!-- JavaScript to handle adding/removing entries and calculating dates -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
     document.querySelector('.start-date').value = today;
-});
 
-document.getElementById('add-entry').addEventListener('click', function() {
-    var entry = document.querySelector('.bucket-entry').cloneNode(true);
+    document.getElementById('add-entry').addEventListener('click', function() {
+        const entry = document.querySelector('.bucket-entry').cloneNode(true);
 
-    // Update order number for the new entry
-    var orderInput = entry.querySelector('input[name="serial_number[]"]');
-    var newOrder = document.querySelectorAll('.bucket-entry').length + 1;
-    orderInput.value = newOrder;
+        const orderInput = entry.querySelector('input[name="serial_number[]"]');
+        const newOrder = document.querySelectorAll('.bucket-entry').length + 1;
+        orderInput.value = newOrder;
 
-    // Set the start date of the new entry as the end date of the previous entry
-    var lastEntryEndDate = document.querySelectorAll('.end-date');
-    var previousEndDate = lastEntryEndDate[lastEntryEndDate.length - 1].value;
-    entry.querySelector('.start-date').value = previousEndDate;
-    entry.querySelector('.end-date').value = '';
+        const lastEntryEndDate = document.querySelectorAll('.end-date');
+        const previousEndDate = lastEntryEndDate[lastEntryEndDate.length - 1].value;
+        entry.querySelector('.start-date').value = previousEndDate;
+        entry.querySelector('.end-date').value = '';
 
-    // Clear frequency and multiplier in the new entry
-    entry.querySelector('input[name="frequency[]"]').value = '';
-    entry.querySelector('select[name="multiplier[]"]').selectedIndex = 0;
+        entry.querySelector('input[name="frequency[]"]').value = '';
+        entry.querySelector('select[name="multiplier[]"]').selectedIndex = 0;
 
-    document.getElementById('bucket-entries').appendChild(entry);
-});
+        document.getElementById('bucket-entries').appendChild(entry);
+        calculateDates();
+    });
 
-document.addEventListener('click', function(event) {
-    if (event.target && event.target.classList.contains('remove-entry')) {
-        event.target.closest('.bucket-entry').remove();
+    document.addEventListener('click', function(event) {
+        if (event.target && event.target.classList.contains('remove-entry')) {
+            event.target.closest('.bucket-entry').remove();
+            calculateDates();
+        }
+    });
 
-        // Reorder the remaining entries after removal
-        var entries = document.querySelectorAll('.bucket-entry');
-        entries.forEach(function(entry, index) {
-            var orderInput = entry.querySelector('input[name="serial_number[]"]');
+    document.addEventListener('input', function(event) {
+        if (event.target.classList.contains('frequency-input') || event.target.classList.contains('multiplier-input')) {
+            calculateDates();
+        }
+    });
+
+    function calculateDates() {
+        let currentStartDate = new Date(today);
+
+        document.querySelectorAll('.bucket-entry').forEach((entry, index) => {
+            const frequency = parseInt(entry.querySelector('.frequency-input').value) || 0;
+            const multiplier = entry.querySelector('.multiplier-input').value;
+            const orderInput = entry.querySelector('input[name="serial_number[]"]');
+            const startDateInput = entry.querySelector('.start-date');
+            const endDateInput = entry.querySelector('.end-date');
+
             orderInput.value = index + 1;
+            startDateInput.value = currentStartDate.toISOString().split('T')[0];
+
+            let endDate = new Date(currentStartDate);
+            if (multiplier === 'Days') {
+                endDate.setDate(endDate.getDate() + frequency);
+            } else if (multiplier === 'Months') {
+                endDate.setMonth(endDate.getMonth() + frequency);
+            } else if (multiplier === 'Years') {
+                endDate.setFullYear(endDate.getFullYear() + frequency);
+            }
+
+            endDateInput.value = endDate.toISOString().split('T')[0];
+            currentStartDate = new Date(endDate);
         });
     }
+
+    calculateDates();
 });
-
-document.addEventListener('input', function(event) {
-    if (event.target.classList.contains('frequency-input') || event.target.classList.contains('multiplier-input')) {
-        calculateEndDate(event.target.closest('.bucket-entry'));
-    }
-});
-
-function calculateEndDate(entry) {
-    var frequency = parseInt(entry.querySelector('.frequency-input').value) || 0;
-    var multiplier = entry.querySelector('.multiplier-input').value;
-    var startDate = new Date(entry.querySelector('.start-date').value);
-    var endDate = new Date(startDate);
-
-    if (multiplier === 'Days') {
-        endDate.setDate(startDate.getDate() + frequency);
-    } else if (multiplier === 'Months') {
-        endDate.setMonth(startDate.getMonth() + frequency);
-    } else if (multiplier === 'Years') {
-        endDate.setFullYear(startDate.getFullYear() + frequency);
-    }
-
-    entry.querySelector('.end-date').value = endDate.toISOString().split('T')[0];
-}
 </script>
+
 {% endblock %}

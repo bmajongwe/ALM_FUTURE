@@ -1,26 +1,42 @@
-{% extends "ALM_APP/base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2 class="mb-4 text-center">Product Filter Details</h2>
-    
-    <div class="card shadow-sm p-4">
-        <div class="form-group">
-            <strong>Field Name:</strong>
-            <p>{{ filter.field_name }}</p>
+
+<!-- Include Operations Sidebar -->
+{% include 'configurations/configurations_sidebar.html' %}
+
+<div class="container-fluid mt-5">
+    <h2 class="text-center mb-5" style="font-size: 2.8rem; font-weight: bold; color: #004085;">Product Filter Details</h2>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-lg border-0">
+                <div class="card-header text-center" style="background-color: #004085; color: #ffffff; font-size: 1.8rem; font-weight: bold;">
+                    Filter Overview
+                </div>
+                <div class="card-body p-5">
+                    <div class="form-group mb-4">
+                        <h6 class="text-uppercase text-muted" style="font-size: 1.3rem; letter-spacing: 0.1rem;">Field Name</h6>
+                        <p class="text-dark font-weight-bold" style="font-size: 1.6rem;">{{ filter.field_name }}</p>
+                    </div>
+                    <div class="form-group mb-4">
+                        <h6 class="text-uppercase text-muted" style="font-size: 1.3rem; letter-spacing: 0.1rem;">Condition</h6>
+                        <p class="text-dark font-weight-bold" style="font-size: 1.6rem;">{{ filter.condition }}</p>
+                    </div>
+                    <div class="form-group mb-4">
+                        <h6 class="text-uppercase text-muted" style="font-size: 1.3rem; letter-spacing: 0.1rem;">Value</h6>
+                        <p class="text-dark font-weight-bold" style="font-size: 1.6rem;">{{ filter.value }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-5">
+                <a href="{% url 'product_filter_list' %}" class="btn btn-outline-secondary btn-lg px-4" style="font-size: 1.4rem; border-radius: 30px;">
+                    <i class="fas fa-arrow-left"></i> Back to List
+                </a>
+            </div>
         </div>
-        <div class="form-group">
-            <strong>Condition:</strong>
-            <p>{{ filter.condition }}</p>
-        </div>
-        <div class="form-group">
-            <strong>Value:</strong>
-            <p>{{ filter.value }}</p>
-        </div>
-    </div>
-    
-    <div class="text-center mt-4">
-        <a href="{% url 'product_filter_list' %}" class="btn btn-secondary">Back to List</a>
     </div>
 </div>
+
 {% endblock %}

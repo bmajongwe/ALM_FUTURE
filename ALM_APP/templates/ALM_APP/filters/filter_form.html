@@ -1,62 +1,81 @@
-{% extends "ALM_APP/base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2 class="text-center">Add Product Filter</h2>
-    <form method="post" action="{% url 'create_filter' %}" onsubmit="return validateForm()">
-        {% csrf_token %}
-        <div class="card p-4 shadow-sm">
-            <!-- Field Name Selection -->
-            <div class="form-group">
-                <label for="field_name">Field name:</label>
-                <select id="field_name" name="field_name" class="form-control" required>
-                    <option value="">Select a field</option>
-                    {% for value, name in form.field_name.field.choices %}
-                        <option value="{{ value }}">{{ name }}</option>
-                    {% endfor %}
-                </select>
-                <small id="fieldNameError" class="form-text text-danger" style="display: none;">Please select a field name.</small>
-            </div>
 
-            <!-- Condition Selection -->
-            <div class="form-group">
-                <label for="condition">Condition:</label>
-                <select id="condition" name="condition" class="form-control" required>
-                    <option value="">Select a condition</option>
-                    <option value="equals">Equals</option>
-                    <option value="contains">Contains</option>
-                    <option value="greater_than">Greater Than</option>
-                    <option value="less_than">Less Than</option>
-                </select>
-                <small id="conditionError" class="form-text text-danger" style="display: none;">Please select a condition.</small>
-            </div>
+<!-- Include Operations Sidebar -->
+{% include 'configurations/configurations_sidebar.html' %}
 
-            <!-- Value Input -->
-            <div class="form-group">
-                <label for="value">Value:</label>
-                <input type="text" id="value" name="value" class="form-control" placeholder="Enter value" required>
-                <small id="valueError" class="form-text text-danger" style="display: none;">Please enter a value.</small>
-            </div>
+<div class="container-fluid mt-5">
+    <h2 class="text-center mb-5" style="font-size: 2.8rem; font-weight: bold; color: #004085;">Add Product Filter</h2>
 
-            <!-- Save Filter Button -->
-            <button type="submit" class="btn btn-primary btn-block">Save Filter</button>
-            
-            <!-- Back Button -->
-            <a href="{% url 'product_filter_list' %}" class="btn btn-secondary btn-block mt-2">Back</a>
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-lg border-0">
+                <div class="card-header text-center" style="background-color: #004085; color: #ffffff; font-size: 1.8rem; font-weight: bold;">
+                    Create New Filter
+                </div>
+                <div class="card-body p-5">
+                    <form method="post" action="{% url 'create_filter' %}" onsubmit="return validateForm()">
+                        {% csrf_token %}
+                        
+                        <!-- Field Name Selection -->
+                        <div class="form-group mb-4">
+                            <label for="field_name" style="font-size: 1rem; font-weight: bold;">Field Name</label>
+                            <select id="field_name" name="field_name" class="form-control" required style="font-size: 1.2rem;">
+                                <option value="" disabled selected>Select a field</option>
+                                {% for value, name in form.field_name.field.choices %}
+                                    <option value="{{ value }}">{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small id="fieldNameError" class="form-text text-danger" style="display: none;">Please select a field name.</small>
+                        </div>
+
+                        <!-- Condition Selection -->
+                        <div class="form-group mb-4">
+                            <label for="condition" style="font-size: 1rem; font-weight: bold;">Condition</label>
+                            <select id="condition" name="condition" class="form-control" required style="font-size: 1.2rem;">
+                                <option value="" disabled selected>Select a condition</option>
+                                <option value="equals">Equals</option>
+                                <option value="contains">Contains</option>
+                                <option value="greater_than">Greater Than</option>
+                                <option value="less_than">Less Than</option>
+                            </select>
+                            <small id="conditionError" class="form-text text-danger" style="display: none;">Please select a condition.</small>
+                        </div>
+
+                        <!-- Value Input -->
+                        <div class="form-group mb-4">
+                            <label for="value" style="font-size: 1rem; font-weight: bold;">Value</label>
+                            <input type="text" id="value" name="value" class="form-control" placeholder="Enter value" required style="font-size: 1.2rem;">
+                            <small id="valueError" class="form-text text-danger" style="display: none;">Please enter a value.</small>
+                        </div>
+
+                        <!-- Save and Back Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary px-4" style="font-size: 1.4rem; border-radius: 30px;">
+                                <i class="fas fa-save"></i> Save Filter
+                            </button>
+                            <a href="{% url 'product_filter_list' %}" class="btn btn-outline-secondary px-4" style="font-size: 1.4rem; border-radius: 30px;">
+                                <i class="fas fa-arrow-left"></i> Back to List
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
-    </form>
+    </div>
 </div>
 
 <!-- JavaScript for Front-End Validation -->
 <script>
 function validateForm() {
     let isValid = true;
-    
+
     // Get form fields
     const fieldName = document.getElementById("field_name");
     const condition = document.getElementById("condition");
     const value = document.getElementById("value");
-    
+
     // Get error display elements
     const fieldNameError = document.getElementById("fieldNameError");
     const conditionError = document.getElementById("conditionError");
@@ -89,4 +108,5 @@ function validateForm() {
     return isValid;  // Form will only submit if isValid remains true
 }
 </script>
+
 {% endblock %}
