@@ -1,108 +1,248 @@
-{% extends "base.html" %}
+{% extends "configurations/base.html" %}
 
 {% block content %}
 
-<!-- Include Operations Sidebar -->
-{% include 'configurations/configurations_sidebar.html' %}
-
-<div class="container mt-5">
+<div class="container mt-2">
     <div class="card shadow-lg border-0">
         <div class="card-body px-5 py-4">
-            <h2 class="mb-5 text-center" style="font-size: 2.5rem; font-weight: bold; color: #004085;">Edit Time Bucket Definition</h2>
+            <!-- Page Heading -->
+            <h2 class="mb-5 text-center" 
+                style="
+                    font-size: 2rem; 
+                    font-weight: 700; 
+                    color: #004085;
+                ">
+                Edit Time Bucket Definition
+            </h2>
 
             <!-- Display Success or Error Messages -->
             {% if messages %}
             <div class="mt-3">
                 {% for message in messages %}
-                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert" style="font-size: 1rem;">
+                <div class="alert 
+                            {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} 
+                            alert-dismissible fade show" 
+                     role="alert" 
+                     style="font-size: 1rem;">
                     {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    <button type="button" 
+                            class="btn-close" 
+                            data-bs-dismiss="alert" 
+                            aria-label="Close">
+                    </button>
                 </div>
                 {% endfor %}
             </div>
             {% endif %}
 
             {% if error %}
-            <div class="alert alert-danger" style="font-size: 1rem;">{{ error }}</div>
+            <div class="alert alert-danger" style="font-size: 1rem;">
+                {{ error }}
+            </div>
             {% endif %}
-<!-- Load custom filters -->
-{% load custom_filters %}
 
+            <!-- Load custom filters -->
+            {% load custom_filters %}
+
+            <!-- Form Start -->
             <form method="post" class="shadow-sm p-4" onsubmit="return confirmUpdate();">
                 {% csrf_token %}
 
                 <!-- Time Bucket Name Field -->
                 <div class="form-group mb-4">
-                    <label for="name" style="font-size: 1.2rem; font-weight: bold;">Time Bucket Name:</label>
-                    <input type="text" id="name" name="name" class="form-control" value="{{ name|default:'' }}" placeholder="Enter time bucket name" required style="font-size: 1rem;">
+                    <label for="name" 
+                           style="
+                             font-size: 1rem; 
+                             font-weight: 600;
+                           ">
+                        Time Bucket Name:
+                    </label>
+                    <input type="text" 
+                           id="name" 
+                           name="name" 
+                           class="form-control" 
+                           value="{{ name|default:'' }}" 
+                           placeholder="Enter time bucket name" 
+                           required 
+                           style="font-size: 1rem;">
                 </div>
 
                 <!-- Time Bucket Entries -->
-                <h4 class="mb-4" style="font-size: 1.8rem; font-weight: bold; color: #6c757d;">Time Bucket Entries</h4>
-                <div id="bucket-entries" style="max-height: 700px; overflow-y: auto;">
+                <h4 class="mb-4" 
+                    style="
+                      font-size: 1.125rem; 
+                      font-weight: 600; 
+                      color: #6c757d;
+                    ">
+                    Time Bucket Entries
+                </h4>
+                <div id="bucket-entries" 
+                     style="
+                       max-height: 700px; 
+                       overflow-y: auto;
+                     ">
+
+                    <!-- Existing Entries (if any) -->
                     {% if frequencies %}
                         {% for i in frequencies %}
                         <div class="bucket-entry border p-3 rounded mb-3">
                             <div class="form-row align-items-center">
+                                <!-- Order -->
                                 <div class="form-group col-md-1">
-                                    <label for="serial_number" style="font-size: 1rem;">Order:</label>
-                                    <input type="number" name="serial_number[]" class="form-control order" value="{{ forloop.counter }}" readonly style="font-size: 1rem;">
+                                    <label for="serial_number" style="font-size: 0.875rem;">
+                                        Order:
+                                    </label>
+                                    <input type="number" 
+                                           name="serial_number[]" 
+                                           class="form-control order" 
+                                           value="{{ forloop.counter }}" 
+                                           readonly 
+                                           style="font-size: 0.875rem;">
                                 </div>
+                                <!-- Frequency -->
                                 <div class="form-group col-md-2">
-                                    <label for="frequency" style="font-size: 1rem;">Frequency:</label>
-                                    <input type="number" name="frequency[]" class="form-control frequency" value="{{ i }}" placeholder="Frequency" required style="font-size: 1rem;">
+                                    <label for="frequency" style="font-size: 0.875rem;">
+                                        Frequency:
+                                    </label>
+                                    <input type="number" 
+                                           name="frequency[]" 
+                                           class="form-control frequency" 
+                                           value="{{ i }}" 
+                                           placeholder="Frequency" 
+                                           required 
+                                           style="font-size: 0.875rem;">
                                 </div>
+                                <!-- Multiplier -->
                                 <div class="form-group col-md-2">
-                                    <label for="multiplier" style="font-size: 1rem;">Multiplier:</label>
-                                    <select name="multiplier[]" class="form-control multiplier" style="font-size: 1rem;">
-                                        <option value="Days" {% if multipliers|get_item:forloop.counter0 == "Days" %}selected{% endif %}>Days</option>
-                                        <option value="Months" {% if multipliers|get_item:forloop.counter0 == "Months" %}selected{% endif %}>Months</option>
-                                        <option value="Years" {% if multipliers|get_item:forloop.counter0 == "Years" %}selected{% endif %}>Years</option>
+                                    <label for="multiplier" style="font-size: 0.875rem;">
+                                        Multiplier:
+                                    </label>
+                                    <select name="multiplier[]" 
+                                            class="form-control multiplier" 
+                                            style="font-size: 0.875rem;">
+                                        <option value="Days" 
+                                                {% if multipliers|get_item:forloop.counter0 == "Days" %}selected{% endif %}>
+                                            Days
+                                        </option>
+                                        <option value="Months" 
+                                                {% if multipliers|get_item:forloop.counter0 == "Months" %}selected{% endif %}>
+                                            Months
+                                        </option>
+                                        <option value="Years" 
+                                                {% if multipliers|get_item:forloop.counter0 == "Years" %}selected{% endif %}>
+                                            Years
+                                        </option>
                                     </select>
                                 </div>
+                                <!-- Start Date -->
                                 <div class="form-group col-md-3">
-                                    <label for="start_date" style="font-size: 1rem;">Start Date:</label>
-                                    <input type="date" name="start_date[]" class="form-control start-date" value="{{ start_dates|get_item:forloop.counter0 }}" required readonly style="font-size: 1rem;">
+                                    <label for="start_date" style="font-size: 0.875rem;">
+                                        Start Date:
+                                    </label>
+                                    <input type="date" 
+                                           name="start_date[]" 
+                                           class="form-control start-date" 
+                                           value="{{ start_dates|get_item:forloop.counter0 }}" 
+                                           required 
+                                           readonly 
+                                           style="font-size: 0.875rem;">
                                 </div>
+                                <!-- End Date -->
                                 <div class="form-group col-md-3">
-                                    <label for="end_date" style="font-size: 1rem;">End Date:</label>
-                                    <input type="date" name="end_date[]" class="form-control end-date" value="{{ end_dates|get_item:forloop.counter0 }}" required readonly style="font-size: 1rem;">
+                                    <label for="end_date" style="font-size: 0.875rem;">
+                                        End Date:
+                                    </label>
+                                    <input type="date" 
+                                           name="end_date[]" 
+                                           class="form-control end-date" 
+                                           value="{{ end_dates|get_item:forloop.counter0 }}" 
+                                           required 
+                                           readonly 
+                                           style="font-size: 0.875rem;">
                                 </div>
+                                <!-- Remove Entry Button -->
                                 <div class="form-group col-md-1 text-right">
-                                    <button type="button" class="btn btn-danger btn-sm remove-entry"><i class="fas fa-trash-alt"></i></button>
+                                    <button type="button" 
+                                            class="btn btn-danger btn-sm remove-entry" 
+                                            style="font-size: 0.875rem;">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
                         {% endfor %}
                     {% else %}
+                    <!-- If no existing entries, add a default entry -->
                     <div class="bucket-entry border p-3 rounded mb-3">
                         <div class="form-row align-items-center">
+                            <!-- Order -->
                             <div class="form-group col-md-1">
-                                <label for="serial_number" style="font-size: 1rem;">Order:</label>
-                                <input type="number" name="serial_number[]" class="form-control order" value="1" readonly style="font-size: 1rem;">
+                                <label for="serial_number" style="font-size: 0.875rem;">
+                                    Order:
+                                </label>
+                                <input type="number" 
+                                       name="serial_number[]" 
+                                       class="form-control order" 
+                                       value="1" 
+                                       readonly 
+                                       style="font-size: 0.875rem;">
                             </div>
+                            <!-- Frequency -->
                             <div class="form-group col-md-2">
-                                <label for="frequency" style="font-size: 1rem;">Frequency:</label>
-                                <input type="number" name="frequency[]" class="form-control frequency" placeholder="Frequency" required style="font-size: 1rem;">
+                                <label for="frequency" style="font-size: 0.875rem;">
+                                    Frequency:
+                                </label>
+                                <input type="number" 
+                                       name="frequency[]" 
+                                       class="form-control frequency" 
+                                       placeholder="Frequency" 
+                                       required 
+                                       style="font-size: 0.875rem;">
                             </div>
+                            <!-- Multiplier -->
                             <div class="form-group col-md-2">
-                                <label for="multiplier" style="font-size: 1rem;">Multiplier:</label>
-                                <select name="multiplier[]" class="form-control multiplier" style="font-size: 1rem;">
+                                <label for="multiplier" style="font-size: 0.875rem;">
+                                    Multiplier:
+                                </label>
+                                <select name="multiplier[]" 
+                                        class="form-control multiplier" 
+                                        style="font-size: 0.875rem;">
                                     <option value="Days">Days</option>
                                     <option value="Months">Months</option>
                                     <option value="Years">Years</option>
                                 </select>
                             </div>
+                            <!-- Start Date -->
                             <div class="form-group col-md-3">
-                                <label for="start_date" style="font-size: 1rem;">Start Date:</label>
-                                <input type="date" name="start_date[]" class="form-control start-date" required readonly style="font-size: 1rem;">
+                                <label for="start_date" style="font-size: 0.875rem;">
+                                    Start Date:
+                                </label>
+                                <input type="date" 
+                                       name="start_date[]" 
+                                       class="form-control start-date" 
+                                       required 
+                                       readonly 
+                                       style="font-size: 0.875rem;">
                             </div>
+                            <!-- End Date -->
                             <div class="form-group col-md-3">
-                                <label for="end_date" style="font-size: 1rem;">End Date:</label>
-                                <input type="date" name="end_date[]" class="form-control end-date" required readonly style="font-size: 1rem;">
+                                <label for="end_date" style="font-size: 0.875rem;">
+                                    End Date:
+                                </label>
+                                <input type="date" 
+                                       name="end_date[]" 
+                                       class="form-control end-date" 
+                                       required 
+                                       readonly 
+                                       style="font-size: 0.875rem;">
                             </div>
+                            <!-- Remove Entry Button -->
                             <div class="form-group col-md-1 text-right">
-                                <button type="button" class="btn btn-danger btn-sm remove-entry"><i class="fas fa-trash-alt"></i></button>
+                                <button type="button" 
+                                        class="btn btn-danger btn-sm remove-entry"
+                                        style="font-size: 0.875rem;">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -110,20 +250,28 @@
                 </div>
 
                 <!-- Add Entry Button -->
-                <button type="button" class="btn btn-secondary mb-4" id="add-entry">
+                <button type="button" 
+                        class="btn btn-secondary mb-4" 
+                        id="add-entry"
+                        style="font-size: 0.875rem;">
                     <i class="fas fa-plus-circle"></i> Add Another Entry
                 </button>
 
                 <!-- Submit and Cancel Buttons -->
                 <div class="d-flex justify-content-between">
-                    <a href="{% url 'time_bucket_list' %}" class="btn btn-danger btn-lg">
+                    <a href="{% url 'time_bucket_list' %}" 
+                       class="btn btn-danger btn-lg"
+                       style="font-size: 1rem;">
                         <i class="fas fa-times"></i> Cancel
                     </a>
-                    <button type="submit" class="btn btn-primary btn-lg">
+                    <button type="submit" 
+                            class="btn btn-primary btn-lg"
+                            style="font-size: 1rem;">
                         <i class="fas fa-check"></i> Update Time Bucket
                     </button>
                 </div>
             </form>
+            <!-- /Form End -->
         </div>
     </div>
 </div>
@@ -131,25 +279,26 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const startDate = new Date().toISOString().split('T')[0];
-    
-    // Populate start and end dates based on frequency and multiplier
+
     function calculateDates() {
         let currentStartDate = new Date(startDate);
 
         document.querySelectorAll('.bucket-entry').forEach((entry, index) => {
-            const frequency = parseInt(entry.querySelector('.frequency').value) || 0;
-            const multiplier = entry.querySelector('.multiplier').value;
-            const orderInput = entry.querySelector('.order');
-            const startDateInput = entry.querySelector('.start-date');
-            const endDateInput = entry.querySelector('.end-date');
+            const freqInput   = entry.querySelector('.frequency');
+            const multiplier  = entry.querySelector('.multiplier').value;
+            const orderInput  = entry.querySelector('.order');
+            const startDateEl = entry.querySelector('.start-date');
+            const endDateEl   = entry.querySelector('.end-date');
 
-            // Set the order based on the current index
+            const frequency = parseInt(freqInput.value) || 0;
+
+            // Update the order
             orderInput.value = index + 1;
 
-            // Set the start date for the current entry
-            startDateInput.value = currentStartDate.toISOString().split('T')[0];
-            
-            // Calculate end date based on frequency and multiplier
+            // Set the start date
+            startDateEl.value = currentStartDate.toISOString().split('T')[0];
+
+            // Calculate the end date
             let endDate = new Date(currentStartDate);
             if (multiplier === 'Days') {
                 endDate.setDate(endDate.getDate() + frequency);
@@ -159,44 +308,46 @@ document.addEventListener('DOMContentLoaded', function () {
                 endDate.setFullYear(endDate.getFullYear() + frequency);
             }
 
-            // Set the calculated end date
-            endDateInput.value = endDate.toISOString().split('T')[0];
+            endDateEl.value = endDate.toISOString().split('T')[0];
 
-            // Update start date for the next entry
+            // Next entry starts from this end date
             currentStartDate = new Date(endDate);
         });
     }
 
-    // Trigger date calculation on input changes
+    // Recalculate dates if frequency or multiplier changes
     document.getElementById('bucket-entries').addEventListener('input', function(event) {
-        if (event.target.classList.contains('frequency') || event.target.classList.contains('multiplier')) {
+        if (event.target.classList.contains('frequency') || 
+            event.target.classList.contains('multiplier')) {
             calculateDates();
         }
     });
 
-    // Initial calculation
-    calculateDates();
-
-    // Add new entry dynamically
+    // Clone and add new entry
     document.getElementById('add-entry').addEventListener('click', function() {
-        const entry = document.querySelector('.bucket-entry').cloneNode(true);
+        const firstEntry = document.querySelector('.bucket-entry');
+        const newEntry   = firstEntry.cloneNode(true);
 
-        // Clear values in the new entry
-        entry.querySelector('.frequency').value = '';
-        entry.querySelector('.start-date').value = '';
-        entry.querySelector('.end-date').value = '';
-        
-        document.getElementById('bucket-entries').appendChild(entry);
+        // Clear the frequency, start/end date, reset multiplier
+        newEntry.querySelector('.frequency').value = '';
+        newEntry.querySelector('.start-date').value = '';
+        newEntry.querySelector('.end-date').value   = '';
+        newEntry.querySelector('.multiplier').selectedIndex = 0;
+
+        document.getElementById('bucket-entries').appendChild(newEntry);
         calculateDates();
     });
 
-    // Remove entry and recalculate dates
+    // Remove entry
     document.addEventListener('click', function(event) {
         if (event.target.classList.contains('remove-entry')) {
             event.target.closest('.bucket-entry').remove();
             calculateDates();
         }
     });
+
+    // Initial date calculation
+    calculateDates();
 });
 
 function confirmUpdate() {

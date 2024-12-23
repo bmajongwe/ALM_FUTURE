@@ -1,62 +1,166 @@
-{% extends "base.html" %}
+{% extends "configurations/base.html" %}
 
 {% block content %}
 
-<!-- Include Operations Sidebar -->
-{% include 'configurations/configurations_sidebar.html' %}
-
-<div class="container mt-5">
-    <h2 class="text-center mb-5" style="font-size: 2.2rem; color: #0056b3; font-weight: bold; text-transform: uppercase;">Process Details</h2>
+<div class="container mt-2">
+    <h2 class="text-center mb-5" 
+        style="
+            font-size: 2rem; 
+            color: #0056b3; 
+            font-weight: 700; 
+            text-transform: uppercase;
+        ">
+        Process Details
+    </h2>
 
     <div class="card shadow-lg border-0">
-        <div class="card-header" style="background-color: #0056b3; color: white; font-weight: bold; text-transform: uppercase; text-align: center; font-size: 1.2rem;">
+        <div class="card-header text-white text-center" 
+             style="
+               background-color: #0056b3; 
+               font-weight: 600; 
+               text-transform: uppercase; 
+               font-size: 1rem;
+             ">
             Overview
         </div>
+
         <div class="card-body" style="padding: 30px;">
-            <!-- Process Name and Description -->
+            <!-- Process Name & Description -->
             <div class="row mb-4">
                 <div class="col-md-6">
-                    <h6 style="text-transform: uppercase; color: #6c757d; font-size: 1rem;">Process Name</h6>
-                    <p class="font-weight-bold" style="font-size: 1.5rem; color: #212529;">{{ process.name }}</p>
+                    <h6 style="
+                          text-transform: uppercase; 
+                          color: #6c757d; 
+                          font-size: 0.875rem;
+                        ">
+                        Process Name
+                    </h6>
+                    <p class="font-weight-bold" 
+                       style="
+                         font-size: 1.125rem; 
+                         color: #212529;
+                       ">
+                        {{ process.name }}
+                    </p>
                 </div>
                 <div class="col-md-6">
-                    <h6 style="text-transform: uppercase; color: #6c757d; font-size: 1rem;">Description</h6>
-                    <p style="font-size: 1.5rem; color: #212529; font-weight: bold;">{{ process.description }}</p>
+                    <h6 style="
+                          text-transform: uppercase; 
+                          color: #6c757d; 
+                          font-size: 0.875rem;
+                        ">
+                        Description
+                    </h6>
+                    <p style="
+                         font-size: 1.125rem; 
+                         color: #212529; 
+                         font-weight: 600;
+                       ">
+                        {{ process.description }}
+                    </p>
                 </div>
             </div>
 
-            <!-- Behavioral Patterns -->
+            <!-- Behavioral Patterns & Creator -->
             <div class="row mb-4">
                 <div class="col-md-6">
-                    <h6 style="text-transform: uppercase; color: #6c757d; font-size: 1rem;">Uses Behavioral Patterns</h6>
-                    <p style="font-size: 1.5rem; color: #212529; font-weight: bold;">{{ process.uses_behavioral_patterns|yesno:"Yes,No" }}</p>
+                    <h6 style="
+                          text-transform: uppercase; 
+                          color: #6c757d; 
+                          font-size: 0.875rem;
+                        ">
+                        Uses Behavioral Patterns
+                    </h6>
+                    <p style="
+                         font-size: 1.125rem; 
+                         color: #212529; 
+                         font-weight: 600;
+                       ">
+                        {{ process.uses_behavioral_patterns|yesno:"Yes,No" }}
+                    </p>
                 </div>
                 <div class="col-md-6">
-                    <h6 style="text-transform: uppercase; color: #6c757d; font-size: 1rem;">Created By</h6>
-                    <p style="font-size: 1.5rem; color: #212529;">{{ process.created_by }}</p>
+                    <h6 style="
+                          text-transform: uppercase; 
+                          color: #6c757d; 
+                          font-size: 0.875rem;
+                        ">
+                        Created By
+                    </h6>
+                    <p style="
+                         font-size: 1.125rem; 
+                         color: #212529;
+                       ">
+                        {{ process.created_by }}
+                    </p>
                 </div>
             </div>
 
             <!-- Selected Filters -->
             <div class="mb-4">
-                <h6 style="text-transform: uppercase; color: #6c757d; font-size: 1rem;">Selected Filters</h6>
+                <h6 style="
+                      text-transform: uppercase; 
+                      color: #6c757d; 
+                      font-size: 0.875rem;
+                    ">
+                    Selected Filters
+                </h6>
                 {% if filters %}
-                <ul class="list-group list-group-flush" style="font-size: 1.2rem;">
+                <ul class="list-group list-group-flush" style="font-size: 1rem;">
                     {% for filter in filters %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center" style="padding: 10px 15px;">
-                        <span style="font-weight: bold; color: #212529; font-size: 1.3rem;">{{ filter.field_name }}</span>
-                        <span class="badge badge-secondary" style="font-size: 1rem;">{{ filter.condition }}</span>
-                        <span style="font-size: 1.3rem; color: #495057;">{{ filter.value }}</span>
+                    <li class="list-group-item" style="padding: 10px 15px;">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <!-- Field Name -->
+                            <span style="
+                                  font-weight: 600; 
+                                  color: #212529; 
+                                  font-size: 1rem; 
+                                  min-width: 30%; 
+                                  text-align: left;
+                                ">
+                                {{ filter.field_name }}
+                            </span>
+                            <!-- Condition -->
+                            <span class="badge badge-secondary" 
+                                  style="
+                                    font-size: 0.875rem; 
+                                    text-align: center;
+                                  ">
+                                {{ filter.condition }}
+                            </span>
+                            <!-- Value -->
+                            <span style="
+                                  font-size: 1rem; 
+                                  color: #495057; 
+                                  min-width: 30%; 
+                                  text-align: right;
+                                ">
+                                {{ filter.value }}
+                            </span>
+                        </div>
                     </li>
                     {% endfor %}
                 </ul>
                 {% else %}
-                <p  style="font-weight: bold; color: #212529; font-size: 1.3rem;">No filters selected for this process.</p>
+                <p style="
+                     font-weight: 600; 
+                     color: #212529; 
+                     font-size: 1rem;
+                   ">
+                    No filters selected for this process.
+                </p>
                 {% endif %}
             </div>
         </div>
-        <div class="card-footer text-center" style="background-color: #f8f9fa; padding: 20px;">
-            <a href="{% url 'processes_list' %}" class="btn btn-outline-secondary btn-lg">
+
+        <div class="card-footer text-center" 
+             style="
+               background-color: #f8f9fa; 
+               padding: 20px;
+             ">
+            <a href="{% url 'processes_list' %}" 
+               class="btn btn-outline-secondary btn-lg" 
+               style="font-size: 1rem;">
                 <i class="fas fa-arrow-left"></i> Back to Process List
             </a>
         </div>

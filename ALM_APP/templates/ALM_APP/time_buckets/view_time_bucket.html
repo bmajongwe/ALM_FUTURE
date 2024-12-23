@@ -1,44 +1,84 @@
-{% extends "base.html" %}
+{% extends "configurations/base.html" %}
 
 {% block content %}
 
-<!-- Include Operations Sidebar -->
-{% include 'configurations/configurations_sidebar.html' %}
-
-<div class="container mt-5">
+<div class="container mt-2">
     <div class="card shadow-lg border-0">
         <div class="card-body px-5 py-4">
-            <h2 class="mb-5 text-center" style="font-size: 2.5rem; font-weight: bold; color: #004085;">View Time Bucket Definition</h2>
-            
+            <!-- Page Heading -->
+            <h2 class="mb-5 text-center" 
+                style="
+                    font-size: 2rem; 
+                    font-weight: 700; 
+                    color: #004085;
+                ">
+                View Time Bucket Definition
+            </h2>
+
             <!-- Time Bucket Details -->
             <div class="card mb-5">
-                <div class="card-header text-white" style="background-color: #004085; font-size: 1.3rem; font-weight: bold;">
+                <div 
+                    class="card-header text-white" 
+                    style="
+                        background-color: #004085; 
+                        font-size: 1.125rem; 
+                        font-weight: 600;
+                    "
+                >
                     {{ time_bucket.name }}
                 </div>
-                <div class="card-body" style="font-size: 1.2rem;">
-                    <p><strong>Created By:</strong> {{ time_bucket.created_by }}</p>
-                    <p><strong>Created On:</strong> {{ time_bucket.created_at|date:"M d, Y H:i" }}</p>
-                    <p><strong>Last Changed By:</strong> {{ time_bucket.last_changed_by }}</p>
-                    <p><strong>Last Changed Date:</strong> {{ time_bucket.last_changed_at|date:"M d, Y H:i" }}</p>
+                <div class="card-body" style="font-size: 1rem;">
+                    <p>
+                        <strong>Created By:</strong> 
+                        {{ time_bucket.created_by }}
+                    </p>
+                    <p>
+                        <strong>Created On:</strong> 
+                        {{ time_bucket.created_at|date:"M d, Y H:i" }}
+                    </p>
+                    <p>
+                        <strong>Last Changed By:</strong> 
+                        {{ time_bucket.last_changed_by }}
+                    </p>
+                    <p>
+                        <strong>Last Changed Date:</strong> 
+                        {{ time_bucket.last_changed_at|date:"M d, Y H:i" }}
+                    </p>
                 </div>
             </div>
 
             <!-- Time Bucket Entries -->
-            <h4 class="mb-4" style="font-size: 1.8rem; font-weight: bold; color: #6c757d;">Time Bucket Entries</h4>
-            <div class="table-responsive" style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 10px;">
+            <h4 class="mb-4" 
+                style="
+                  font-size: 1.25rem; 
+                  font-weight: 600; 
+                  color: #6c757d;
+                "
+            >
+                Time Bucket Entries
+            </h4>
+            <div 
+                class="table-responsive" 
+                style="
+                  max-height: 400px; 
+                  overflow-y: auto; 
+                  border: 1px solid #ddd; 
+                  border-radius: 10px;
+                "
+            >
                 <table class="table table-bordered table-hover mb-0">
                     <thead class="table-dark">
                         <tr>
-                            <th style="font-size: 1.2rem;">Order</th>
-                            <th style="font-size: 1.2rem;">Frequency</th>
-                            <th style="font-size: 1.2rem;">Multiplier</th>
-                            <th style="font-size: 1.2rem;">Start Date</th>
-                            <th style="font-size: 1.2rem;">End Date</th>
+                            <th style="font-size: 1rem;">Order</th>
+                            <th style="font-size: 1rem;">Frequency</th>
+                            <th style="font-size: 1rem;">Multiplier</th>
+                            <th style="font-size: 1rem;">Start Date</th>
+                            <th style="font-size: 1rem;">End Date</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for bucket in buckets %}
-                        <tr style="font-size: 1.1rem;">
+                        <tr style="font-size: 0.875rem;">
                             <td>{{ bucket.serial_number }}</td>
                             <td>{{ bucket.frequency }}</td>
                             <td>{{ bucket.multiplier }}</td>
@@ -47,7 +87,16 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="5" class="text-center" style="font-size: 1.2rem; color: #6c757d;">No entries found.</td>
+                            <td 
+                                colspan="5" 
+                                class="text-center" 
+                                style="
+                                  font-size: 1rem; 
+                                  color: #6c757d;
+                                "
+                            >
+                                No entries found.
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -56,7 +105,14 @@
 
             <!-- Back to List Button -->
             <div class="text-center mt-5">
-                <a href="{% url 'time_bucket_list' %}" class="btn btn-primary px-4 py-2" style="font-size: 1.4rem; border-radius: 30px;">
+                <a 
+                    href="{% url 'time_bucket_list' %}" 
+                    class="btn btn-primary px-4 py-2" 
+                    style="
+                      font-size: 1rem; 
+                      border-radius: 30px;
+                    "
+                >
                     <i class="fas fa-arrow-left"></i> Back to List
                 </a>
             </div>

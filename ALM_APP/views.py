@@ -50,35 +50,48 @@ from datetime import datetime, timedelta
 from django.shortcuts import render, redirect
 from .models import TimeBuckets, TimeBucketDefinition, product_level_cashflows
 
+
 @login_required
+
 def create_behavioral_pattern(request):
+    # Fetch the existing Time Bucket Definition (assuming only one is allowed)
+    try:
+        time_bucket = TimeBucketDefinition.objects.first()
+        bucket_entries = TimeBuckets.objects.filter(definition=time_bucket).order_by('serial_number')
+    except TimeBucketDefinition.DoesNotExist:
+        messages.error(request, "No Time Bucket Definition exists. Please create one first.")
+        return redirect('time_bucket_list')
+
+    # Fetch distinct product types from Ldn_Product_Master
+    product_types = Ldn_Product_Master.objects.values_list('v_prod_type', flat=True).distinct()
+
     if request.method == 'POST':
         # Call the function to process the form data
         result = define_behavioral_pattern_from_form_data(request)
 
         # Check if there is an error
         if 'error' in result:
-            # Use Django messages framework to display the error on the frontend
             messages.error(request, result['error'])
 
             # Return the form with existing data to repopulate the form fields
             return render(request, 'ALM_APP/behavioral/create_behavioral_pattern.html', {
                 'v_prod_type': request.POST.get('v_prod_type'),
                 'description': request.POST.get('description'),
-                'tenors': request.POST.getlist('tenor[]'),
-                'multipliers': request.POST.getlist('multiplier[]'),
-                'percentages': request.POST.getlist('percentage[]')
+                'percentages': request.POST.getlist('percentage[]'),
+                'bucket_entries': bucket_entries,  # Include time bucket data for prepopulating
+                'product_types': product_types,    # Include product types for dropdown
             })
 
-        # If no error, assume success and redirect using the PRG pattern
         if 'success' in result:
             messages.success(request, "Behavioral pattern saved successfully!")
-            # Redirect to a success page or list
             return redirect('behavioral_patterns_list')
 
-    # If it's not a POST request, render the form
-    # Redirect to the behavioral patterns list page
-    return render(request, 'ALM_APP/behavioral/create_behavioral_pattern.html')
+    # Prepopulate the form with Time Bucket Entries and Product Types
+    return render(request, 'ALM_APP/behavioral/create_behavioral_pattern.html', {
+        'bucket_entries': bucket_entries,  # Pass time bucket entries for prepopulating
+        'product_types': product_types,    # Pass product types for dropdown
+    })
+
 
 # View for Behavioral Pattern List
 
@@ -97,24 +110,43 @@ def edit_behavioral_pattern(request, id):
         # Get the pattern to edit
         pattern = BehavioralPatternConfig.objects.get(id=id)
 
+        # Fetch product types from Ldn_Product_Master for the dropdown
+        product_types = Ldn_Product_Master.objects.values_list('v_prod_type', flat=True).distinct()
+
         if request.method == 'POST':
+            # Extract data from POST request
+            tenors = request.POST.getlist('tenor[]')
+            multipliers = request.POST.getlist('multiplier[]')
+            percentages = request.POST.getlist('percentage[]')
+
+            # Validate data lengths
+            if not (len(tenors) == len(multipliers) == len(percentages)):
+                return render(request, 'ALM_APP/behavioral/edit_behavioral_pattern.html', {
+                    'error': "Mismatch in the number of entries for Tenors, Multipliers, and Percentages.",
+                    'v_prod_type': request.POST.get('v_prod_type', pattern.v_prod_type),
+                    'description': request.POST.get('description', pattern.description),
+                    'tenors': tenors,
+                    'multipliers': multipliers,
+                    'percentages': percentages,
+                    'product_types': product_types,  # Pass product types for the dropdown
+                })
+
             # Call the utility function to update the pattern
             result = update_behavioral_pattern_from_form_data(request, pattern)
 
             if 'error' in result:
                 return render(request, 'ALM_APP/behavioral/edit_behavioral_pattern.html', {
                     'error': result['error'],
-                    'v_prod_type': pattern.v_prod_type,
-                    'description': pattern.description,
-                    'tenors': [entry.tenor for entry in pattern.entries.all()],
-                    'multipliers': [entry.multiplier for entry in pattern.entries.all()],
-                    'percentages': [entry.percentage for entry in pattern.entries.all()],
+                    'v_prod_type': request.POST.get('v_prod_type', pattern.v_prod_type),
+                    'description': request.POST.get('description', pattern.description),
+                    'tenors': tenors,
+                    'multipliers': multipliers,
+                    'percentages': percentages,
+                    'product_types': product_types,  # Pass product types for the dropdown
                 })
 
             # If successful, display the success message and redirect
-            messages.success(
-                request, "Behavioral pattern updated successfully!")
-            # Redirect back to the patterns list
+            messages.success(request, "Behavioral pattern updated successfully!")
             return redirect('behavioral_patterns_list')
 
         # If GET request, prepopulate the form with the current data
@@ -124,10 +156,15 @@ def edit_behavioral_pattern(request, id):
             'tenors': [entry.tenor for entry in pattern.entries.all()],
             'multipliers': [entry.multiplier for entry in pattern.entries.all()],
             'percentages': [entry.percentage for entry in pattern.entries.all()],
+            'product_types': product_types,  # Pass product types for the dropdown
         })
 
     except BehavioralPatternConfig.DoesNotExist:
         messages.error(request, "Behavioral pattern not found.")
+        return redirect('behavioral_patterns_list')
+
+    except Exception as e:
+        messages.error(request, f"An unexpected error occurred: {str(e)}")
         return redirect('behavioral_patterns_list')
 
 

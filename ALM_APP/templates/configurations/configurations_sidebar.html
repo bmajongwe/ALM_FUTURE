@@ -1,144 +1,237 @@
-<!-- Sidebar -->
-<nav id="operations-sidebar" class="col-md-3 col-lg-2 d-md-block sidebar">
-    <div class="position-sticky pt-3">
-        <ul class="nav flex-column">
-            <!-- Back Button -->
-            <li class="nav-item mb-4">
-                <a href="{% url 'ALM_home' %}" class="btn btn-outline-light w-100">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
-            </li>
-            <!-- Back Button -->
-            <li class="nav-item mb-4">
-                <a href="{% if request.resolver_match.url_name == 'process_detail' or request.resolver_match.url_name == 'create_process'  or request.resolver_match.url_name == 'edit_process'  %}
-                            {% url 'process_list' %}
-                        {% elif request.resolver_match.url_name == 'monitor_specific_process' %}
-                            {% url 'processes_list' %}
-                         {% else %}
-                            {% url 'ALM_home' %}
-                         {% endif %}" class="btn btn-outline-light w-100">
-                    <i class="fas fa-arrow-left"></i> Back
-                </a>
-            </li>
+<!-- HAMBURGER TOGGLE BUTTON -->
+<button id="sidebarToggle"
+        style="
+          position: fixed;
+          top: 70px; /* adjust to match your navbar's height */
+          left: 20px;
+          z-index: 1101;
+          background-color: #003366;
+          color: #ffffff;
+          border: none;
+          padding: 10px 15px;
+          cursor: pointer;
+          border-radius: 4px;
+          box-shadow: 0 0 5px rgba(0,0,0,0.3);
+          transition: background-color 0.3s ease;
+        ">
+  <i class="fas fa-bars"></i>
+</button>
 
+<!-- SEMI-TRANSPARENT OVERLAY -->
+<div id="sidebarOverlay"
+     style="
+       position: fixed;
+       top: 0;
+       left: 0;
+       width: 100%;
+       height: 100vh;
+       background: rgba(0,0,0,0.5);
+       z-index: 1100;
+       opacity: 0;
+       pointer-events: none;
+       transition: opacity 0.3s ease;
+     ">
+</div>
 
-            <!-- Sidebar Heading -->
-            <h5 class="sidebar-heading px-3 mb-2 text-green">Configurations</h5>
+<!-- SIDEBAR NAV -->
+<nav id="operations-sidebar"
+     style="
+       position: fixed;
+       top: 70px; /* match your navbar's offset */
+       left: 0;
+       width: 250px;
+       height: calc(100vh - 70px);
+       background: #003366;
+       color: #ffffff;
+       box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+       z-index: 1200;
+       overflow-y: auto;
+       transform: translateX(-250px);
+       transition: transform 0.3s ease;
+     ">
 
-            <!-- Sidebar Links for Operations -->
-            <li class="nav-item">
-                <a class="nav-link font-weight-bold {% if request.resolver_match.url_name == 'processes_list' %}active{% endif %} text-white"
-                    href="{% url 'processes_list' %}">
-                    <i class="bi bi-plus-circle me-2"></i> ALM Process
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link font-weight-bold {% if request.resolver_match.url_name == 'product_filter_list' %}active{% endif %} text-white"
-                    href="{% url 'product_filter_list' %}">
-                    <i class="bi bi-play-circle me-2"></i> Product Filters
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link font-weight-bold {% if request.resolver_match.url_name == 'time_bucket_list' %}active{% endif %} text-white"
-                    href="{% url 'time_bucket_list' %}">
-                    <i class="bi bi-eye me-2"></i> Time Buckets
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link font-weight-bold {% if request.resolver_match.url_name == 'behavioral_patterns_list' %}active{% endif %} text-white"
-                    href="{% url 'behavioral_patterns_list' %}">
-                    <i class="bi bi-x-circle me-2"></i> Behavioural Patterns
-                </a>
-            </li>
-        </ul>
-    </div>
+  <div style="
+        padding: 1rem 0 1rem 0;
+        /* optional subtle gradient:
+        background: linear-gradient(#003366, #002655);
+        */
+      ">
+    <ul class="nav flex-column" style="list-style: none; margin: 0; padding: 0;">
+      
+      <!-- CLOSE BUTTON -->
+      <li class="nav-item"
+          style="margin-bottom: 1rem; text-align: right; padding: 0 1rem;">
+        <button id="closeSidebar"
+                style="
+                  background: transparent;
+                  border: none;
+                  color: #ffffff;
+                  font-size: 1.2rem;
+                  cursor: pointer;
+                ">
+          <i class="fas fa-times"></i>
+        </button>
+      </li>
+
+      <!-- BACK BUTTON -->
+      <!-- <li class="nav-item" style="margin-bottom: 1rem; padding: 0 1rem;">
+        <a href="{{ back_url }}"
+           class="btn btn-outline-light w-100"
+           style="
+             color: #ffffff;
+             border-color: #ffffff;
+             box-shadow: none;
+             border-radius: 4px;
+             text-align: left;
+             font-weight: 500;
+           ">
+          <i class="fas fa-arrow-left"></i> Back
+        </a>
+      </li> -->
+
+      <!-- SECTION HEADING -->
+      <h5 class="sidebar-heading"
+          style="
+            font-size: 0.9rem;
+            margin: 0;
+            padding: 0.75rem 1.25rem;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 0.05rem;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+          ">
+        Configurations
+      </h5>
+
+      <!-- MENU ITEMS -->
+      <li class="nav-item" style="margin: 0;">
+        <a class="nav-link {% if request.resolver_match.url_name == 'processes_list' %}active{% endif %}"
+           href="{% url 'processes_list' %}"
+           style="
+             display: block;
+             font-size: 1rem;
+             color: #ffffff;
+             padding: 10px 20px;
+             font-weight: 500;
+             border-left: 4px solid transparent;
+             text-decoration: none;
+             transition: background-color 0.3s ease, color 0.3s ease, border-left-color 0.3s ease;
+             border-radius: 4px 0 0 4px;
+             margin: 0.5rem 0;
+           ">
+           <i class="fas fa-cog" style="margin-right: 8px;"></i> ALM Process
+        </a>
+      </li>
+      <li class="nav-item" style="margin: 0;">
+        <a class="nav-link {% if request.resolver_match.url_name == 'product_filter_list' %}active{% endif %}"
+           href="{% url 'product_filter_list' %}"
+           style="
+             display: block;
+             font-size: 1rem;
+             color: #ffffff;
+             padding: 10px 20px;
+             font-weight: 500;
+             border-left: 4px solid transparent;
+             text-decoration: none;
+             transition: background-color 0.3s ease, color 0.3s ease, border-left-color 0.3s ease;
+             border-radius: 4px 0 0 4px;
+             margin: 0.5rem 0;
+           ">
+           <i class="fas fa-filter" style="margin-right: 8px;"></i> Product Filters
+        </a>
+      </li>
+      <li class="nav-item" style="margin: 0;">
+        <a class="nav-link {% if request.resolver_match.url_name == 'time_bucket_list' %}active{% endif %}"
+           href="{% url 'time_bucket_list' %}"
+           style="
+             display: block;
+             font-size: 1rem;
+             color: #ffffff;
+             padding: 10px 20px;
+             font-weight: 500;
+             border-left: 4px solid transparent;
+             text-decoration: none;
+             transition: background-color 0.3s ease, color 0.3s ease, border-left-color 0.3s ease;
+             border-radius: 4px 0 0 4px;
+             margin: 0.5rem 0;
+           ">
+           <i class="fas fa-clock" style="margin-right: 8px;"></i> Time Buckets
+        </a>
+      </li>
+      <li class="nav-item" style="margin: 0;">
+        <a class="nav-link {% if request.resolver_match.url_name == 'behavioral_patterns_list' %}active{% endif %}"
+           href="{% url 'behavioral_patterns_list' %}"
+           style="
+             display: block;
+             font-size: 1rem;
+             color: #ffffff;
+             padding: 10px 20px;
+             font-weight: 500;
+             border-left: 4px solid transparent;
+             text-decoration: none;
+             transition: background-color 0.3s ease, color 0.3s ease, border-left-color 0.3s ease;
+             border-radius: 4px 0 0 4px;
+             margin: 0.5rem 0;
+           ">
+           <i class="fas fa-brain" style="margin-right: 8px;"></i> Behavioural Patterns
+        </a>
+      </li>
+    </ul>
+  </div>
 </nav>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <style>
-    /* Ensure the sidebar covers the full height of the page */
-    html,
-    body {
-        height: 100%;
-        margin: 0;
-    }
-
-    #operations-sidebar {
-        height: 100vh;
-        position: fixed;
-        top: 0;
-        left: 0;
-        background-color: #003366;
-        /* Primary color */
-        color: #ffffff;
-        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-        width: 250px;
-        /* Fixed width for sidebar */
-        z-index: 1000;
-        /* Ensure sidebar stays on top */
-    }
-
-    /* Sidebar links */
-    #operations-sidebar .nav-link {
-        font-size: 1.1rem;
-        color: #ffffff;
-        /* Keep text color white */
-        padding: 10px 20px;
-        font-weight: bold;
-        /* Bold text */
-        border-left: 4px solid transparent;
-        transition: background-color 0.3s ease, color 0.3s ease, border-left-color 0.3s ease;
-    }
-
-    /* Sidebar icons */
-    #operations-sidebar .nav-link i {
-        color: #ffffff;
-        /* Keep icon color white by default */
-        transition: color 0.3s ease;
-        /* Smooth transition for icon color */
-    }
-
-    /* Hover effect for sidebar links */
-    #operations-sidebar .nav-link:hover {
-        background-color: #2064a8;
-        /* Darker shade of primary color */
-        border-left-color: #ffcc00;
-        /* Yellow border on hover */
-        color: #ffcc00;
-        /* Change text color to yellow on hover */
-    }
-
-    /* Change icon color on hover */
-    #operations-sidebar .nav-link:hover i {
-        color: #ffcc00;
-        /* Change icon color to yellow on hover */
-    }
-
-    /* Active link styling */
-    #operations-sidebar .nav-link.active {
-        background-color: #005ea6;
-        /* Darker shade for active link */
-        color: #ffffff;
-        border-left-color: #ffffff;
-        /* White left border for active link */
-    }
-
-    /* Back button styling */
-    #operations-sidebar .btn-outline-light {
-        color: #ffffff;
-        border-color: #ffffff;
-    }
-
-    #operations-sidebar .btn-outline-light:hover {
-        background-color: #ffffff;
-        color: #003366;
-    }
-
-    /* Sidebar heading styling */
-    .sidebar-heading {
-        font-size: 1rem;
-        color: #ffffff;
-        letter-spacing: 0.1rem;
-        text-transform: uppercase;
-    }
+  /* Slide in/out the sidebar */
+  #operations-sidebar.show {
+    transform: translateX(0) !important;
+  }
+  /* Overlay fade in/out */
+  #sidebarOverlay.show {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  /* Hover effect for links */
+  #operations-sidebar .nav-link:hover {
+    background-color: #2064a8 !important;
+    border-left-color: #ffcc00 !important;
+    color: #ffcc00 !important;
+  }
+  /* Active link style */
+  #operations-sidebar .nav-link.active {
+    background-color: #005ea6 !important;
+    color: #ffffff !important;
+    border-left-color: #ffffff !important;
+  }
+  /* Back button hover */
+  #operations-sidebar .btn-outline-light:hover {
+    background-color: #ffffff !important;
+    color: #003366 !important;
+  }
+  /* Hamburger hover */
+  #sidebarToggle:hover {
+    background-color: #2064a8 !important;
+  }
 </style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const toggleBtn    = document.getElementById('sidebarToggle');
+    const sidebar      = document.getElementById('operations-sidebar');
+    const closeSidebar = document.getElementById('closeSidebar');
+    const overlay      = document.getElementById('sidebarOverlay');
+
+    function openSidebar() {
+      sidebar.classList.add('show');
+      overlay.classList.add('show');
+    }
+
+    function closeSideBar() {
+      sidebar.classList.remove('show');
+      overlay.classList.remove('show');
+    }
+
+    toggleBtn.addEventListener('click', openSidebar);
+    closeSidebar.addEventListener('click', closeSideBar);
+    overlay.addEventListener('click', closeSideBar);
+  });
+</script>

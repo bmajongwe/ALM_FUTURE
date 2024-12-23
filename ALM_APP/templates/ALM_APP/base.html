@@ -22,7 +22,169 @@
             color: white;
             padding: 1rem;
         }
+
+
+        ######################################################################################
+
+        body {
+            font-family: Arial, sans-serif;
+            color: #333;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+        }
+    
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+            font-size: 2em;
+            margin-top: 20px;
+        }
+    
+        /* Error message styling */
+        .error-message-container {
+            max-width: 800px;
+            margin: 10px auto;
+            padding: 15px;
+            background-color: #ffdddd;
+            border: 1px solid #f44336;
+            border-radius: 5px;
+            text-align: center;
+            color: #f44336;
+            font-weight: bold;
+        }
+    
+        .filter-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+    
+        .apply-button,
+        .reset-button {
+            padding: 10px 20px;
+            font-size: 1em;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    
+        .apply-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+        }
+    
+        .reset-button {
+            background-color: #f44336;
+            color: white;
+            text-decoration: none;
+            border: none;
+        }
+    
+        .report-table-container {
+            max-width: 90%;
+            margin: 20px auto;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            padding: 10px;
+        }
+    
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0 auto;
+            font-size: 14px;
+            table-layout: auto; /* Allow flexible column widths */
+        }
+    
+        .report-table th {
+            background-color: #3b5998;
+            color: white;
+            font-weight: bold;
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+            vertical-align: middle;
+            white-space: nowrap;
+            width: 150px;
+        }
+    
+        .report-table td,
+        .report-table th {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+    
+        .account-type-row {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            text-align: left;
+            padding-left: 10px;
+            vertical-align: top;
+        }
+    
+        .product-name {
+            color: #007bff;
+            font-weight: bold;
+            text-align: left;
+            padding-left: 10px;
+        }
+
+        
+        .footer-row td {
+         background-color: #e0e0e0;
+         font-weight: bold;
+         text-align: left; /* Ensure text alignment to the left */
+         padding-left: 5px; /* Add minimal padding for aesthetics */
+        margin: 10px; /* Remove any default margin */
+        border-top: 2px solid #0e57a0;
+         border-inline-end: 2px solid #0e57a0;
+        border-bottom: 2px solid #0e57a0;
+
+
+    white-space: nowrap; /* Prevent text wrapping if unnecessary */
+}
+    
+        /* Responsive Table Styling */
+        .drill-down-header {
+            word-wrap: break-word;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+    
+        .report-table td {
+            text-align: left;
+        }
+    
+        .report-table th {
+            min-width: 100px; /* Ensure consistent minimum width */
+        }
+    
+        /* Handle horizontal scrolling */
+        .report-table-container::-webkit-scrollbar {
+            height: 10px;
+        }
+    
+        .report-table-container::-webkit-scrollbar-thumb {
+            background-color: #ccc;
+            border-radius: 5px;
+        }
+    
+        .report-table-container::-webkit-scrollbar-track {
+            background-color: #f0f0f0;
+        }
     </style>
+
 </head>
 <body class="d-flex flex-column">
 

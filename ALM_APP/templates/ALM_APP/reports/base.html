@@ -1,0 +1,342 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}IFRS 9 Dashboard{% endblock %}</title>
+
+    <!-- Bootstrap 4 CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            padding-top: 106px; /* 56px main navbar + 50px navigation controls */
+        }
+        .navbar {
+            background-color: #003366;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            height: 56px; /* Main navbar height */
+            z-index: 1030;
+        }
+        .navigation-controls {
+            background-color: #f8f9fa;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            height: 50px; /* Navigation controls height */
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            position: fixed;
+            top: 56px; /* Positioned below the main navbar */
+            width: 100%;
+            z-index: 1020;
+        }
+        .navigation-controls .btn {
+            color: #003366;
+            font-size: 1.25rem;
+            border: none;
+            background: none;
+            display: flex;
+            align-items: center;
+        }
+        .navigation-controls .btn:hover {
+            color: #0056b3;
+        }
+        .navigation-controls .btn .menu-text {
+            margin-left: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .navbar-brand img {
+            filter: brightness(0) invert(1);
+        }
+        .navbar-nav .nav-link {
+            color: white !important;
+            font-weight: 600;
+            padding: 8px 16px;
+            transition: color 0.3s ease;
+        }
+        .navbar-nav .nav-link:hover,
+        .navbar-nav .nav-item.active .nav-link {
+            color: #ffd700 !important;
+        }
+        .navbar-logo {
+            margin-right: 20px;
+        }
+        .header-title {
+            color: white;
+            font-size: 1.25rem;
+            font-weight: 600;
+            text-align: center;
+            flex: 1;
+        }
+        .user-menu .dropdown-toggle {
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .user-menu .dropdown-menu {
+            border-radius: 0;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .dropdown-item:hover {
+            background-color: #003366;
+            color: #fff;
+        }
+
+        /* SIDEBAR OFF-CANVAS */
+        #operations-sidebar {
+            position: fixed;
+            top: 106px; /* 56px main navbar + 50px navigation controls */
+            left: 0;
+            width: 250px; 
+            height: calc(100vh - 106px);
+            background-color: #003366;
+            color: #ffffff;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 1200;
+            overflow-y: auto;
+            transform: translateX(-250px);
+            transition: transform 0.3s ease;
+        }
+        #operations-sidebar.show {
+            transform: translateX(0);
+        }
+
+        /* MAIN CONTENT SHIFT */
+        #main-content {
+            margin-left: 0; /* start unshifted */
+            transition: margin-left 0.3s ease;
+        }
+        #main-content.shifted {
+            margin-left: 250px; /* same as sidebar width */
+        }
+
+        /* OVERLAY to dim background when sidebar is open */
+        #sidebarOverlay {
+            position: fixed;
+            top: 106px; /* same as #operations-sidebar top */
+            left: 0;
+            width: 100%;
+            height: calc(100vh - 106px);
+            background: rgba(0,0,0,0.5);
+            z-index: 1100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        #sidebarOverlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* SIDEBAR Links */
+        #operations-sidebar .nav-link {
+            display: block;
+            font-size: 1rem;
+            color: #ffffff;
+            padding: 10px 20px;
+            border-left: 4px solid transparent;
+            text-decoration: none;
+            transition: background-color 0.3s ease, border-left-color 0.3s ease, color 0.3s ease;
+        }
+        #operations-sidebar .nav-link:hover {
+            background-color: #2064a8;
+            border-left-color: #ffd700;
+            color: #ffd700;
+        }
+        #operations-sidebar .nav-link.active {
+            background-color: #005ea6;
+            border-left-color: #ffffff;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <!-- MAIN NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+        
+        <!-- LOGO -->
+        <img src="{% static 'images/logo.png' %}" 
+             alt="Company Logo" 
+             class="rounded-circle navbar-logo" 
+             width="50" 
+             height="50">
+        
+        <!-- NAVBAR TOGGLER FOR COLLAPSE -->
+        <button class="navbar-toggler" 
+                type="button" 
+                data-toggle="collapse" 
+                data-target="#navbarNav" 
+                aria-controls="navbarNav" 
+                aria-expanded="false" 
+                aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <!-- NAVIGATION ITEMS -->
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item {% if request.path == '/reports/' %}active{% endif %}">
+                    <a class="nav-link" href="{% url 'ALM_home' %}">Home</a>
+                </li>
+            </ul>
+
+            <!-- CENTER TITLE -->
+            <div class="header-title">
+                ASSET LIABILITY MANAGEMENT
+            </div>
+
+            <!-- USER MENU -->
+            <ul class="navbar-nav user-menu">
+                {% if user.is_authenticated %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" 
+                       href="#" 
+                       id="userDropdown" 
+                       role="button">
+                        <i class="fas fa-user-circle"></i> {{ user.email }}
+                    </a>
+                    <div class="dropdown-menu" aria-labelledby="userDropdown">
+                        <a class="dropdown-item" href="{% url 'settings' %}">
+                            <i class="fas fa-cog"></i> Settings
+                        </a>
+                        <a class="dropdown-item" href="{% url 'logout' %}">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <!-- NAVIGATION CONTROLS SUBSECTION -->
+    <nav class="navigation-controls">
+        <!-- HAMBURGER TOGGLE WITH LABEL -->
+        <button id="sidebarToggle" 
+                class="btn text-primary mr-2" 
+                aria-label="Toggle sidebar">
+            <i class="fas fa-bars"></i>
+            <span class="menu-text">Menu</span>
+        </button>
+
+        <!-- Additional Navigation Controls (Optional) -->
+        <!-- You can add more buttons or links here if needed -->
+        <!-- Example:
+        <a href="#" class="btn btn-link text-primary">Link</a>
+        -->
+    </nav>
+
+    <!-- SIDEBAR -->
+    <nav id="operations-sidebar">
+      <!-- CLOSE BUTTON -->
+      <div class="d-flex justify-content-end pt-3 pr-3">
+        <button id="closeSidebar"
+                style="background:transparent; border:none; color:#fff; font-size:1.2rem; cursor:pointer;">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <!-- Example heading -->
+      <h5 class="px-3" style="text-transform:uppercase; font-size:0.9rem; margin-bottom:0.5rem;">
+        Configurations
+      </h5>
+      <!-- Example links -->
+      <ul class="nav flex-column" style="list-style:none; padding:0;">
+        <li class="nav-item">
+          <a href="{% url 'processes_list' %}" class="nav-link">
+            <i class="fas fa-cog mr-2"></i> ALM Process
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'product_filter_list' %}" class="nav-link">
+            <i class="fas fa-filter mr-2"></i> Product Filters
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'time_bucket_list' %}" class="nav-link">
+            <i class="fas fa-clock mr-2"></i> Time Buckets
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'behavioral_patterns_list' %}" class="nav-link">
+            <i class="fas fa-brain mr-2"></i> Behavioural Patterns
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- OVERLAY -->
+    <div id="sidebarOverlay"></div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main-content" class="pt-3">
+        <div class="container-fluid">
+            {% block content %}
+            {% endblock %}
+        </div>
+    </div>
+
+    <!-- jQuery and Bootstrap 4 Bundle JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js" 
+            integrity="sha384-ZvpUoO/+P7y+n1R0Dx3qqTr3xTHHgv4yNDckc1fINJnwEY5t8q2Xjq9n5qw5yQjr" 
+            crossorigin="anonymous">
+    </script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js" 
+            integrity="sha384-LtrjvnR4Twt/qOuYx3G6NRQaZZrojtKBLPZd0IhqFAF0sA4uN1wW6E31mD2B3+bx" 
+            crossorigin="anonymous">
+    </script>
+
+    <!-- JavaScript for Sidebar Toggle -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar      = document.getElementById('operations-sidebar');
+            const mainContent  = document.getElementById('main-content');
+            const overlay      = document.getElementById('sidebarOverlay');
+            const toggleBtn    = document.getElementById('sidebarToggle');
+            const closeBtn     = document.getElementById('closeSidebar');
+
+            function openSidebar() {
+                sidebar.classList.add('show');
+                mainContent.classList.add('shifted');
+                overlay.classList.add('show');
+            }
+            function closeSidebar() {
+                sidebar.classList.remove('show');
+                mainContent.classList.remove('shifted');
+                overlay.classList.remove('show');
+            }
+
+            // Hamburger opens
+            toggleBtn.addEventListener('click', openSidebar);
+            // "X" closes
+            closeBtn.addEventListener('click', closeSidebar);
+            // Clicking overlay closes
+            overlay.addEventListener('click', closeSidebar);
+
+            // Toggle user dropdown
+            const userDropdownToggle = document.getElementById('userDropdown');
+            const userDropdownMenu   = document.querySelector('.dropdown-menu');
+            if (userDropdownToggle && userDropdownMenu) {
+                userDropdownToggle.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    userDropdownMenu.style.display = 
+                        userDropdownMenu.style.display === 'block' ? 'none' : 'block';
+                });
+                document.addEventListener('click', function(event) {
+                    if (!userDropdownToggle.contains(event.target) && 
+                        !userDropdownMenu.contains(event.target)) {
+                        userDropdownMenu.style.display = 'none';
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
