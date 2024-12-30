@@ -1,0 +1,1069 @@
+{% extends "ALM_APP/reports/base.html" %}
+
+{% block content %}
+
+
+
+
+
+<div class="container mt-5"></div>
+   <!-- Load the custom filter -->
+{% load custom_filters %}
+<h1 style="text-align: center; color: #4CAF50; font-size: 2em; margin-top: 20px;">Liquidity Gap Report</h1>
+
+    
+        <!-- Display error message if present -->
+{% if messages %}
+<div style="max-width: 800px; margin: 10px auto; padding: 15px; background-color: #ffdddd; border: 1px solid #f44336; border-radius: 5px; text-align: center; color: #f44336; font-weight: bold;">
+    {% for message in messages %}
+    {{ message }}
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Filter Form -->
+<div style="
+    width: 80%;
+    margin: 15px auto;
+    padding: 10px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+">
+    <form method="get" style="
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: space-between;
+        width: 100%;
+        box-sizing: border-box;
+    ">
+        <!-- Process -->
+        <div style="
+            flex: 1 1 120px;
+            display: flex;
+            flex-direction: column;
+        ">
+            <label for="process" style="
+                font-size: 0.75em;
+                font-weight: bold;
+                color: #555;
+                margin-bottom: 3px;
+            ">Process:</label>
+            <select id="process" name="process" style="
+                padding: 5px 8px;
+                font-size: 0.8em;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                background: #f9f9f9;
+                width: 100%;
+                box-sizing: border-box;
+            ">
+                <option>--- Select Process ---</option>
+                <!-- Add more options as needed -->
+            </select>
+        </div>
+
+        <!-- As of Date -->
+        <div style="
+            flex: 1 1 120px;
+            display: flex;
+            flex-direction: column;
+        ">
+            <label for="asOfDate" style="
+                font-size: 0.75em;
+                font-weight: bold;
+                color: #555;
+                margin-bottom: 3px;
+            ">As of Date:</label>
+            <select id="asOfDate" name="asOfDate" style="
+                padding: 5px 8px;
+                font-size: 0.8em;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                background: #f9f9f9;
+                width: 100%;
+                box-sizing: border-box;
+            ">
+                <option>--- Select Date ---</option>
+                <!-- Add more options as needed -->
+            </select>
+        </div>
+
+        <!-- Currency -->
+        <div style="
+            flex: 1 1 120px;
+            display: flex;
+            flex-direction: column;
+        ">
+            <label for="currency" style="
+                font-size: 0.75em;
+                font-weight: bold;
+                color: #555;
+                margin-bottom: 3px;
+            ">Currency:</label>
+            <select id="currency" name="currency" style="
+                padding: 5px 8px;
+                font-size: 0.8em;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                background: #f9f9f9;
+                width: 100%;
+                box-sizing: border-box;
+            ">
+                <option>--- Select Currency ---</option>
+                <!-- Add more options as needed -->
+            </select>
+        </div>
+
+        <!-- Result Type -->
+        <div style="
+            flex: 1 1 120px;
+            display: flex;
+            flex-direction: column;
+        ">
+            <label for="resultType" style="
+                font-size: 0.75em;
+                font-weight: bold;
+                color: #555;
+                margin-bottom: 3px;
+            ">Result Type:</label>
+            <select id="resultType" name="resultType" style="
+                padding: 5px 8px;
+                font-size: 0.8em;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                background: #f9f9f9;
+                width: 100%;
+                box-sizing: border-box;
+            ">
+                <option>--- Select Result Type ---</option>
+                <!-- Add more options as needed -->
+            </select>
+        </div>
+
+        <!-- Bucket End Date -->
+        <div style="
+            flex: 1 1 120px;
+            display: flex;
+            flex-direction: column;
+        ">
+            <label for="bucketEndDate" style="
+                font-size: 0.75em;
+                font-weight: bold;
+                color: #555;
+                margin-bottom: 3px;
+            ">Bucket End Date:</label>
+            <select id="bucketEndDate" name="bucketEndDate" style="
+                padding: 5px 8px;
+                font-size: 0.8em;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                background: #f9f9f9;
+                width: 100%;
+                box-sizing: border-box;
+            ">
+                <option>--- Select Bucket Number ---</option>
+                <!-- Add more options as needed -->
+            </select>
+        </div>
+
+        <!-- Buttons -->
+        <div style="
+            flex: 1 1 100%;
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            justify-content: flex-start;
+            flex-wrap: wrap;
+        ">
+            <button type="submit" style="
+                padding: 6px 15px;
+                font-size: 0.8em;
+                font-weight: bold;
+                color: #fff;
+                background-color: #007bff;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+                transition: background-color 0.3s ease;
+            " 
+            onmouseover="this.style.backgroundColor='#0056b3'" 
+            onmouseout="this.style.backgroundColor='#007bff'">
+                Apply
+            </button>
+            <a href="{% url 'liquidity_gap_report_base' %}" style="
+                padding: 6px 15px;
+                font-size: 0.8em;
+                font-weight: bold;
+                color: #fff;
+                background-color: #dc3545;
+                border: none;
+                border-radius: 4px;
+                text-decoration: none;
+                cursor: pointer;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+                transition: background-color 0.3s ease;
+            " 
+            onmouseover="this.style.backgroundColor='#a71d2a'" 
+            onmouseout="this.style.backgroundColor='#dc3545'">
+                Reset
+            </a>
+        </div>
+    </form>
+</div>
+
+
+
+        <!-- Rows per page selector -->
+<div style="text-align: right; margin: 10px;">
+    <label for="rowsPerPage">Show rows:</label>
+    <select id="rowsPerPage" onchange="updateRowsPerPage()">
+        <option value="10">10</option>
+        <option value="25" selected>25</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+    </select>
+</div>
+
+
+
+
+
+<!-- Base Results: Loop through each currency in currency_data -->
+{% for currency, data in currency_data.items %}
+<h5 style="margin: 0 auto; text-align: center;width: 80% ; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); color: #081625; margin-block-end: 10px;">
+    Amount in {{ currency }}
+</h5>
+
+<!-- Breadcrumb Navigation with Back Button -->
+<div
+    style="margin: 0 auto; display: flex;display:flex; width: 80%;align-items: center;justify-content: center;background-color: #f8f9fa;padding: 15px;border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    "
+>
+    {% if selected_currency %}
+        <!-- Back to All Currencies -->
+        <a
+            href="?"
+            style="color: #007bff;text-decoration: none;font-weight: 600;font-size: 16px;margin-right: 20px;display: flex;align-items: center;transition: color 0.3s ease;
+            "
+            onmouseover="this.style.color='#0056b3';"
+            onmouseout="this.style.color='#007bff';"
+        >
+            &#8592; Back to All Currencies
+        </a>
+    {% endif %}
+
+    {% if drill_down_splits %}
+        <!-- Back to Product Names -->
+        <a
+            href="?{% if selected_currency %}selected_currency={{ selected_currency }}&{% endif %}drill_down_product={{ drill_down_product }}"
+            style="color: #007bff;text-decoration: none;font-weight: 600;font-size: 16px;display: flex;align-items: center;transition: color 0.3s ease;
+            "
+            onmouseover="this.style.color='#0056b3';"
+            onmouseout="this.style.color='#007bff';"
+        >
+            &#8592; Back to Product Names
+        </a>
+    {% elif drill_down_product %}
+        <!-- Back to Overview -->
+        <a
+            href="{% url 'liquidity_gap_report_base' %}{% if selected_currency %}?selected_currency={{ selected_currency }}{% endif %}"
+            style="color: #007bff;text-decoration: none;font-weight: 600;font-size: 16px;display: flex;align-items: center;transition: color 0.3s ease;
+            "
+            onmouseover="this.style.color='#0056b3';"
+            onmouseout="this.style.color='#007bff';"
+        >
+            &#8592; Back to Overview
+        </a>
+    {% endif %}
+</div>
+<!-- ============ DRILL-DOWN FOR SPLITS =========== -->
+{% if drill_down_splits %}
+<div style="
+    max-width: 80%;
+    margin: 20px auto;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
+    padding: 10px;">
+
+    <h4 style="
+        word-wrap: break-word;
+        font-size: 14px;
+        text-align: center;
+        color: #ff5733;
+        font-weight: bold;
+        margin-bottom: 15px;"
+        title="Drill-Down for Splits: {{ drill_down_splits }}">
+        Drill-Down for Splits: {{ drill_down_splits }}
+    </h4>
+
+    <table style="
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0 auto;
+        font-size: 12px;
+        table-layout: auto;">
+        
+        <thead>
+            <tr>
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    text-align: left;">
+                    Account Type
+                </th>
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    text-align: left;">
+                    Product
+                </th>
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    text-align: left;">
+                    v_product_name
+                </th>
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    text-align: left;">
+                    v_product_splits
+                </th>
+                {% for bucket in date_buckets %}
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    text-align: center;
+                    width: 100px;">
+                    {{ bucket.bucket_start_date|date:"d-M-Y" }}<br>
+                    {{ bucket.bucket_end_date|date:"d-M-Y" }}
+                </th>
+                {% endfor %}
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    text-align: center;">
+                    Total
+                </th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <!-- Total Inflows Section -->
+            <tr>
+                <td style="
+                    background-color: #f5f5f5;
+                    font-weight: bold;
+                    text-align: left;
+                    padding-left: 6px;"
+                    rowspan="{{ data.aggregated_split_details|length|add:1 }}">
+                    Total Inflows
+                </td>
+                <td style="
+                    text-align: left;
+                    font-weight: bold;
+                    color: #007bff;"
+                    rowspan="{{ data.aggregated_split_details|length|add:1 }}">
+                    {{ drill_down_product }}
+                </td>
+                <td style="
+                    text-align: left;
+                    font-weight: bold;
+                    color: #007bff;"
+                    rowspan="{{ data.aggregated_split_details|length|add:1 }}">
+                    {{ drill_down_splits }}
+                </td>
+            </tr>
+            {% for detail in data.aggregated_split_details %}
+            <tr>
+                <td style="text-align: left; padding: 6px; border: 1px solid #ddd;">
+                    {{ detail.v_product_splits }}
+                </td>
+                {% for bucket in date_buckets %}
+                <td style="text-align: center; padding: 6px; border: 1px solid #ddd;">
+                    {{ detail.buckets|lookup:bucket.bucket_number|default:"0.00" }}
+                </td>
+                {% endfor %}
+                <td style="text-align: center; padding: 6px; border: 1px solid #ddd;">
+                    {{ detail.total|default:"0.00" }}
+                </td>
+            </tr>
+            {% endfor %}
+
+            <!-- Total Outflows Section -->
+            {% if data.drill_down_splits_details_outflows %}
+            <tr>
+                <td style="
+                    background-color: #f5f5f5;
+                    font-weight: bold;
+                    text-align: left;
+                    padding-left: 6px;"
+                    rowspan="{{ data.drill_down_splits_details_outflows|length|add:1 }}">
+                    Total Outflows
+                </td>
+                <td style="
+                    text-align: left;
+                    font-weight: bold;
+                    color: #007bff;"
+                    rowspan="{{ data.drill_down_splits_details_outflows|length|add:1 }}">
+                    {{ drill_down_product }}
+                </td>
+                <td style="
+                    text-align: left;
+                    font-weight: bold;
+                    color: #007bff;"
+                    rowspan="{{ data.drill_down_splits_details_outflows|length|add:1 }}">
+                    {{ drill_down_splits }}
+                </td>
+            </tr>
+            {% for detail in data.drill_down_splits_details_outflows %}
+            <tr>
+                <td style="text-align: left; padding: 6px; border: 1px solid #ddd;">
+                    {{ detail.v_product_splits }}
+                </td>
+                {% for bucket in date_buckets %}
+                <td style="text-align: center; padding: 6px; border: 1px solid #ddd;">
+                    {% if bucket.bucket_number == detail.bucket_number %}
+                        {{ detail.total|default:"0.00" }}
+                    {% else %}
+                        0.00
+                    {% endif %}
+                </td>
+                {% endfor %}
+                <td style="text-align: center; padding: 6px; border: 1px solid #ddd;">
+                    {{ detail.total|default:"0.00" }}
+                </td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Summary Rows -->
+            <tr style="
+                background-color: #e0e0e0;
+                font-weight: bold;
+                text-align: left;
+                padding-left: 4px;
+                border-top: 2px solid #0e57a0;">
+                <td colspan="4" style="padding: 6px;">Net Liquidity Gap</td>
+                {% for bucket in date_buckets %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.net_liquidity_gap|lookup:bucket.bucket_number|default:"0.00" }}
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.net_liquidity_gap.total|default:"0.00" }}
+                </td>
+            </tr>
+            <tr style="
+                background-color: #e0e0e0;
+                font-weight: bold;
+                text-align: left;
+                padding-left: 4px;
+                border-top: 2px solid #0e57a0;">
+                <td colspan="4" style="padding: 6px;">
+                    Net Gap as % of Total Outflows
+                </td>
+                {% for bucket in date_buckets %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.net_gap_percentage|lookup:bucket.bucket_number|default:"0.00"|floatformat:2 }}%
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.net_gap_percentage.total|floatformat:2 }}%
+                </td>
+            </tr>
+            <tr style="
+                background-color: #e0e0e0;
+                font-weight: bold;
+                text-align: left;
+                padding-left: 4px;
+                border-top: 2px solid #0e57a0;">
+                <td colspan="4" style="padding: 6px;">Cumulative Gap</td>
+                {% for bucket in date_buckets %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.cumulative_gap|lookup:bucket.bucket_number|default:"0.00" }}
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.cumulative_gap.total|default:"0.00" }}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+
+<!-- ============ DRILL-DOWN FOR PRODUCT NAMES =========== -->
+{% elif drill_down_product %}
+<div style="
+    max-width: 80%;
+    margin: 20px auto;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
+    padding: 10px;">
+
+    <h4 style="
+        text-align: center;
+        font-size: 14px;
+        color: #ff5733;
+        font-weight: bold;
+        margin-bottom: 15px;">
+        Drill-Down for {{ drill_down_product }}
+    </h4>
+
+    <table style="
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0 auto;
+        font-size: 13px;
+        table-layout: auto;">
+        
+        <thead>
+            <tr>
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 10px;
+                    border: 1px solid #ddd;
+                    text-align: left;">
+                    Account Type
+                </th>
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 10px;
+                    border: 1px solid #ddd;
+                    text-align: left;">
+                    Product
+                </th>
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 10px;
+                    border: 1px solid #ddd;
+                    text-align: left;">
+                    v_product_name
+                </th>
+                {% for bucket in date_buckets %}
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 10px;
+                    border: 1px solid #ddd;
+                    text-align: center;
+                    width: 120px;">
+                    {{ bucket.bucket_start_date|date:"d-M-Y" }}<br>
+                    {{ bucket.bucket_end_date|date:"d-M-Y" }}
+                </th>
+                {% endfor %}
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 10px;
+                    border: 1px solid #ddd;
+                    text-align: center;">
+                    Total
+                </th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <!-- Total Inflows Section -->
+            <tr>
+                <td style="
+                    background-color: #f5f5f5;
+                    font-weight: bold;
+                    text-align: left;
+                    padding-left: 8px;"
+                    rowspan="{{ data.aggregated_product_details|length|add:1 }}">
+                    Total Inflows
+                </td>
+                <td style="
+                    text-align: left;
+                    font-weight: bold;
+                    color: #007bff;"
+                    rowspan="{{ data.aggregated_product_details|length|add:1 }}">
+                    {{ drill_down_product }}
+                </td>
+            </tr>
+            {% for detail in data.aggregated_product_details %}
+            <tr>
+                <td style="text-align: left; padding: 6px; border: 1px solid #ddd;">
+                    <!-- Add selected_currency param so it locks to the current currency -->
+                    <a href="?selected_currency={{ currency }}&drill_down_product={{ drill_down_product }}&drill_down_splits={{ detail.v_product_name }}"
+                       style="color: #007bff; text-decoration: none;">
+                        {{ detail.v_product_name }}
+                    </a>
+                </td>
+                {% for bucket in date_buckets %}
+                <td style="text-align: center; padding: 6px; border: 1px solid #ddd;">
+                    {{ detail.buckets|lookup:bucket.bucket_number|default:"0.00" }}
+                </td>
+                {% endfor %}
+                <td style="text-align: center; padding: 6px; border: 1px solid #ddd;">
+                    {{ detail.total|default:"0.00" }}
+                </td>
+            </tr>
+            {% endfor %}
+
+            <!-- Optional: Total Outflows Section -->
+            {% if drill_down_details_outflows %}
+            <tr>
+                <td style="
+                    background-color: #f5f5f5;
+                    font-weight: bold;
+                    text-align: left;
+                    padding-left: 8px;"
+                    rowspan="{{ drill_down_details_outflows|length|add:1 }}">
+                    Total Outflows
+                </td>
+                <td style="
+                    text-align: left;
+                    font-weight: bold;
+                    color: #007bff;"
+                    rowspan="{{ drill_down_details_outflows|length|add:1 }}">
+                    {{ drill_down_product }}
+                </td>
+            </tr>
+            {% for detail in drill_down_details_outflows %}
+            <tr>
+                <td style="text-align: left; padding: 6px; border: 1px solid #ddd;">
+                    <!-- Add selected_currency param -->
+                    <a href="?selected_currency={{ currency }}&drill_down_product={{ drill_down_product }}&drill_down_splits={{ detail.v_product_name }}"
+                       style="color: #007bff; text-decoration: none;">
+                        {{ detail.v_product_name }}
+                    </a>
+                </td>
+                {% for bucket in date_buckets %}
+                <td style="text-align: center; padding: 6px; border: 1px solid #ddd;">
+                    {% if bucket.bucket_number == detail.bucket_number %}
+                        {{ detail.total|default:"0.00" }}
+                    {% else %}
+                        0.00
+                    {% endif %}
+                </td>
+                {% endfor %}
+                <td style="text-align: center; padding: 6px; border: 1px solid #ddd;">
+                    {{ detail.total|default:"0.00" }}
+                </td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+
+            <!-- Summary Rows -->
+            <tr style="
+                background-color: #e0e0e0;
+                font-weight: bold;
+                border-top: 2px solid #0e57a0;">
+                <td colspan="3" style="padding: 6px;">Net Liquidity Gap</td>
+                {% for bucket in date_buckets %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.net_liquidity_gap|lookup:bucket.bucket_number|default:"0.00" }}
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.net_liquidity_gap.total|default:"0.00" }}
+                </td>
+            </tr>
+            <tr style="
+                background-color: #e0e0e0;
+                font-weight: bold;
+                border-top: 2px solid #0e57a0;">
+                <td colspan="3" style="padding: 6px;">Net Gap as % of Total Outflows</td>
+                {% for bucket in date_buckets %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.net_gap_percentage|lookup:bucket.bucket_number|default:"0.00"|floatformat:2 }}%
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.net_gap_percentage.total|floatformat:2 }}%
+                </td>
+            </tr>
+            <tr style="
+                background-color: #e0e0e0;
+                font-weight: bold;
+                border-top: 2px solid #0e57a0;">
+                <td colspan="3" style="padding: 6px;">Cumulative Gap</td>
+                {% for bucket in date_buckets %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.cumulative_gap|lookup:bucket.bucket_number|default:"0.00" }}
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.cumulative_gap.total|default:"0.00" }}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+
+<!-- ============ BASE / DEFAULT RESULTS =========== -->
+{% else %}
+<div style="
+    max-width: 80%;
+    margin: 20px auto;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    overflow-x: auto;
+    padding: 10px;">
+
+    <table style="
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0 auto;
+        font-size: 13px;
+        table-layout: auto;"
+        id="reportTable{{ forloop.counter }}">
+
+        <thead>
+            <tr>
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 10px;
+                    border: 1px solid #ddd;
+                    text-align: left;">
+                    Account Type
+                </th>
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 10px;
+                    border: 1px solid #ddd;
+                    text-align: left;">
+                    Product
+                </th>
+                {% for bucket in date_buckets %}
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 10px;
+                    border: 1px solid #ddd;
+                    text-align: center;
+                    width: 120px;">
+                    {{ bucket.bucket_start_date|date:"d-M-Y" }}<br>
+                    {{ bucket.bucket_end_date|date:"d-M-Y" }}
+                </th>
+                {% endfor %}
+                <th style="
+                    background-color: #3b5998;
+                    color: white;
+                    font-weight: bold;
+                    padding: 10px;
+                    border: 1px solid #ddd;
+                    text-align: center;">
+                    Total
+                </th>
+            </tr>
+        </thead>
+
+        <tbody>
+            <!-- Total Inflows Section -->
+            <tr>
+                <td style="
+                    background-color: #f5f5f5;
+                    font-weight: bold;
+                    text-align: left;
+                    padding-left: 8px;"
+                    rowspan="{{ data.remaining_inflow_data|length|add:1 }}">
+                    Total Inflows
+                </td>
+                <td style="
+                    text-align: left;
+                    font-weight: bold;
+                    color: #007bff;">
+                    <a href="?selected_currency={{ currency }}&drill_down_product={{ data.first_inflow_product.0 }}"
+                       style="color: #007bff; text-decoration: none;">
+                        {{ data.first_inflow_product.0 }}
+                    </a>
+                </td>
+                {% for bucket in date_buckets %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.first_inflow_product.1|lookup:bucket.bucket_number|default:"0.00" }}
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.first_inflow_product.1.total|default:"0.00" }}
+                </td>
+            </tr>
+            {% for product, buckets in data.remaining_inflow_data.items %}
+            <tr>
+                <td style="text-align: left; padding: 6px; border: 1px solid #ddd;">
+                    <a href="?selected_currency={{ currency }}&drill_down_product={{ product }}"
+                       style="color: #007bff; text-decoration: none;">
+                        {{ product }}
+                    </a>
+                </td>
+                {% for bucket in date_buckets %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ buckets|lookup:bucket.bucket_number|default:"0.00" }}
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ buckets.total|default:"0.00" }}
+                </td>
+            </tr>
+            {% endfor %}
+
+            <!-- Total Outflows Section -->
+            <tr>
+                <td style="
+                    background-color: #f5f5f5;
+                    font-weight: bold;
+                    text-align: left;
+                    padding-left: 8px;"
+                    rowspan="{{ data.remaining_outflow_data|length|add:1 }}">
+                    Total Outflows
+                </td>
+                <td style="
+                    text-align: left;
+                    font-weight: bold;
+                    color: #007bff;">
+                    <a href="?selected_currency={{ currency }}&drill_down_product={{ data.first_outflow_product.0 }}"
+                       style="color: #007bff; text-decoration: none;">
+                        {{ data.first_outflow_product.0 }}
+                    </a>
+                </td>
+                {% for bucket in date_buckets %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.first_outflow_product.1|lookup:bucket.bucket_number|default:"0.00" }}
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.first_outflow_product.1.total|default:"0.00" }}
+                </td>
+            </tr>
+            {% for product, buckets in data.remaining_outflow_data.items %}
+            <tr>
+                <td style="text-align: left; padding: 6px; border: 1px solid #ddd;">
+                    <a href="?selected_currency={{ currency }}&drill_down_product={{ product }}"
+                       style="color: #007bff; text-decoration: none;">
+                        {{ product }}
+                    </a>
+                </td>
+                {% for bucket in date_buckets %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ buckets|lookup:bucket.bucket_number|default:"0.00" }}
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ buckets.total|default:"0.00" }}
+                </td>
+            </tr>
+            {% endfor %}
+
+            <!-- Summary Rows -->
+            <tr style="
+                background-color: #e0e0e0;
+                font-weight: bold;
+                border-top: 2px solid #0e57a0;">
+                <td colspan="2" style="padding: 6px;">Net Liquidity Gap</td>
+                {% for bucket in date_buckets %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.net_liquidity_gap|lookup:bucket.bucket_number|default:"0.00" }}
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.net_liquidity_gap.total|default:"0.00" }}
+                </td>
+            </tr>
+            <tr style="
+                background-color: #e0e0e0;
+                font-weight: bold;
+                border-top: 2px solid #0e57a0;">
+                <td colspan="2" style="padding: 6px;">
+                    Net Gap as % of Total Outflows
+                </td>
+                {% for bucket in date_buckets %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.net_gap_percentage|lookup:bucket.bucket_number|default:"0.00"|floatformat:2 }}%
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.net_gap_percentage.total|floatformat:2 }}%
+                </td>
+            </tr>
+            <tr style="
+                background-color: #e0e0e0;
+                font-weight: bold;
+                border-top: 2px solid #0e57a0;">
+                <td colspan="2" style="padding: 6px;">Cumulative Gap</td>
+                {% for bucket in date_buckets %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.cumulative_gap|lookup:bucket.bucket_number|default:"0.00" }}
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.cumulative_gap.total|default:"0.00" }}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endfor %}
+
+<script>
+    function updateRowsPerPage() {
+        var rows = document.getElementById('rowsPerPage').value;
+        alert("Rows per page changed to: " + rows);
+        // TODO: Implement actual table pagination or server-side paging
+    }
+</script>
+
+
+
+<!-- Export Base Results to Excel -->
+<div style="text-align: right; margin: 10px;">
+    <form method="get" action="{% url 'export_liquidity_gap_to_excel' %}">
+        <input type="hidden" name="fic_mis_date" value="{{ fic_mis_date }}">
+        {% for key, value in request.GET.items %}
+        {% if key != 'fic_mis_date' %}
+        <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endif %}
+        {% endfor %}
+        <button type="submit" style="padding: 10px 20px; font-size: 1em; font-weight: bold; border-radius: 4px; cursor: pointer; background-color: #4CAF50; color: white; border: none;">
+            Export Base Results to Excel
+        </button>
+    </form>
+</div>
+</div>
+
+
+    <script>
+        function updateRowsPerPage() {
+            const rowsPerPage = parseInt(document.getElementById('rowsPerPage').value);
+            document.querySelectorAll('.report-table tbody').forEach(tbody => {
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                
+                rows.forEach((row, index) => {
+                    row.style.display = index < rowsPerPage ? '' : 'none';
+                });
+            });
+        }
+
+        // Initialize row display based on default or selected rows per page
+        updateRowsPerPage();
+    </script>
+
+
+{% endblock %}
