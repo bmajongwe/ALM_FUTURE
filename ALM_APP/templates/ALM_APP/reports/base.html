@@ -224,7 +224,7 @@
                 class="btn text-primary mr-2" 
                 aria-label="Toggle sidebar">
             <i class="fas fa-bars"></i>
-            <span class="menu-text">Menu</span>
+            <span class="menu-text">Options</span>
         </button>
 
         <!-- Additional Navigation Controls (Optional) -->
@@ -245,28 +245,28 @@
       </div>
       <!-- Example heading -->
       <h5 class="px-3" style="text-transform:uppercase; font-size:0.9rem; margin-bottom:0.5rem;">
-        Configurations
+        Reports
       </h5>
       <!-- Example links -->
       <ul class="nav flex-column" style="list-style:none; padding:0;">
         <li class="nav-item">
-          <a href="{% url 'processes_list' %}" class="nav-link">
-            <i class="fas fa-cog mr-2"></i> ALM Process
+          <a href="{% url 'liquidity_gap_report_base' %}" class="nav-link">
+            <i class="fas fa-cog mr-2"></i> Liquidity Gap Base
           </a>
         </li>
         <li class="nav-item">
-          <a href="{% url 'product_filter_list' %}" class="nav-link">
-            <i class="fas fa-filter mr-2"></i> Product Filters
+          <a href="{% url 'liquidity_gap_report_cons' %}" class="nav-link">
+            <i class="fas fa-filter mr-2"></i> Liquidity Gap Cons
           </a>
         </li>
         <li class="nav-item">
-          <a href="{% url 'time_bucket_list' %}" class="nav-link">
-            <i class="fas fa-clock mr-2"></i> Time Buckets
+          <a href="#" class="nav-link">
+            <i class="fas fa-clock mr-2"></i> Option 3
           </a>
         </li>
         <li class="nav-item">
-          <a href="{% url 'behavioral_patterns_list' %}" class="nav-link">
-            <i class="fas fa-brain mr-2"></i> Behavioural Patterns
+          <a href="#" class="nav-link">
+            <i class="fas fa-brain mr-2"></i>Option 4
           </a>
         </li>
       </ul>
