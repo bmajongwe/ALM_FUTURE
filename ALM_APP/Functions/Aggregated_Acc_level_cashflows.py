@@ -114,6 +114,7 @@ def calculate_time_buckets_and_spread(process_name, fic_mis_date):
         product_code = cashflow.v_prod_code
         currency_code = cashflow.v_ccy_code
         v_loan_type=cashflow.v_loan_type
+        v_party_type_code=cashflow.v_party_type_code
 
         financial_elements = ['n_total_cash_flow_amount', 'n_total_principal_payment', 'n_total_interest_payment']
 
@@ -159,6 +160,7 @@ def calculate_time_buckets_and_spread(process_name, fic_mis_date):
                 v_prod_code=product_code,
                 v_ccy_code=currency_code,
                 v_loan_type=v_loan_type,
+                v_party_type_code=v_party_type_code,
                 financial_element=element,
                 defaults={
                     **bucket_data,
@@ -236,6 +238,7 @@ def calculate_behavioral_pattern_distribution(process_name, fic_mis_date):
             product_code = cashflow.v_prod_code
             currency_code = cashflow.v_ccy_code
             v_loan_type=cashflow.v_loan_type
+            v_party_type_code=cashflow.v_party_type_code
 
             financial_elements = ['n_total_cash_flow_amount', 'n_total_principal_payment', 'n_total_interest_payment']
 
@@ -269,6 +272,7 @@ def calculate_behavioral_pattern_distribution(process_name, fic_mis_date):
                         v_prod_code=product_code,
                         v_ccy_code=currency_code,
                         v_loan_type=v_loan_type,
+                        v_party_type_code=v_party_type_code,
                         financial_element=element,
                     )
 

@@ -45,6 +45,12 @@ def get_payment_interval(v_amrt_term_unit, day_count_ind):
 
 def calculate_cash_flows_for_loan(loan):
     with transaction.atomic():
+        customer_info = Ldn_Customer_Info.objects.filter(
+            v_party_id=loan.v_cust_ref_code,
+            fic_mis_date=loan.fic_mis_date
+        ).first()
+        party_type_code = customer_info.v_party_type_code if customer_info else None
+
         # Check if a payment schedule exists for this account and fic_mis_date
         payment_schedule = Ldn_Payment_Schedule.objects.filter(
             v_account_number=loan.v_account_number,
@@ -97,6 +103,7 @@ def calculate_cash_flows_for_loan(loan):
                     n_cash_flow_amount=total_payment,
                     n_balance=balance,
                     V_CCY_CODE=loan.v_ccy_code,
+                    v_party_type_code=party_type_code
                 )
 
                 bucket += 1  # Increment the bucket number for the next payment date
@@ -172,7 +179,9 @@ def calculate_cash_flows_for_loan(loan):
                     V_CASH_FLOW_TYPE=repayment_type,
                     management_fee_added=management_fee_net,
                     V_CCY_CODE=loan.v_ccy_code,
-                    v_loan_type=loan.v_loan_type
+                    v_loan_type=loan.v_loan_type,
+                    v_cust_ref_code=loan.v_cust_ref_code,
+                    v_party_type_code=party_type_code
                 )
 
                 balance -= principal_payment
