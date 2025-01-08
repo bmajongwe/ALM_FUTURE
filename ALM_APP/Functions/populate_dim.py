@@ -6,7 +6,7 @@ from ..models import (
     Dim_Product,
     Ldn_Financial_Instrument,
     Ldn_Customer_Info,
-    PartyTypeMapping  # Make sure this model is defined and migrated
+    PartyTypeMapping  # Ensure this model is defined and migrated
 )
 
 def get_party_type_map():
@@ -20,6 +20,12 @@ def get_party_type_map():
         raise ValueError("No records found in PartyTypeMapping. Please add them first.")
     # Build a dictionary: { '1000': 'Bank', '300': 'Company', ... }
     return {m.v_party_type_code: m.description for m in mappings}
+
+def clean_string(s):
+    """
+    Trim leading and trailing spaces and replace '+' with '-' in the string if it's not None.
+    """
+    return s.strip().replace('+', '-') if s else s
 
 def populate_dim_product(fic_mis_date):
     """
@@ -99,11 +105,11 @@ def populate_dim_product(fic_mis_date):
                     v_balance_sheet_category = product_record.v_balance_sheet_category
                     v_flow_type = None
 
-                # Find the matching Ldn_Customer_Info record
+                # Step 6: Find the matching Ldn_Customer_Info record using the latest available record up to current fic_mis_date
                 customer_info = Ldn_Customer_Info.objects.filter(
                     v_party_id=fin_inst.v_cust_ref_code,
-                    fic_mis_date=fin_inst.fic_mis_date
-                ).first()
+                    fic_mis_date__lte=fic_mis_date
+                ).order_by('-fic_mis_date').first()
 
                 if customer_info:
                     numeric_code = str(customer_info.v_party_type_code or '')
@@ -129,31 +135,32 @@ def populate_dim_product(fic_mis_date):
                     )
                     continue
 
-                # Create the new Dim_Product record
+                # Create the new Dim_Product record with cleaned string values
                 dim_product = Dim_Product(
-                    v_prod_desc=product_record.v_prod_desc,
-                    v_prod_code=product_record.v_prod_code,
+                    v_prod_desc=clean_string(product_record.v_prod_desc),
+                    v_prod_code=clean_string(product_record.v_prod_code),
                     fic_mis_date=fic_mis_date,
                     f_latest_record_indicator='Y',
-                    v_prod_group_desc=product_record.v_prod_group_desc,
-                    v_prod_type=product_record.v_prod_type,
+                    v_prod_group_desc=clean_string(product_record.v_prod_group_desc),
+                    v_prod_type=clean_string(product_record.v_prod_type),
                     n_prod_skey=product_record.id,
-                    v_account_type=coa_record.v_account_type if coa_record else None,
-                    v_balance_sheet_category=v_balance_sheet_category,
-                    v_balance_sheet_category_desc=product_record.v_balance_sheet_category_desc,
-                    v_prod_type_desc=product_record.v_prod_type_desc,
-                    v_product_name=product_record.v_prod_name,
-                    v_flow_type=v_flow_type,
+                    v_account_type=clean_string(coa_record.v_account_type) if coa_record else None,
+                    v_balance_sheet_category=clean_string(v_balance_sheet_category),
+                    v_balance_sheet_category_desc=clean_string(product_record.v_balance_sheet_category_desc),
+                    v_prod_type_desc=clean_string(product_record.v_prod_type_desc),
+                    v_product_name=clean_string(product_record.v_prod_name),
+                    v_flow_type=clean_string(v_flow_type) if v_flow_type else None,
                     v_created_by='system',
                     v_last_modified_by='system',
-                    v_product_splits=v_product_splits_val,       # E.g., 'Bank' if numeric_code == '1000'
-                    v_party_type_code=dim_product_party_type_code # E.g., '1000'
+                    v_product_splits=clean_string(v_product_splits_val),
+                    v_party_type_code=clean_string(dim_product_party_type_code)
                 )
                 dim_product.save()
                 new_records_count += 1
                 print(
-                    f"Inserted record for product code: {product_record.v_prod_code}, "
-                    f"party type code: {dim_product_party_type_code}, flow type: {v_flow_type}."
+                    f"Inserted record for product code: {clean_string(product_record.v_prod_code)}, "
+                    f"party type code: {clean_string(dim_product_party_type_code)}, "
+                    f"flow type: {clean_string(v_flow_type) if v_flow_type else 'None'}."
                 )
 
         print(f"Dim_Product population completed. {new_records_count} new records inserted with f_latest_record_indicator='Y'.")

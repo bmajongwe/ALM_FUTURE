@@ -45,11 +45,20 @@ def get_payment_interval(v_amrt_term_unit, day_count_ind):
 
 def calculate_cash_flows_for_loan(loan):
     with transaction.atomic():
+
+        # Modified customer info retrieval to get the most recent record up to the loan's fic_mis_date
         customer_info = Ldn_Customer_Info.objects.filter(
             v_party_id=loan.v_cust_ref_code,
-            fic_mis_date=loan.fic_mis_date
-        ).first()
+            fic_mis_date__lte=loan.fic_mis_date
+        ).order_by('-fic_mis_date').first()
         party_type_code = customer_info.v_party_type_code if customer_info else None
+
+        
+        # customer_info = Ldn_Customer_Info.objects.filter(
+        #     v_party_id=loan.v_cust_ref_code,
+        #     fic_mis_date=loan.fic_mis_date
+        # ).first()
+        # party_type_code = customer_info.v_party_type_code if customer_info else None
 
         # Check if a payment schedule exists for this account and fic_mis_date
         payment_schedule = Ldn_Payment_Schedule.objects.filter(
