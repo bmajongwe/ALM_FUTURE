@@ -380,7 +380,7 @@
                     text-align: left;
                     padding-left: 6px;"
                     rowspan="{{ data.aggregated_split_details|length|add:1 }}">
-                    Total Flows
+                    Total Inflows
                 </td>
                 <td style="
                     text-align: left;
@@ -625,7 +625,7 @@
                     text-align: left;
                     padding-left: 8px;"
                     rowspan="{{ data.aggregated_product_details|length|add:1 }}">
-                    Total Flows
+                    Total Inflows
                 </td>
                 <td style="
                     text-align: left;
@@ -832,23 +832,22 @@
 
         <tbody>
             <!-- Total Inflows Section -->
-            {% if data.inflow_data %}
             <tr>
                 <td style="
                     background-color: #f5f5f5;
                     font-weight: bold;
                     text-align: left;
                     padding-left: 8px;"
-                    rowspan="{{ data.inflow_data|length|add:1 }}">
+                    rowspan="{{ data.remaining_inflow_data|length|add:1 }}">
                     Total Inflows
                 </td>
-            </tr>
-            {% for product, buckets in data.inflow_data.items %}
-            <tr>
-                <td style="text-align: left; padding: 6px; border: 1px solid #ddd;">
-                    <a href="?selected_currency={{ currency }}&drill_down_product={{ product }}"
-                       style="color: #04274d; text-decoration: none;">
-                        {{ product }}
+                <td style="
+                    text-align: left;
+                    font-weight: bold;
+                    color: #007bff;">
+                    <a href="?selected_currency={{ currency }}&drill_down_product={{ data.first_inflow_product.0 }}"
+                       style="color: #007bff; text-decoration: none;">
+                        {{ data.first_inflow_product.0 }}
                     </a>
                 </td>
                 {% for bucket in date_buckets %}
@@ -856,56 +855,17 @@
                     text-align: center;
                     padding: 6px;
                     border: 1px solid #ddd;">
-                    {{ buckets|lookup:bucket.bucket_number|default:"0.00" }}
+                    {{ data.first_inflow_product.1|lookup:bucket.bucket_number|default:"0.00" }}
                 </td>
                 {% endfor %}
                 <td style="
                     text-align: center;
                     padding: 6px;
                     border: 1px solid #ddd;">
-                    {{ buckets.total|default:"0.00" }}
+                    {{ data.first_inflow_product.1.total|default:"0.00" }}
                 </td>
             </tr>
-            {% endfor %}
-            {% else %}
-            <tr>
-                <td style="
-                    background-color: #f5f5f5;
-                    font-weight: bold;
-                    text-align: left;
-                    padding-left: 8px;">
-                    Total Inflows
-                </td>
-                <td style="text-align: left; color: #999; font-style: italic;" colspan="{{ date_buckets|length|add:1 }}">No Data</td>
-                <td style="
-                    text-align: center;
-                    padding: 6px;
-                    border: 1px solid #ddd;">
-                    0.00
-                </td>
-            </tr>
-            {% endif %}
-
-            <!-- Professional Solid Line Separator -->
-            <tr>
-                <td colspan="{{ date_buckets|length|add:'3' }}" style="padding:0; border:none;">
-                    <div style="height:0; border-top:2px solid #ccc; margin:15px 0;"></div>
-                </td>
-            </tr>
-
-            <!-- Total Outflows Section -->
-            {% if data.outflow_data %}
-            <tr>
-                <td style="
-                    background-color: #f5f5f5;
-                    font-weight: bold;
-                    text-align: left;
-                    padding-left: 8px;"
-                    rowspan="{{ data.outflow_data|length|add:1 }}">
-                    Total Outflows
-                </td>
-            </tr>
-            {% for product, buckets in data.outflow_data.items %}
+            {% for product, buckets in data.remaining_inflow_data.items %}
             <tr>
                 <td style="text-align: left; padding: 6px; border: 1px solid #ddd;">
                     <a href="?selected_currency={{ currency }}&drill_down_product={{ product }}"
@@ -929,24 +889,65 @@
                 </td>
             </tr>
             {% endfor %}
-            {% else %}
+
+            <!-- Total Outflows Section -->
             <tr>
                 <td style="
                     background-color: #f5f5f5;
                     font-weight: bold;
                     text-align: left;
-                    padding-left: 8px;">
+                    padding-left: 8px;"
+                    rowspan="{{ data.remaining_outflow_data|length|add:1 }}">
                     Total Outflows
                 </td>
-                <td style="text-align: left; color: #999; font-style: italic;" colspan="{{ date_buckets|length|add:1 }}">No Data</td>
+                <td style="
+                    text-align: left;
+                    font-weight: bold;
+                    color: #007bff;">
+                    <a href="?selected_currency={{ currency }}&drill_down_product={{ data.first_outflow_product.0 }}"
+                       style="color: #007bff; text-decoration: none;">
+                        {{ data.first_outflow_product.0 }}
+                    </a>
+                </td>
+                {% for bucket in date_buckets %}
                 <td style="
                     text-align: center;
                     padding: 6px;
                     border: 1px solid #ddd;">
-                    0.00
+                    {{ data.first_outflow_product.1|lookup:bucket.bucket_number|default:"0.00" }}
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ data.first_outflow_product.1.total|default:"0.00" }}
                 </td>
             </tr>
-            {% endif %}
+            {% for product, buckets in data.remaining_outflow_data.items %}
+            <tr>
+                <td style="text-align: left; padding: 6px; border: 1px solid #ddd;">
+                    <a href="?selected_currency={{ currency }}&drill_down_product={{ product }}"
+                       style="color: #007bff; text-decoration: none;">
+                        {{ product }}
+                    </a>
+                </td>
+                {% for bucket in date_buckets %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ buckets|lookup:bucket.bucket_number|default:"0.00" }}
+                </td>
+                {% endfor %}
+                <td style="
+                    text-align: center;
+                    padding: 6px;
+                    border: 1px solid #ddd;">
+                    {{ buckets.total|default:"0.00" }}
+                </td>
+            </tr>
+            {% endfor %}
 
             <!-- Summary Rows -->
             <tr style="
@@ -1015,8 +1016,6 @@
     </table>
 </div>
 {% endif %}
-
-
 {% endfor %}
 
 <script>

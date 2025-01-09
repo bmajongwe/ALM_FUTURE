@@ -964,11 +964,33 @@ def liquidity_gap_report_cons(request):
 
     print("Consolidated Data:", cons_data)
 
+    # New Drill-Down Summary Calculations
+    drill_cons_data = None
+    if drill_down_product_cons or drill_down_splits_cons:
+        if drill_down_product_cons:
+            drill_queryset = cons_queryset.filter(v_prod_type=drill_down_product_cons)
+        elif drill_down_splits_cons:
+            drill_queryset = cons_queryset.filter(v_product_name=drill_down_splits_cons)
+
+        drill_inflow_data, drill_outflow_data = prepare_inflow_outflow_data(drill_queryset)
+        drill_net_liquidity_gap, drill_net_gap_percentage, drill_cumulative_gap = calculate_totals(
+            date_buckets, drill_inflow_data, drill_outflow_data
+        )
+
+        drill_cons_data = {
+            'inflow_data': drill_inflow_data,
+            'outflow_data': drill_outflow_data,
+            'net_liquidity_gap': drill_net_liquidity_gap,
+            'net_gap_percentage': drill_net_gap_percentage,
+            'cumulative_gap': drill_cumulative_gap,
+        }
+
     context = {
         'form': form,
         'fic_mis_date': fic_mis_date,
         'date_buckets': date_buckets,
         'cons_data': cons_data,
+        'drill_cons_data': drill_cons_data,  # Added for dynamic drill-down summaries
         'total_columns': len(date_buckets) + 3,
         'drill_down_product_cons': drill_down_product_cons,
         'drill_down_splits_cons': drill_down_splits_cons,
@@ -1753,7 +1775,7 @@ def project_cash_flows_view(request):
     process_name = 'Blessmoe'
     fic_mis_date = '2024-08-31'
     # status = populate_dim_dates_from_time_buckets(fic_mis_date)
-    # status=populate_dim_product(fic_mis_date)
+    status=populate_dim_product(fic_mis_date)
     # status= aggregate_by_prod_code(fic_mis_date, process_name)
     # status=update_date(fic_mis_date)
     status = populate_liquidity_gap_results_base(fic_mis_date, process_name)

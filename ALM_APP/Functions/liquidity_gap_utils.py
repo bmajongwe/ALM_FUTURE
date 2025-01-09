@@ -76,10 +76,10 @@ def prepare_inflow_outflow_data(queryset, group_by='v_prod_type'):
 
     return inflow_data, outflow_data
 
-
-def calculate_totals(date_buckets, inflow_data, outflow_data):
+def calculate_totals(date_buckets, inflow_data, outflow_data): 
     """
     Calculate net liquidity gap, net gap percentage, and cumulative gap based on inflow and outflow data.
+    Includes total calculations for each metric.
     """
     total_inflows_by_bucket = {}
     total_outflows_by_bucket = {}
@@ -94,11 +94,13 @@ def calculate_totals(date_buckets, inflow_data, outflow_data):
             outflow_data.get(group, {}).get(bucket_number, 0) for group in outflow_data
         )
 
-    # Calculate net liquidity gap and percentage
+    # Calculate net liquidity gap for each bucket
     net_liquidity_gap = {
         bucket: total_inflows_by_bucket.get(bucket, 0) - total_outflows_by_bucket.get(bucket, 0)
         for bucket in total_inflows_by_bucket
     }
+
+    # Calculate net gap percentage for each bucket
     net_gap_percentage = {
         bucket: (net_liquidity_gap[bucket] / total_outflows_by_bucket[bucket] * 100)
         if total_outflows_by_bucket[bucket]
@@ -114,7 +116,54 @@ def calculate_totals(date_buckets, inflow_data, outflow_data):
         cumulative_total += net_liquidity_gap[bucket_number]
         cumulative_gap[bucket_number] = cumulative_total
 
+    # Add total calculations for each metric
+    net_liquidity_gap['total'] = sum(net_liquidity_gap.values())
+    net_gap_percentage['total'] = (
+        sum(net_gap_percentage.values()) / len(date_buckets)
+        if len(date_buckets) > 0 else 0
+    )
+    cumulative_gap['total'] = cumulative_total
+
     return net_liquidity_gap, net_gap_percentage, cumulative_gap
+
+# def calculate_totals(date_buckets, inflow_data, outflow_data):
+#     """
+#     Calculate net liquidity gap, net gap percentage, and cumulative gap based on inflow and outflow data.
+#     """
+#     total_inflows_by_bucket = {}
+#     total_outflows_by_bucket = {}
+
+#     # Calculate total inflows and outflows for each bucket
+#     for bucket in date_buckets:
+#         bucket_number = bucket['bucket_number']
+#         total_inflows_by_bucket[bucket_number] = sum(
+#             inflow_data.get(group, {}).get(bucket_number, 0) for group in inflow_data
+#         )
+#         total_outflows_by_bucket[bucket_number] = sum(
+#             outflow_data.get(group, {}).get(bucket_number, 0) for group in outflow_data
+#         )
+
+#     # Calculate net liquidity gap and percentage
+#     net_liquidity_gap = {
+#         bucket: total_inflows_by_bucket.get(bucket, 0) - total_outflows_by_bucket.get(bucket, 0)
+#         for bucket in total_inflows_by_bucket
+#     }
+#     net_gap_percentage = {
+#         bucket: (net_liquidity_gap[bucket] / total_outflows_by_bucket[bucket] * 100)
+#         if total_outflows_by_bucket[bucket]
+#         else 0
+#         for bucket in total_outflows_by_bucket
+#     }
+
+#     # Calculate cumulative gap
+#     cumulative_gap = {}
+#     cumulative_total = 0
+#     for bucket in date_buckets:
+#         bucket_number = bucket['bucket_number']
+#         cumulative_total += net_liquidity_gap[bucket_number]
+#         cumulative_gap[bucket_number] = cumulative_total
+
+#     return net_liquidity_gap, net_gap_percentage, cumulative_gap
 
 
 
