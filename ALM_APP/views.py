@@ -991,10 +991,15 @@ def liquidity_gap_report_cons(request):
             'cumulative_gap': drill_cumulative_gap,
         }
 
+    # Extract distinct currencies
+    currency_data = cons_queryset.values_list('v_ccy_code', flat=True).distinct()
+
+
     context = {
         'form': form,
         'fic_mis_date': fic_mis_date,
         'date_buckets': date_buckets,
+        'currency_data': currency_data,  # Pass currency data to the template
         'cons_data': cons_data,
         'drill_cons_data': drill_cons_data,
         'total_columns': len(date_buckets) + 3,

@@ -1041,7 +1041,7 @@
 
 
 
-<!-- Export Base Results to Excel -->
+<!-- Export Base Results to Excel
 <div style="text-align: right; margin: 10px;">
     <form method="get" action="{% url 'export_liquidity_gap_to_excel' %}">
         <input type="hidden" name="fic_mis_date" value="{{ fic_mis_date }}">
@@ -1055,8 +1055,69 @@
         </button>
     </form>
 </div>
+</div> -->
+
+<!-- Export Base Results to Excel -->
+<!-- Export Base Results to Excel -->
+<div style="margin: 0 auto; display: flex; width: 80%; align-items: center; justify-content: center; background-color: #dfe0e2; padding: 4px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); position: relative;">
+    <form method="get" action="{% url 'export_liquidity_gap_to_excel' %}" style="display: flex; align-items: center;" onsubmit="showDownloadNotification(this)">
+        <input type="hidden" name="fic_mis_date" value="{{ fic_mis_date }}">
+        {% for key, value in request.GET.items %}
+            {% if key != 'fic_mis_date' %}
+                <input type="hidden" name="{{ key }}" value="{{ value }}">
+            {% endif %}
+        {% endfor %}
+        <button type="submit" 
+            style="display: inline-flex; align-items: center; justify-content: center; padding: 8px 20px; font-size: 0.9em; font-weight: bold; color: white; background-color: #007bff; border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s, transform 0.2s; text-decoration: none; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15); height: 36px;"
+            onmouseover="this.style.backgroundColor='#0056b3'; this.style.transform='scale(1.05)';"
+            onmouseout="this.style.backgroundColor='#007bff'; this.style.transform='scale(1)';">
+            <i class="fas fa-download" style="margin-right: 8px; font-size: 1.2em;"></i> 
+            Download
+        </button>
+    </form>
 </div>
 
+<script>
+    function showDownloadNotification(formElement) {
+        const notification = document.createElement("div");
+        notification.style.position = "absolute";
+        notification.style.top = "-40px";
+        notification.style.left = "50%";
+        notification.style.transform = "translateX(-50%)";
+        notification.style.backgroundColor = "#4CAF50";
+        notification.style.color = "white";
+        notification.style.padding = "10px 20px";
+        notification.style.borderRadius = "5px";
+        notification.style.boxShadow = "0 2px 5px rgba(0, 0, 0, 0.2)";
+        notification.style.fontSize = "0.9em";
+        notification.style.fontWeight = "bold";
+        notification.style.zIndex = "1000";
+        notification.style.whiteSpace = "nowrap";
+        notification.innerHTML = "Your download is starting...";
+        
+        const container = formElement.parentElement;
+        container.style.position = "relative"; // Ensure the container is the reference for absolute positioning
+        container.appendChild(notification);
+        
+        setTimeout(() => {
+            container.removeChild(notification);
+        }, 3000);
+    }
+</script>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+
+
+
+
+
+
+
+
+
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 
     <script>
         function updateRowsPerPage() {
