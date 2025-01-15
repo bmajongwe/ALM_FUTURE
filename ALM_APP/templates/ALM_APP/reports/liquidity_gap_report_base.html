@@ -18,6 +18,7 @@
 {% endif %}
 
 <!-- Filter Form -->
+<!-- Filter Form -->
 <div style="
     width: 80%;
     margin: 15px auto;
@@ -42,13 +43,13 @@
             display: flex;
             flex-direction: column;
         ">
-            <label for="process" style="
+            <label for="process_name" style="
                 font-size: 0.75em;
                 font-weight: bold;
                 color: #555;
                 margin-bottom: 3px;
             ">Process:</label>
-            <select id="process" name="process" style="
+            <select id="process_name" name="process_name" style="
                 padding: 5px 8px;
                 font-size: 0.8em;
                 border: 1px solid #ccc;
@@ -57,8 +58,12 @@
                 width: 100%;
                 box-sizing: border-box;
             ">
-                <option>--- Select Process ---</option>
-                <!-- Add more options as needed -->
+                <option value="">--- Select Process ---</option>
+                {% for value, label in form.fields.process_name.choices %}
+                    <option value="{{ value }}" {% if value == form.data.process_name %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                {% endfor %}
             </select>
         </div>
 
@@ -68,13 +73,13 @@
             display: flex;
             flex-direction: column;
         ">
-            <label for="asOfDate" style="
+            <label for="fic_mis_date" style="
                 font-size: 0.75em;
                 font-weight: bold;
                 color: #555;
                 margin-bottom: 3px;
             ">As of Date:</label>
-            <select id="asOfDate" name="asOfDate" style="
+            <select id="fic_mis_date" name="fic_mis_date" style="
                 padding: 5px 8px;
                 font-size: 0.8em;
                 border: 1px solid #ccc;
@@ -83,8 +88,12 @@
                 width: 100%;
                 box-sizing: border-box;
             ">
-                <option>--- Select Date ---</option>
-                <!-- Add more options as needed -->
+                <option value="">--- Select Date ---</option>
+                {% for value, label in form.fields.fic_mis_date.choices %}
+                    <option value="{{ value }}" {% if value == form.data.fic_mis_date %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                {% endfor %}
             </select>
         </div>
 
@@ -94,13 +103,13 @@
             display: flex;
             flex-direction: column;
         ">
-            <label for="currency" style="
+            <label for="v_ccy_code" style="
                 font-size: 0.75em;
                 font-weight: bold;
                 color: #555;
                 margin-bottom: 3px;
             ">Currency:</label>
-            <select id="currency" name="currency" style="
+            <select id="v_ccy_code" name="v_ccy_code" style="
                 padding: 5px 8px;
                 font-size: 0.8em;
                 border: 1px solid #ccc;
@@ -109,8 +118,12 @@
                 width: 100%;
                 box-sizing: border-box;
             ">
-                <option>--- Select Currency ---</option>
-                <!-- Add more options as needed -->
+                <option value="">--- Select Currency ---</option>
+                {% for value, label in form.fields.v_ccy_code.choices %}
+                    <option value="{{ value }}" {% if value == form.data.v_ccy_code %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                {% endfor %}
             </select>
         </div>
 
@@ -120,13 +133,13 @@
             display: flex;
             flex-direction: column;
         ">
-            <label for="resultType" style="
+            <label for="account_type" style="
                 font-size: 0.75em;
                 font-weight: bold;
                 color: #555;
                 margin-bottom: 3px;
             ">Result Type:</label>
-            <select id="resultType" name="resultType" style="
+            <select id="account_type" name="account_type" style="
                 padding: 5px 8px;
                 font-size: 0.8em;
                 border: 1px solid #ccc;
@@ -135,8 +148,12 @@
                 width: 100%;
                 box-sizing: border-box;
             ">
-                <option>--- Select Result Type ---</option>
-                <!-- Add more options as needed -->
+                <option value="">--- Select Result Type ---</option>
+                {% for value, label in form.fields.account_type.choices %}
+                    <option value="{{ value }}" {% if value == form.data.account_type %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                {% endfor %}
             </select>
         </div>
 
@@ -146,13 +163,13 @@
             display: flex;
             flex-direction: column;
         ">
-            <label for="bucketEndDate" style="
+            <label for="bucket_number" style="
                 font-size: 0.75em;
                 font-weight: bold;
                 color: #555;
                 margin-bottom: 3px;
             ">Bucket End Date:</label>
-            <select id="bucketEndDate" name="bucketEndDate" style="
+            <select id="bucket_number" name="bucket_number" style="
                 padding: 5px 8px;
                 font-size: 0.8em;
                 border: 1px solid #ccc;
@@ -161,8 +178,12 @@
                 width: 100%;
                 box-sizing: border-box;
             ">
-                <option>--- Select Bucket Number ---</option>
-                <!-- Add more options as needed -->
+                <option value="">--- Select Bucket Number ---</option>
+                {% for value, label in form.fields.bucket_number.choices %}
+                    <option value="{{ value }}" {% if value == form.data.bucket_number %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                {% endfor %}
             </select>
         </div>
 
@@ -186,11 +207,7 @@
                 cursor: pointer;
                 box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
                 transition: background-color 0.3s ease;
-            " 
-            onmouseover="this.style.backgroundColor='#0056b3'" 
-            onmouseout="this.style.backgroundColor='#007bff'">
-                Apply
-            </button>
+            ">Apply</button>
             <a href="{% url 'liquidity_gap_report_base' %}" style="
                 padding: 6px 15px;
                 font-size: 0.8em;
@@ -203,15 +220,10 @@
                 cursor: pointer;
                 box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
                 transition: background-color 0.3s ease;
-            " 
-            onmouseover="this.style.backgroundColor='#a71d2a'" 
-            onmouseout="this.style.backgroundColor='#dc3545'">
-                Reset
-            </a>
+            ">Reset</a>
         </div>
     </form>
 </div>
-
 
 
         <!-- Rows per page selector -->

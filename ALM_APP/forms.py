@@ -59,11 +59,11 @@ from .models import LiquidityGapResultsBase
 class LiquidityGapReportFilterForm(forms.Form):
     process_name = forms.ChoiceField(
         required=False,
-        choices=[('', '--- Select Process ---')] + [(p, p) for p in LiquidityGapResultsBase.objects.values_list('process_name', flat=True).distinct()],
+        choices=[(p, p) for p in LiquidityGapResultsBase.objects.values_list('process_name', flat=True).distinct()],
         label="Process"
     )
     fic_mis_date = forms.ChoiceField(
-        choices=[('', '-- Select Date --')] + [
+        choices= [
             (choice, choice) for choice in LiquidityGapResultsBase.objects.values_list('fic_mis_date', flat=True).distinct().order_by('fic_mis_date')
         ],
         required=False,
@@ -71,22 +71,52 @@ class LiquidityGapReportFilterForm(forms.Form):
     )
     v_ccy_code = forms.ChoiceField(
         required=False,
-        choices=[('', '--- Select Currency ---')] + [(c, c) for c in LiquidityGapResultsBase.objects.values_list('v_ccy_code', flat=True).distinct()],
+        choices= [(c, c) for c in LiquidityGapResultsBase.objects.values_list('v_ccy_code', flat=True).distinct()],
         label="Currency"
     )
     account_type = forms.ChoiceField(
         required=False,
-        choices=[('', '--- Select Result Type ---'), ('Inflow', 'Inflow'), ('Outflow', 'Outflow')],
+        choices=[('Inflow', 'Inflow'), ('Outflow', 'Outflow')],
         label="Result Type"
     )
     bucket_number = forms.ChoiceField(
-        choices=[('', '-- Select Bucket Number --')] + [
+        choices=[
             (choice, choice) for choice in LiquidityGapResultsBase.objects.values_list('bucket_number', flat=True).distinct().order_by('bucket_end_date')
         ],
         required=False,
         label="Bucket End Date"
     )
 
+class LiquidityGapReportFilterForm_cons(forms.Form):
+    process_name = forms.ChoiceField(
+        required=False,
+        choices=[(p, p) for p in LiquidityGapResultsCons.objects.values_list('process_name', flat=True).distinct()],
+        label="Process"
+    )
+    fic_mis_date = forms.ChoiceField(
+        choices= [
+            (choice, choice) for choice in LiquidityGapResultsCons.objects.values_list('fic_mis_date', flat=True).distinct().order_by('fic_mis_date')
+        ],
+        required=False,
+        label="As of Date"
+    )
+    v_ccy_code = forms.ChoiceField(
+        required=False,
+        choices= [(c, c) for c in LiquidityGapResultsCons.objects.values_list('v_ccy_code', flat=True).distinct()],
+        label="Currency"
+    )
+    account_type = forms.ChoiceField(
+        required=False,
+        choices=[('Inflow', 'Inflow'), ('Outflow', 'Outflow')],
+        label="Result Type"
+    )
+    bucket_number = forms.ChoiceField(
+        choices=[
+            (choice, choice) for choice in LiquidityGapResultsCons.objects.values_list('bucket_number', flat=True).distinct().order_by('bucket_end_date')
+        ],
+        required=False,
+        label="Bucket End Date"
+    )
 
 
 

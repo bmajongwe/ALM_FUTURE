@@ -645,7 +645,16 @@ def ProcessDeleteView(request, process_id):
 @login_required
 
 def liquidity_gap_report_base(request):
-    form = LiquidityGapReportFilterForm(request.GET or None)
+    if request.GET:
+        session_filters = request.session.get('filters_base', {})
+        new_params = request.GET.dict()
+        merged_filters = {**session_filters, **new_params}
+        filters = merged_filters
+        request.session['filters_base'] = filters
+    else:
+        filters = request.session.get('filters_base', {})
+
+    form = LiquidityGapReportFilterForm(filters or None)
     base_queryset = LiquidityGapResultsBase.objects.all()
 
     # Fetch fic_mis_date from the form or fallback to the latest date
@@ -691,7 +700,6 @@ def liquidity_gap_report_base(request):
         'remaining_inflow_data': {},
         'first_outflow_product': None,
         'remaining_outflow_data': {},
-        # We'll store the per-currency aggregated drill-down info here too
         'aggregated_product_details': None,
         'aggregated_split_details': None,
     })
@@ -716,11 +724,9 @@ def liquidity_gap_report_base(request):
         # ----------------------------
         # AGGREGATED DRILL-DOWN LOGIC
         # ----------------------------
-        # We'll compute aggregated data using local_drill_down_qs rather than base_queryset
         local_aggregated_product_details = None
         local_aggregated_split_details = None
 
-        # If user is drilling down by splits
         if drill_down_splits:
             drill_down_splits_details = list(
                 local_drill_down_qs
@@ -746,7 +752,6 @@ def liquidity_gap_report_base(request):
                 for split_name, buckets in grouped_split_data.items()
             ]
 
-        # Else if user is drilling down by product
         elif drill_down_product:
             drill_down_details = list(
                 local_drill_down_qs
@@ -772,13 +777,11 @@ def liquidity_gap_report_base(request):
                 for product_name, buckets in grouped_data.items()
             ]
 
-        # Prepare inflow/outflow data for this currency
         inflow_data, outflow_data = prepare_inflow_outflow_data(local_drill_down_qs)
         net_liquidity_gap, net_gap_percentage, cumulative_gap = calculate_totals(
             date_buckets, inflow_data, outflow_data
         )
 
-        # Compute totals in each dictionary
         for product, buckets in inflow_data.items():
             inflow_data[product]['total'] = sum(
                 buckets.get(b['bucket_number'], 0) for b in date_buckets
@@ -788,7 +791,6 @@ def liquidity_gap_report_base(request):
                 buckets.get(b['bucket_number'], 0) for b in date_buckets
             )
 
-        # Summaries across all buckets
         net_liquidity_gap['total'] = sum(
             net_liquidity_gap.get(b['bucket_number'], 0) for b in date_buckets
         )
@@ -801,7 +803,6 @@ def liquidity_gap_report_base(request):
             cumulative_gap.get(last_bucket['bucket_number'], 0) if last_bucket else 0
         )
 
-        # Identify first inflow/outflow products and the remainder
         if inflow_data:
             first_inflow_product = list(inflow_data.items())[0]
             remaining_inflow_data = inflow_data.copy()
@@ -818,7 +819,6 @@ def liquidity_gap_report_base(request):
             first_outflow_product = None
             remaining_outflow_data = {}
 
-        # Update currency_data with all relevant pieces
         currency_data[currency].update({
             'inflow_data': inflow_data,
             'outflow_data': outflow_data,
@@ -833,7 +833,6 @@ def liquidity_gap_report_base(request):
             'aggregated_split_details': local_aggregated_split_details,
         })
 
-    # Build the context
     context = {
         'form': form,
         'fic_mis_date': fic_mis_date,
@@ -842,7 +841,7 @@ def liquidity_gap_report_base(request):
         'total_columns': len(date_buckets) + 3,
         'drill_down_product': drill_down_product,
         'drill_down_splits': drill_down_splits,
-        'selected_currency': selected_currency,  # So we can use it in the template
+        'selected_currency': selected_currency,
     }
 
     return render(request, 'ALM_APP/reports/liquidity_gap_report_base.html', context)
@@ -854,7 +853,15 @@ def liquidity_gap_report_base(request):
 
 ########################################################################################################################
 def liquidity_gap_report_cons(request):
-    form = LiquidityGapReportFilterForm(request.GET or None)
+    if request.GET:
+        session_filters = request.session.get('filters_cons', {})
+        new_params = request.GET.dict()
+        merged_filters = {**session_filters, **new_params}
+        filters = merged_filters
+        request.session['filters_cons'] = filters
+    else:
+        filters = request.session.get('filters_cons', {})
+    form = LiquidityGapReportFilterForm_cons(filters or None)
     cons_queryset = LiquidityGapResultsCons.objects.all()
 
     fic_mis_date = form.cleaned_data.get('fic_mis_date') if form.is_valid() else None
@@ -964,7 +971,6 @@ def liquidity_gap_report_cons(request):
 
     print("Consolidated Data:", cons_data)
 
-    # New Drill-Down Summary Calculations
     drill_cons_data = None
     if drill_down_product_cons or drill_down_splits_cons:
         if drill_down_product_cons:
@@ -990,7 +996,7 @@ def liquidity_gap_report_cons(request):
         'fic_mis_date': fic_mis_date,
         'date_buckets': date_buckets,
         'cons_data': cons_data,
-        'drill_cons_data': drill_cons_data,  # Added for dynamic drill-down summaries
+        'drill_cons_data': drill_cons_data,
         'total_columns': len(date_buckets) + 3,
         'drill_down_product_cons': drill_down_product_cons,
         'drill_down_splits_cons': drill_down_splits_cons,
@@ -1317,159 +1323,312 @@ def liquidity_gap_report_cons(request):
 
 ##########################################################################################################################
 @login_required
+
 def export_liquidity_gap_to_excel(request):
-    # Parse the fic_mis_date from request
+    form = LiquidityGapReportFilterForm(request.GET or None)
+
+    # Parse fic_mis_date from request
     raw_fic_mis_date = request.GET.get('fic_mis_date')
     fic_mis_date = parse_date(raw_fic_mis_date)
 
     if not fic_mis_date:
         return HttpResponseBadRequest(
-            "Invalid date format. Supported formats: 'Aug. 31, 2024', 'August 31, 2024', '2024-08-31', '31-08-2024', '31/08/2024', '08/31/2024'."
+            "Invalid date format. Supported formats: 'Aug. 31, 2024', 'August 31, 2024', "
+            "'2024-08-31', '31-08-2024', '31/08/2024', '08/31/2024'."
         )
 
-    # Query data filtered by fic_mis_date
-    queryset = LiquidityGapResultsBase.objects.filter(
-        fic_mis_date=fic_mis_date)
-    form = LiquidityGapReportFilterForm(request.GET or None)
+    # Base queryset filtered by fic_mis_date
+    queryset = LiquidityGapResultsBase.objects.filter(fic_mis_date=fic_mis_date)
     queryset = filter_queryset_by_form(form, queryset)
+
+    # Handle drill-down parameters
+    drill_down_product = request.GET.get('drill_down_product')
+    drill_down_splits = request.GET.get('drill_down_splits')
+
+    if drill_down_product:
+        queryset = queryset.filter(v_prod_type=drill_down_product)
+    if drill_down_splits:
+        queryset = queryset.filter(v_product_name=drill_down_splits)
 
     # Get date buckets
     date_buckets = get_date_buckets(fic_mis_date)
     if not date_buckets.exists():
         return HttpResponseBadRequest("No date buckets available for the selected date.")
 
-    # Group data by currency
-    currencies = queryset.values_list('v_ccy_code', flat=True).distinct()
-    currency_data = {}
-    for currency in currencies:
-        currency_queryset = queryset.filter(v_ccy_code=currency)
-        inflow_data, outflow_data = prepare_inflow_outflow_data(
-            currency_queryset)
-        net_liquidity_gap, net_gap_percentage, cumulative_gap = calculate_totals(
-            date_buckets, inflow_data, outflow_data)
-        currency_data[currency] = {
-            "inflow_data": inflow_data,
-            "outflow_data": outflow_data,
-            "net_liquidity_gap": net_liquidity_gap,
-            "net_gap_percentage": net_gap_percentage,
-            "cumulative_gap": cumulative_gap,
-        }
+    # Prepare headers based on drill-down level
+    headers = ["Account Type", "Product"]
+    if drill_down_splits:
+        headers += ["v_product_name", "v_product_splits"]
+    elif drill_down_product:
+        headers += ["v_product_name"]
 
-    # Create Excel workbook
-    workbook = Workbook()
-    for currency, data in currency_data.items():
-        # Add a new sheet for each currency
-        sheet = workbook.create_sheet(title=f"Amount in {currency}")
+    headers += [
+        f"{bucket['bucket_start_date'].strftime('%d-%b-%Y')} to {bucket['bucket_end_date'].strftime('%d-%b-%Y')}"
+        for bucket in date_buckets
+    ] + ["Total"]
 
-        # Define styles
-        header_font = Font(bold=True, color="FFFFFF")
-        header_fill = PatternFill(
-            start_color="3B5998", end_color="3B5998", fill_type="solid")
-        border = Border(
-            left=Side(border_style="thin"),
-            right=Side(border_style="thin"),
-            top=Side(border_style="thin"),
-            bottom=Side(border_style="thin")
+    # Style definitions
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="3B5998", end_color="3B5998", fill_type="solid")
+    border = Border(
+        left=Side(border_style="thin"), right=Side(border_style="thin"),
+        top=Side(border_style="thin"), bottom=Side(border_style="thin")
+    )
+    alignment_center = Alignment(horizontal="center", vertical="center")
+    heading_font = Font(bold=True, size=14)
+
+    # Overview scenario: separate sheets per currency
+    if not drill_down_product and not drill_down_splits:
+        # Group data by currency (v_ccy_code) and product type
+        details = queryset.values('v_ccy_code', 'v_prod_type', 'bucket_number').annotate(
+            total=Sum(F('inflows') - F('outflows'))
         )
-        alignment_center = Alignment(horizontal="center", vertical="center")
-        heading_font = Font(bold=True, size=14)  # Style for the heading
+        currency_grouped = defaultdict(lambda: defaultdict(lambda: {bucket['bucket_number']: 0 for bucket in date_buckets}))
+        for detail in details:
+            currency = detail['v_ccy_code']  # Use v_ccy_code instead of currency
+            prod_type = detail['v_prod_type']
+            bucket_number = detail['bucket_number']
+            currency_grouped[currency][prod_type][bucket_number] += detail.get('total', 0)
 
-        # Write the heading
-        heading_text = f"Amount in {currency}"
-        # Number of columns (Account Type, Product, Date Buckets, Total)
-        total_columns = len(date_buckets) + 3
-        sheet.merge_cells(start_row=1, start_column=1,
-                          end_row=1, end_column=total_columns)
-        heading_cell = sheet.cell(row=1, column=1)
-        heading_cell.value = heading_text
-        heading_cell.font = heading_font
-        heading_cell.alignment = alignment_center
+        # Initialize workbook and remove the default sheet
+        workbook = Workbook()
+        default_sheet = workbook.active
+        workbook.remove(default_sheet)
 
-        # Write the header row (starts from row 2 now because of the heading)
-        headers = ["Account Type", "Product"] + [
-            f"{bucket['bucket_start_date'].strftime(
-                '%d-%b-%Y')} to {bucket['bucket_end_date'].strftime('%d-%b-%Y')}"
-            for bucket in date_buckets
-        ] + ["Total"]
-        sheet.append(headers)
-        for col_num, header in enumerate(headers, 1):
-            # Adjusted row number for headers
-            cell = sheet.cell(row=2, column=col_num)
-            cell.font = header_font
-            cell.fill = header_fill
+        # Create a sheet for each currency
+        for currency, products in currency_grouped.items():
+            sheet = workbook.create_sheet(title=str(currency))
+            total_columns = len(headers)
+
+            # Dynamic heading for this currency sheet
+            sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_columns)
+            heading_cell = sheet.cell(row=1, column=1)
+            heading_cell.value = f"Overview Report for {currency} on {fic_mis_date}"
+            heading_cell.font = heading_font
+            heading_cell.alignment = alignment_center
+
+            # Write headers in row 2
+            for col_num, header in enumerate(headers, 1):
+                cell = sheet.cell(row=2, column=col_num)
+                cell.value = header
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = alignment_center
+                cell.border = border
+
+            # Write aggregated data rows starting from row 3
+            row_num = 3
+            for prod_type, buckets in products.items():
+                account_type = "Total Inflow" if sum(buckets.values()) >= 0 else "Total Outflow"
+                row_prefix = [account_type, prod_type]
+                row_data = row_prefix + [
+                    buckets.get(bucket['bucket_number'], 0) for bucket in date_buckets
+                ] + [sum(buckets.values())]
+
+                for col_num, value in enumerate(row_data, 1):
+                    cell = sheet.cell(row=row_num, column=col_num)
+                    cell.value = value
+                    cell.alignment = alignment_center
+                    cell.border = border
+                row_num += 1
+
+            # Compute summary rows for the current currency
+            currency_qs = queryset.filter(v_ccy_code=currency)  # Filter by current currency
+            inflow_data_cur, outflow_data_cur = prepare_inflow_outflow_data(currency_qs)
+            net_liquidity_gap_cur, net_gap_percentage_cur, cumulative_gap_cur = calculate_totals(
+                date_buckets, inflow_data_cur, outflow_data_cur
+            )
+
+            total_outflows_cur = sum(outflow_data_cur.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+            net_liquidity_gap_total_cur = sum(net_liquidity_gap_cur.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+            cumulative_gap_total_cur = sum(cumulative_gap_cur.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+            net_gap_percentage_total_cur = (net_liquidity_gap_total_cur / total_outflows_cur * 100) if total_outflows_cur else 0
+
+            prefix_count = 2
+            summary_rows = [
+                ("Net Liquidity Gap", net_liquidity_gap_cur, net_liquidity_gap_total_cur),
+                ("Net Gap as % of Total Outflows", net_gap_percentage_cur, net_gap_percentage_total_cur),
+                ("Cumulative Gap", cumulative_gap_cur, cumulative_gap_total_cur),
+            ]
+            for label, summary_data, summary_total in summary_rows:
+                row = [label] + [""] * (prefix_count - 1)
+                row += [summary_data.get(bucket['bucket_number'], 0) for bucket in date_buckets]
+                row.append(summary_total)
+
+                for col_num, value in enumerate(row, 1):
+                    cell = sheet.cell(row=row_num, column=col_num)
+                    cell.value = value
+                    cell.font = Font(bold=True)
+                    cell.alignment = alignment_center
+                    cell.border = border
+                row_num += 1
+
+            # Auto-adjust column widths for this sheet
+            for col in sheet.iter_cols(min_row=2, max_row=sheet.max_row, min_col=1, max_col=sheet.max_column):
+                max_length = 0
+                for cell in col:
+                    if cell.value and not isinstance(cell, openpyxl.cell.cell.MergedCell):
+                        max_length = max(max_length, len(str(cell.value)))
+                col_letter = get_column_letter(col[0].column)
+                sheet.column_dimensions[col_letter].width = max_length + 2
+
+        # Save and return the workbook for overview scenario
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response['Content-Disposition'] = f'attachment; filename="LiquidityGapReport_Overview_{fic_mis_date}.xlsx"'
+        workbook.save(response)
+        return response
+
+    # Non-overview (drill-down) scenarios
+    grouped_data = defaultdict(lambda: {bucket['bucket_number']: 0 for bucket in date_buckets})
+
+    if drill_down_splits:
+        details = queryset.values('v_product_splits', 'bucket_number').annotate(
+            total=Sum(F('inflows') - F('outflows'))
+        )
+        for detail in details:
+            split_name = detail['v_product_splits']
+            bucket_number = detail['bucket_number']
+            grouped_data[split_name][bucket_number] += detail.get('total', 0)
+        aggregated_data = [
+            {'identifier': split_name, 'buckets': buckets, 'total': sum(buckets.values())}
+            for split_name, buckets in grouped_data.items()
+        ]
+    elif drill_down_product:
+        details = queryset.values('v_product_name', 'bucket_number').annotate(
+            total=Sum(F('inflows') - F('outflows'))
+        )
+        for detail in details:
+            product_name = detail['v_product_name']
+            bucket_number = detail['bucket_number']
+            grouped_data[product_name][bucket_number] += detail.get('total', 0)
+        aggregated_data = [
+            {'identifier': product_name, 'buckets': buckets, 'total': sum(buckets.values())}
+            for product_name, buckets in grouped_data.items()
+        ]
+    else:
+        details = queryset.values('v_prod_type', 'bucket_number').annotate(
+            total=Sum(F('inflows') - F('outflows'))
+        )
+        for detail in details:
+            prod_type = detail['v_prod_type']
+            bucket_number = detail['bucket_number']
+            grouped_data[prod_type][bucket_number] += detail.get('total', 0)
+        aggregated_data = [
+            {'identifier': prod_type, 'buckets': buckets, 'total': sum(buckets.values())}
+            for prod_type, buckets in grouped_data.items()
+        ]
+
+    # Calculate totals for summary rows for non-overview
+    inflow_data, outflow_data = prepare_inflow_outflow_data(queryset)
+    net_liquidity_gap, net_gap_percentage, cumulative_gap = calculate_totals(
+        date_buckets, inflow_data, outflow_data
+    )
+
+    total_outflows = sum(outflow_data.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+    net_liquidity_gap_total = sum(net_liquidity_gap.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+    cumulative_gap_total = sum(cumulative_gap.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+    net_gap_percentage_total = (net_liquidity_gap_total / total_outflows * 100) if total_outflows else 0
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Liquidity Gap Report"
+
+    # Determine dynamic heading based on drill-down level
+    if drill_down_splits:
+        heading_text = f"Drill-Down Report for Split: {drill_down_splits} on {fic_mis_date}"
+    elif drill_down_product:
+        heading_text = f"Drill-Down Report for Product: {drill_down_product} on {fic_mis_date}"
+    else:
+        heading_text = f"Overview Report for {fic_mis_date}"
+
+    total_columns = len(headers)
+    sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_columns)
+    heading_cell = sheet.cell(row=1, column=1)
+    heading_cell.value = heading_text
+    heading_cell.font = heading_font
+    heading_cell.alignment = alignment_center
+
+    # Write headers for non-overview
+    sheet.append(headers)
+    for col_num, header in enumerate(headers, 1):
+        cell = sheet.cell(row=2, column=col_num)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = alignment_center
+        cell.border = border
+
+    # Write aggregated data rows for non-overview
+    row_num = 3
+    for item in aggregated_data:
+        if drill_down_splits:
+            row_prefix = ["Total Flows", drill_down_product, drill_down_splits, item['identifier']]
+        elif drill_down_product:
+            row_prefix = ["Total Flows", drill_down_product, item['identifier']]
+        else:
+            account_type = "Total Inflow" if item['total'] >= 0 else "Total Outflow"
+            row_prefix = [account_type, item['identifier']]
+
+        row = row_prefix + [
+            item['buckets'].get(bucket['bucket_number'], 0) for bucket in date_buckets
+        ] + [item['total']]
+
+        for col_num, value in enumerate(row, 1):
+            cell = sheet.cell(row=row_num, column=col_num)
+            cell.value = value
             cell.alignment = alignment_center
             cell.border = border
+        row_num += 1
 
-        # Start writing data (adjusted to start from row 3)
-        row_num = 3
+    if drill_down_splits:
+        prefix_count = 4
+    elif drill_down_product:
+        prefix_count = 3
+    else:
+        prefix_count = 2
 
-        # Write inflow data
-        for product, buckets in data["inflow_data"].items():
-            row = ["Total Inflows", product] + [
-                buckets.get(bucket["bucket_number"], 0) for bucket in date_buckets
-            ] + [sum(buckets.get(bucket["bucket_number"], 0) for bucket in date_buckets)]
-            for col_num, value in enumerate(row, 1):
-                cell = sheet.cell(row=row_num, column=col_num)
-                cell.value = value
-                cell.alignment = alignment_center
-                cell.border = border
-            row_num += 1
+    summary_rows = [
+        ("Net Liquidity Gap", net_liquidity_gap, net_liquidity_gap_total),
+        ("Net Gap as % of Total Outflows", net_gap_percentage, net_gap_percentage_total),
+        ("Cumulative Gap", cumulative_gap, cumulative_gap_total),
+    ]
 
-        # Write outflow data
-        for product, buckets in data["outflow_data"].items():
-            row = ["Total Outflows", product] + [
-                buckets.get(bucket["bucket_number"], 0) for bucket in date_buckets
-            ] + [sum(buckets.get(bucket["bucket_number"], 0) for bucket in date_buckets)]
-            for col_num, value in enumerate(row, 1):
-                cell = sheet.cell(row=row_num, column=col_num)
-                cell.value = value
-                cell.alignment = alignment_center
-                cell.border = border
-            row_num += 1
+    for label, summary_data, summary_total in summary_rows:
+        row = [label] + [""] * (prefix_count - 1)
+        row += [summary_data.get(bucket['bucket_number'], 0) for bucket in date_buckets]
+        row.append(summary_total)
 
-        # Write summary rows
-        summary_rows = [
-            ("Net Liquidity Gap", data["net_liquidity_gap"]),
-            ("Net Gap as % of Total Outflows", data["net_gap_percentage"]),
-            ("Cumulative Gap", data["cumulative_gap"]),
-        ]
-        for label, summary_data in summary_rows:
-            row = [label, ""] + [
-                summary_data.get(bucket["bucket_number"], 0) for bucket in date_buckets
-            ] + [sum(summary_data.get(bucket["bucket_number"], 0) for bucket in date_buckets)]
-            for col_num, value in enumerate(row, 1):
-                cell = sheet.cell(row=row_num, column=col_num)
-                cell.value = value
-                cell.font = Font(bold=True)
-                cell.alignment = alignment_center
-                cell.border = border
-            row_num += 1
+        for col_num, value in enumerate(row, 1):
+            cell = sheet.cell(row=row_num, column=col_num)
+            cell.value = value
+            cell.font = Font(bold=True)
+            cell.alignment = alignment_center
+            cell.border = border
+        row_num += 1
 
-        # Adjust column widths for readability
-        for col in sheet.iter_cols(min_row=2, max_row=sheet.max_row, min_col=1, max_col=sheet.max_column):
-            max_length = 0
-            col_letter = col[0].column  # Get the column index
-            for cell in col:
-                if cell.value and not isinstance(cell, openpyxl.cell.cell.MergedCell):
-                    max_length = max(max_length, len(str(cell.value)))
-            # Convert column index to letter
-            col_letter = get_column_letter(col_letter)
-            sheet.column_dimensions[col_letter].width = max_length + 2
+    for col in sheet.iter_cols(min_row=2, max_row=sheet.max_row, min_col=1, max_col=sheet.max_column):
+        max_length = 0
+        for cell in col:
+            if cell.value and not isinstance(cell, openpyxl.cell.cell.MergedCell):
+                max_length = max(max_length, len(str(cell.value)))
+        col_letter = get_column_letter(col[0].column)
+        sheet.column_dimensions[col_letter].width = max_length + 2
 
-    # Remove the default sheet created by openpyxl
-    if "Sheet" in workbook.sheetnames:
-        workbook.remove(workbook["Sheet"])
-
-    # Save the workbook to the HTTP response
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    response['Content-Disposition'] = f'attachment; filename="LiquidityGapReport_{
-        fic_mis_date}.xlsx"'
+    response['Content-Disposition'] = f'attachment; filename="LiquidityGapReport_{fic_mis_date}.xlsx"'
     workbook.save(response)
     return response
 
-@login_required
+
+
+
+
+
+
+########################################################################################################################################################################
 def parse_date(date_str):
     """
     Parse the date string to handle multiple formats.
@@ -1489,52 +1648,135 @@ def parse_date(date_str):
             continue
     return None
 
+
+
+
+#################################################################################################################################
+
+
 @login_required
 def export_liquidity_gap_cons_to_excel(request):
-    # Parse the fic_mis_date from request
+
+    form = LiquidityGapReportFilterForm_cons(request.GET or None)
+
+    # Parse fic_mis_date from request
     raw_fic_mis_date = request.GET.get('fic_mis_date')
     fic_mis_date = parse_date(raw_fic_mis_date)
 
     if not fic_mis_date:
         return HttpResponseBadRequest(
-            "Invalid date format. Supported formats: 'Aug. 31, 2024', 'August 31, 2024', '2024-08-31', '31-08-2024', '31/08/2024', '08/31/2024'."
+            "Invalid date format. Supported formats: 'Aug. 31, 2024', 'August 31, 2024', "
+            "'2024-08-31', '31-08-2024', '31/08/2024', '08/31/2024'."
         )
 
-    # Query data filtered by fic_mis_date
-    queryset = LiquidityGapResultsCons.objects.filter(
-        fic_mis_date=fic_mis_date)
-    form = LiquidityGapReportFilterForm(request.GET or None)
+    # Base queryset filtered by fic_mis_date
+    queryset = LiquidityGapResultsCons.objects.filter(fic_mis_date=fic_mis_date)
     queryset = filter_queryset_by_form(form, queryset)
+
+    # Handle drill-down parameters
+    drill_down_product_cons = request.GET.get('drill_down_product_cons')
+    drill_down_splits_cons = request.GET.get('drill_down_splits_cons')
+
+    if drill_down_product_cons:
+        queryset = queryset.filter(v_prod_type=drill_down_product_cons)
+    if drill_down_splits_cons:
+        queryset = queryset.filter(v_product_name=drill_down_splits_cons)
 
     # Get date buckets
     date_buckets = get_date_buckets(fic_mis_date)
     if not date_buckets.exists():
         return HttpResponseBadRequest("No date buckets available for the selected date.")
 
-    # Prepare data
+    # Prepare headers based on drill-down level
+    headers = ["Account Type", "Product"]
+    if drill_down_splits_cons:
+        headers += ["v_product_name", "v_product_splits"]
+    elif drill_down_product_cons:
+        headers += ["v_product_name"]
+
+    # Extend headers with bucket date ranges and Total column
+    headers += [
+        f"{bucket['bucket_start_date'].strftime('%d-%b-%Y')} to {bucket['bucket_end_date'].strftime('%d-%b-%Y')}"
+        for bucket in date_buckets
+    ] + ["Total"]
+
+    # Prepare data for the current drill-down level
+    grouped_data = defaultdict(lambda: {bucket['bucket_number']: 0 for bucket in date_buckets})
+
+    if drill_down_splits_cons:
+        details = queryset.values('v_product_splits', 'bucket_number').annotate(
+            total=Sum(F('inflows') - F('outflows'))
+        )
+        for detail in details:
+            split_name = detail['v_product_splits']
+            bucket_number = detail['bucket_number']
+            grouped_data[split_name][bucket_number] += detail.get('total', 0)
+
+        aggregated_data = [
+            {
+                'identifier': split_name,
+                'buckets': buckets,
+                'total': sum(buckets.values())
+            }
+            for split_name, buckets in grouped_data.items()
+        ]
+    elif drill_down_product_cons:
+        details = queryset.values('v_product_name', 'bucket_number').annotate(
+            total=Sum(F('inflows') - F('outflows'))
+        )
+        for detail in details:
+            product_name = detail['v_product_name']
+            bucket_number = detail['bucket_number']
+            grouped_data[product_name][bucket_number] += detail.get('total', 0)
+
+        aggregated_data = [
+            {
+                'identifier': product_name,
+                'buckets': buckets,
+                'total': sum(buckets.values())
+            }
+            for product_name, buckets in grouped_data.items()
+        ]
+    else:
+        # Overview level: Group by v_prod_type when no drill-down filters are applied
+        details = queryset.values('v_prod_type', 'bucket_number').annotate(
+            total=Sum(F('inflows') - F('outflows'))
+        )
+        for detail in details:
+            prod_type = detail['v_prod_type']
+            bucket_number = detail['bucket_number']
+            grouped_data[prod_type][bucket_number] += detail.get('total', 0)
+
+        aggregated_data = [
+            {
+                'identifier': prod_type,
+                'buckets': buckets,
+                'total': sum(buckets.values())
+            }
+            for prod_type, buckets in grouped_data.items()
+        ]
+
+    # Calculate totals for summary rows
     inflow_data, outflow_data = prepare_inflow_outflow_data(queryset)
     net_liquidity_gap, net_gap_percentage, cumulative_gap = calculate_totals(
         date_buckets, inflow_data, outflow_data
     )
 
-    # Consolidate data
-    cons_data = {
-        "inflow_data": inflow_data,
-        "outflow_data": outflow_data,
-        "net_liquidity_gap": net_liquidity_gap,
-        "net_gap_percentage": net_gap_percentage,
-        "cumulative_gap": cumulative_gap,
-    }
+    total_outflows = sum(outflow_data.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+    net_liquidity_gap_total = sum(net_liquidity_gap.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+    cumulative_gap_total = sum(cumulative_gap.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+    if total_outflows:
+        net_gap_percentage_total = (net_liquidity_gap_total / total_outflows) * 100
+    else:
+        net_gap_percentage_total = 0
 
-    # Create Excel workbook
+    # Initialize workbook and sheet
     workbook = Workbook()
     sheet = workbook.active
-    sheet.title = "Consolidated Results"
+    sheet.title = "Liquidity Gap Report"
 
-    # Define styles
     header_font = Font(bold=True, color="FFFFFF")
-    header_fill = PatternFill(start_color="3B5998",
-                              end_color="3B5998", fill_type="solid")
+    header_fill = PatternFill(start_color="3B5998", end_color="3B5998", fill_type="solid")
     border = Border(
         left=Side(border_style="thin"),
         right=Side(border_style="thin"),
@@ -1542,42 +1784,48 @@ def export_liquidity_gap_cons_to_excel(request):
         bottom=Side(border_style="thin")
     )
     alignment_center = Alignment(horizontal="center", vertical="center")
-    heading_font = Font(bold=True, size=14)  # Style for the heading
+    heading_font = Font(bold=True, size=14)
 
-    # Write the heading
-    heading_text = "Consolidated Liquidity Gap Results"
-    # Number of columns (Account Type, Product, Date Buckets, Total)
-    total_columns = len(date_buckets) + 3
-    sheet.merge_cells(start_row=1, start_column=1,
-                      end_row=1, end_column=total_columns)
+    # Determine dynamic heading based on drill-down level
+    if drill_down_splits_cons:
+        heading_text = f"Drill-Down Report for Split: {drill_down_splits_cons} on {fic_mis_date}"
+    elif drill_down_product_cons:
+        heading_text = f"Drill-Down Report for Product: {drill_down_product_cons} on {fic_mis_date}"
+    else:
+        heading_text = f"Overview Report for {fic_mis_date}"
+
+    total_columns = len(headers)
+    sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_columns)
     heading_cell = sheet.cell(row=1, column=1)
     heading_cell.value = heading_text
     heading_cell.font = heading_font
     heading_cell.alignment = alignment_center
 
-    # Write the header row (starts from row 2 now because of the heading)
-    headers = ["Account Type", "Product"] + [
-        f"{bucket['bucket_start_date'].strftime(
-            '%d-%b-%Y')} to {bucket['bucket_end_date'].strftime('%d-%b-%Y')}"
-        for bucket in date_buckets
-    ] + ["Total"]
+    # Write headers
     sheet.append(headers)
     for col_num, header in enumerate(headers, 1):
-        # Adjusted row number for headers
         cell = sheet.cell(row=2, column=col_num)
         cell.font = header_font
         cell.fill = header_fill
         cell.alignment = alignment_center
         cell.border = border
 
-    # Start writing data (adjusted to start from row 3)
+    # Write aggregated data rows
     row_num = 3
+    for item in aggregated_data:
+        if drill_down_splits_cons:
+            row_prefix = ["Total Flows", drill_down_product_cons, drill_down_splits_cons, item['identifier']]
+        elif drill_down_product_cons:
+            row_prefix = ["Total Flows", drill_down_product_cons, item['identifier']]
+        else:
+            # For overview, determine account type based on total and use v_prod_type as product
+            account_type = "Total Inflow" if item['total'] >= 0 else "Total Outflow"
+            row_prefix = [account_type, item['identifier']]
 
-    # Write inflow data
-    for product, buckets in cons_data["inflow_data"].items():
-        row = ["Total Inflows", product] + [
-            buckets.get(bucket["bucket_number"], 0) for bucket in date_buckets
-        ] + [sum(buckets.get(bucket["bucket_number"], 0) for bucket in date_buckets)]
+        row = row_prefix + [
+            item['buckets'].get(bucket['bucket_number'], 0) for bucket in date_buckets
+        ] + [item['total']]
+
         for col_num, value in enumerate(row, 1):
             cell = sheet.cell(row=row_num, column=col_num)
             cell.value = value
@@ -1585,28 +1833,26 @@ def export_liquidity_gap_cons_to_excel(request):
             cell.border = border
         row_num += 1
 
-    # Write outflow data
-    for product, buckets in cons_data["outflow_data"].items():
-        row = ["Total Outflows", product] + [
-            buckets.get(bucket["bucket_number"], 0) for bucket in date_buckets
-        ] + [sum(buckets.get(bucket["bucket_number"], 0) for bucket in date_buckets)]
-        for col_num, value in enumerate(row, 1):
-            cell = sheet.cell(row=row_num, column=col_num)
-            cell.value = value
-            cell.alignment = alignment_center
-            cell.border = border
-        row_num += 1
+    # Determine fixed prefix column count based on drill-down level
+    if drill_down_splits_cons:
+        prefix_count = 4
+    elif drill_down_product_cons:
+        prefix_count = 3
+    else:
+        prefix_count = 2
 
-    # Write summary rows
     summary_rows = [
-        ("Net Liquidity Gap", cons_data["net_liquidity_gap"]),
-        ("Net Gap as % of Total Outflows", cons_data["net_gap_percentage"]),
-        ("Cumulative Gap", cons_data["cumulative_gap"]),
+        ("Net Liquidity Gap", net_liquidity_gap, net_liquidity_gap_total),
+        ("Net Gap as % of Total Outflows", net_gap_percentage, net_gap_percentage_total),
+        ("Cumulative Gap", cumulative_gap, cumulative_gap_total),
     ]
-    for label, summary_data in summary_rows:
-        row = [label, ""] + [
-            summary_data.get(bucket["bucket_number"], 0) for bucket in date_buckets
-        ] + [sum(summary_data.get(bucket["bucket_number"], 0) for bucket in date_buckets)]
+
+    # Write summary rows aligned with the rest of the data
+    for label, summary_data, summary_total in summary_rows:
+        row = [label] + [""] * (prefix_count - 1)
+        row += [summary_data.get(bucket['bucket_number'], 0) for bucket in date_buckets]
+        row.append(summary_total)
+
         for col_num, value in enumerate(row, 1):
             cell = sheet.cell(row=row_num, column=col_num)
             cell.value = value
@@ -1615,25 +1861,36 @@ def export_liquidity_gap_cons_to_excel(request):
             cell.border = border
         row_num += 1
 
-    # Adjust column widths for readability
+    # Auto-adjust column widths
     for col in sheet.iter_cols(min_row=2, max_row=sheet.max_row, min_col=1, max_col=sheet.max_column):
         max_length = 0
-        col_letter = col[0].column  # Get the column index
         for cell in col:
             if cell.value and not isinstance(cell, openpyxl.cell.cell.MergedCell):
                 max_length = max(max_length, len(str(cell.value)))
-        # Convert column index to letter
-        col_letter = get_column_letter(col_letter)
+        col_letter = get_column_letter(col[0].column)
         sheet.column_dimensions[col_letter].width = max_length + 2
 
-    # Save the workbook to the HTTP response
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    response['Content-Disposition'] = f'attachment; filename="LiquidityGapReport_Consolidated_{
-        fic_mis_date}.xlsx"'
+    response['Content-Disposition'] = f'attachment; filename="LiquidityGapReport_Cons_{fic_mis_date}.xlsx"'
     workbook.save(response)
     return response
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # from django.shortcuts import render
