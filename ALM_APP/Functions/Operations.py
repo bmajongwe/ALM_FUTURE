@@ -1,3 +1,4 @@
+import traceback
 from django.shortcuts import render, get_object_or_404, redirect
 from django.forms import inlineformset_factory
 from django.db import transaction
@@ -32,38 +33,84 @@ from ..Functions.process_utils import *
 from ..Functions.cashflow import *
 from ..Functions.data import *
 from ..Functions.Operations import *
-
+from User.models import  AuditTrail  # Import custom models for logging and auditing
+from ..models import  Log  # Import custom models for logging and auditing
 from django.db.models import Min, Max
 
 
+
+
+
+
+
+logger = logging.getLogger(__name__)
+
 @login_required
 def operations_view(request):
-    return render(request, 'operations/operations.html')
+    try:
+        logger.info(f"User {request.user} accessed the operations view.")
+        return render(request, 'operations/operations.html')
+    except Exception as e:
+        logger.exception(f"Error rendering operations view: {e}")
+        messages.error(request, "An error occurred while loading the operations page.")
+        return redirect('home')  # Adjust the redirection target as needed
+
 
 
 
 # List all processes
+
+logger = logging.getLogger(__name__)
+
 @login_required
 def process_list(request):
-    processes = Process_Rn.objects.all()
-    return render(request, 'operations/process_list.html', {'processes': processes})
+    try:
+        processes = Process_Rn.objects.all()
+        logger.info(f"User {request.user} retrieved process list.")
+        return render(request, 'operations/process_list.html', {'processes': processes})
+    except Exception as e:
+        logger.exception(f"Error retrieving process list: {e}")
+        messages.error(request, "There was an error retrieving the list of processes.")
+        return redirect('home')  # Adjust the redirection target as needed
+
+
+######################################################################################################
 
 # View the details of a specific process, including its associated functions and execution order
+logger = logging.getLogger(__name__)
+
 @login_required
 def process_detail(request, process_id):
-    process = get_object_or_404(Process_Rn, id=process_id)
-    run_processes = RunProcess.objects.filter(process=process).order_by('order')  # Fetch functions in order
-    return render(request, 'operations/process_detail.html', {'process': process, 'run_processes': run_processes})
+    try:
+        process = get_object_or_404(Process_Rn, id=process_id)
+        run_processes = RunProcess.objects.filter(process=process).order_by('order')
+        
+        # Log that the process detail was successfully accessed
+        logger.info(f"User {request.user} accessed details for process {process_id}.")
+        
+        return render(request, 'operations/process_detail.html', {
+            'process': process,
+            'run_processes': run_processes
+        })
+    except Exception as e:
+        # Log the error and show an error message to the user
+        logger.exception(f"Error retrieving details for process {process_id}: {e}")
+        messages.error(request, "There was an error retrieving the process details.")
+        return redirect('process_list')
 
-# Create or edit a process
+
+####################################################################################################################
+logger = logging.getLogger(__name__)
+
 @login_required
 def create_process(request, process_id=None):
     """
     View to add or edit a process and its corresponding run processes.
     If process_id is provided, it's an edit; otherwise, it's an add.
     """
-    RunProcessFormSet = inlineformset_factory(Process_Rn, RunProcess, form=RunProcessForm, extra=1, can_delete=True)
-
+    RunProcessFormSet = inlineformset_factory(
+        Process_Rn, RunProcess, form=RunProcessForm, extra=1, can_delete=True
+    )
     
     process = Process_Rn()
     form_title = 'Create Process'
@@ -72,55 +119,93 @@ def create_process(request, process_id=None):
         form = ProcessFormOp(request.POST, instance=process)
         formset = RunProcessFormSet(request.POST)
 
-        # Print the formset POST data for debugging
-        print("Formset POST Data:", request.POST)
+        logger.debug("Formset POST Data: %s", request.POST)
 
-        if form.is_valid():
+        # Validate both form and formset before processing
+        if form.is_valid() and formset.is_valid():
             try:
                 with transaction.atomic():
-                    process = form.save(commit=False)
-                    process.save()  # Save the parent process object
-                    print(f"Process saved: {process}")
+                    process = form.save()
+                    logger.info("Process saved: %s", process)
 
-                    # Handle multiple function and order values
-                    for form in formset.forms:
-                        functions = request.POST.getlist(form.add_prefix('function'))  # Fetch as list
-                        orders = request.POST.getlist(form.add_prefix('order'))  # Fetch as list
+                    # Create an audit trail entry for the process creation
+                    AuditTrail.objects.create(
+                        user=request.user,
+                        user_name=request.user.name if request.user else '',
+                        user_surname=request.user.surname if request.user else '',
+                        model_name="Process_Rn",
+                        action="create",
+                        object_id=str(process.id),
+                        change_description=f"Created process with ID {process.id} and name {process}"
+                    )
 
-                        print(f"Processing form: functions={functions}, orders={orders}")
+                    # Initialize counter for auto-incrementing order
+                    current_order = 1
 
-                        # Loop over the multiple values and save each pair separately
-                        if len(functions) == len(orders):
-                            for function_id, order in zip(functions, orders):
-                                if function_id and order:
-                                    # Convert the function_id to a Function instance
-                                    function_instance = Function.objects.get(pk=function_id)
-                                    
+                    # Iterate over each subform in the formset
+                    for subform in formset.forms:
+                        if subform.cleaned_data and not subform.cleaned_data.get('DELETE', False):
+                            functions = request.POST.getlist(subform.add_prefix('function'))
+                            orders = request.POST.getlist(subform.add_prefix('order'))
+
+                            logger.debug("Processing subform: functions=%s, orders=%s", functions, orders)
+
+                            if len(functions) == len(orders):
+                                for function_id, order in zip(functions, orders):
+                                    if function_id:
+                                        function_instance = Function.objects.get(pk=function_id)
+                                        # Auto-increment order if not provided
+                                        if not order:
+                                            order = current_order
+                                            current_order += 1
+                                        RunProcess.objects.create(
+                                            process=process,
+                                            function=function_instance,
+                                            order=order
+                                        )
+                                        logger.info("Saved: function=%s, order=%s", function_instance, order)
+                            else:
+                                function_instance = subform.cleaned_data.get('function')
+                                order = subform.cleaned_data.get('order')
+                                if function_instance:
+                                    # Auto-increment order if not provided
+                                    if not order:
+                                        order = current_order
+                                        current_order += 1
                                     RunProcess.objects.create(
                                         process=process,
-                                        function=function_instance,  # Save the Function instance
+                                        function=function_instance,
                                         order=order
                                     )
-                                    print(f"Saved: function={function_instance}, order={order}")
-                        else:
-                            # Handle single function and order values
-                            if form.cleaned_data and not form.cleaned_data.get('DELETE', False):
-                                function_instance = form.cleaned_data.get('function')
-                                RunProcess.objects.create(
-                                    process=process,
-                                    function=function_instance,  # Save the Function instance
-                                    order=form.cleaned_data.get('order')
-                                )
-                                print(f"Saved single: function={form.cleaned_data.get('function')}, order={form.cleaned_data.get('order')}")
+                                    logger.info("Saved single: function=%s, order=%s", function_instance, order)
 
-                    messages.success(request, f'Process {"created" if not process_id else "updated"} successfully.')
+                    messages.success(request, 'Process created successfully.')
+
+                    # Log a successful creation event
+                    Log.objects.create(
+                        function_name='create_process',
+                        log_level='INFO',
+                        message=f"Process {process.id} created successfully by {request.user}.",
+                        status='SUCCESS'
+                    )
+
                     return redirect('process_list')
             except Exception as e:
+                error_details = traceback.format_exc()  # Capture full stack trace as a string
                 messages.error(request, f"Error saving process: {str(e)}")
-                print(f"Error: {e}")
+                logger.exception("Error saving process")
+
+                # Log the error occurrence
+                Log.objects.create(
+                    function_name='create_process',
+                    log_level='ERROR',
+                    detailed_error=error_details,  # Store detailed error info including stack trace
+                    message=str(e),
+                    status='FAILURE'
+                )
         else:
-            print("Form Errors:", form.errors)
-            print("Formset Errors:", formset.errors)
+            logger.error("Form Errors: %s", form.errors)
+            logger.error("Formset Errors: %s", formset.errors)
             messages.error(request, "Please correct the errors below.")
     else:
         form = ProcessFormOp(instance=process)
@@ -130,24 +215,28 @@ def create_process(request, process_id=None):
         'form': form,
         'formset': formset,
         'title': form_title,
-        'filters': []  # Override with an empty list
-
+        'filters': []
     })
 
+
+
+######################################################################################################
+
+logger = logging.getLogger(__name__)
+
+@login_required
 def edit_process(request, process_id):
     """
     View to edit an existing process and its corresponding run processes.
     """
-    # Define the formset for RunProcess with can_delete=True
     RunProcessFormSet = inlineformset_factory(
         Process_Rn,
         RunProcess,
         form=RunProcessForm,
         extra=1,
-        can_delete=True,  # Enables deletion functionality
+        can_delete=True,
     )
 
-    # Fetch the process object to edit or return 404 if not found
     process = get_object_or_404(Process_Rn, id=process_id)
     form_title = "Edit Process"
 
@@ -155,26 +244,50 @@ def edit_process(request, process_id):
         form = ProcessFormOp(request.POST, instance=process)
         formset = RunProcessFormSet(request.POST, instance=process)
 
-        # Debugging: Log errors for clarity
-        print("Edit Form POST Data:", request.POST)
-        print("Edit Form Errors:", form.errors)
-        print("Edit Formset Errors:", formset.errors)
+        logger.debug("Edit Form POST Data: %s", request.POST)
+        logger.debug("Edit Form Errors: %s", form.errors)
+        logger.debug("Edit Formset Errors: %s", formset.errors)
 
         if form.is_valid() and formset.is_valid():
             try:
                 with transaction.atomic():
-                    # Save the process
                     process = form.save(commit=False)
                     process.save()
 
-                    # Save the formset (RunProcess instances), including deletions
                     formset.save()
 
+                    # Create an audit trail entry for the process update
+                    AuditTrail.objects.create(
+                        user=request.user,
+                        user_name=request.user.name if request.user else '',
+                        user_surname=request.user.surname if request.user else '',
+                        model_name="Process_Rn",
+                        action="update",
+                        object_id=str(process.id),
+                        change_description=f"Updated process with ID {process.id}"
+                    )
+
                     messages.success(request, "Process updated successfully.")
+
+                    Log.objects.create(
+                        function_name='edit_process',
+                        log_level='INFO',
+                        message=f"Process {process.id} updated successfully by {request.user}.",
+                        status='SUCCESS'
+                    )
+
                     return redirect("process_list")
             except Exception as e:
+                error_details = traceback.format_exc()
                 messages.error(request, f"Error updating process: {str(e)}")
-                print(f"Error: {e}")
+                logger.exception("Error updating process")
+                Log.objects.create(
+                    function_name='edit_process',
+                    log_level='ERROR',
+                    message=str(e),
+                    detailed_error=error_details,
+                    status='FAILURE'
+                )
         else:
             messages.error(
                 request,
@@ -196,11 +309,13 @@ def edit_process(request, process_id):
     )
 
 
-@login_required
+##################################################################################################################
+logger = logging.getLogger(__name__)
 
+@login_required
 def delete_process(request, process_id):
     try:
-        process_id = int(process_id)  # Explicitly ensure it's an integer
+        process_id = int(process_id)  # Ensure process_id is an integer
     except ValueError:
         raise Http404("Invalid process ID")
 
@@ -210,8 +325,38 @@ def delete_process(request, process_id):
         try:
             process.delete()
             messages.success(request, 'Process deleted successfully.')
+
+            # Create an audit trail entry for the deletion
+            AuditTrail.objects.create(
+                user=request.user,
+                user_name=request.user.name if request.user else '',
+                user_surname=request.user.surname if request.user else '',
+                model_name="Process_Rn",
+                action="delete",
+                object_id=str(process_id),
+                change_description=f"Deleted process with ID {process_id}"
+            )
+
+            # Log a successful deletion event
+            Log.objects.create(
+                function_name='delete_process',
+                log_level='INFO',
+                message=f"Process {process_id} deleted successfully by {request.user}.",
+                status='SUCCESS'
+            )
+
         except Exception as e:
+            error_details = traceback.format_exc()
             messages.error(request, f'Error deleting process: {e}')
+
+            # Log the error occurrence
+            Log.objects.create(
+                function_name='delete_process',
+                log_level='ERROR',
+                message=str(e),
+                detailed_error=error_details,
+                status='FAILURE'
+            )
         return redirect('process_list')
 
     return render(request, 'operations/delete_process.html', {'process': process})
@@ -260,120 +405,208 @@ def generate_process_run_id(process, execution_date):
     
     return process_run_id, next_run_count
 
-
+###############################################################################################################
 # Background function for running the process
 # Background function for running the process
-def execute_functions_in_background(function_status_entries, process_run_id, mis_date):
-    for status_entry in function_status_entries:
+logger = logging.getLogger(__name__)
 
-        if cancel_flags.get(process_run_id):  # Check if cancellation was requested
-            status_entry.status = 'Cancelled'
-            status_entry.execution_end_date = timezone.now()
-            status_entry.duration = status_entry.execution_end_date - status_entry.execution_start_date
+def execute_functions_in_background(function_status_entries, process_run_id, mis_date, execution_log):
+    try:
+        for status_entry in function_status_entries:
+            if cancel_flags.get(process_run_id):  # Check if cancellation was requested
+                status_entry.status = 'Cancelled'
+                status_entry.execution_end_date = timezone.now()
+                status_entry.duration = status_entry.execution_end_date - status_entry.execution_start_date
+                status_entry.save()
+                logger.info(f"Process {process_run_id} was cancelled.")
+
+                execution_log.end_time = timezone.now()
+                execution_log.status = 'CANCELLED'
+                execution_log.details = "Process was cancelled."
+                execution_log.save()
+                break  # Stop execution if cancelled
+
+            function_name = status_entry.function.function_name
+            logger.info(f"Preparing to execute function: {function_name}")
+
+            # Set the function status to "Ongoing" and record the start date
+            status_entry.status = 'Ongoing'
+            status_entry.execution_start_date = timezone.now()  # Start time for the function
             status_entry.save()
-            print(f"Process {process_run_id} was cancelled.")
-            break  # Stop execution if cancelled
+            logger.info(f"Function {function_name} marked as Ongoing.")
 
-        function_name = status_entry.function.function_name
-        print(f"Preparing to execute function: {function_name}")
+            # Execute the function
+            try:
+                if function_name in globals():
+                    logger.info(f"Executing function: {function_name} with date {mis_date}")
+                    result = globals()[function_name](mis_date)  # Execute the function and capture the return value
 
-        # Set the function status to "Ongoing" and record the start date
-        status_entry.status = 'Ongoing'
-        status_entry.execution_start_date = timezone.now()  # Start time for the function
-        status_entry.save()
-        print(f"Function {function_name} marked as Ongoing.")
+                    # Update status and end date based on the return value
+                    status_entry.execution_end_date = timezone.now()  # End time for the function
+                    if result == 1 or result == '1':
+                        status_entry.status = 'Success'
+                        logger.info(f"Function {function_name} executed successfully.")
+                    elif result == 0 or result == '0':
+                        status_entry.status = 'Failed'
+                        logger.error(f"Function {function_name} execution failed.")
+                        status_entry.save()
 
-        # Execute the function
-        try:
-            if function_name in globals():
-                print(f"Executing function: {function_name} with date {mis_date}")
-                result = globals()[function_name](mis_date)  # Execute the function and capture the return value
-                
-                # Update status and end date based on the return value
-                status_entry.execution_end_date = timezone.now()  # End time for the function
-                if result == 1 or result == '1':
-                    status_entry.status = 'Success'
-                    print(f"Function {function_name} executed successfully.")
-                elif result == 0 or result == '0':
-                    status_entry.status = 'Failed'
-                    print(f"Function {function_name} execution failed.")
-                    status_entry.save()
-                    break  # Stop execution if the function fails
+                        # Log the failure
+                        Log.objects.create(
+                            function_name=function_name,
+                            log_level='ERROR',
+                            message=f"Function {function_name} failed to execute.",
+                            detailed_error="Execution returned 0 or failure status.",
+                            status='FAILURE'
+                        )
+                        break  # Stop execution if the function fails
+                    else:
+                        status_entry.status = 'Failed'
+                        logger.error(f"Unexpected return value {result} from function {function_name}.")
+                        status_entry.save()
+
+                        # Log the unexpected return
+                        Log.objects.create(
+                            function_name=function_name,
+                            log_level='ERROR',
+                            message=f"Unexpected return value {result} from function {function_name}.",
+                            detailed_error=f"Return value: {result}",
+                            status='FAILURE'
+                        )
+                        break  # Stop execution for any unexpected result
                 else:
                     status_entry.status = 'Failed'
-                    print(f"Unexpected return value {result} from function {function_name}.")
+                    logger.error(f"Function {function_name} not found in the global scope.")
+                    status_entry.execution_end_date = timezone.now()
                     status_entry.save()
-                    break  # Stop execution for any unexpected result
-            else:
+
+                    # Log the missing function
+                    Log.objects.create(
+                        function_name=function_name,
+                        log_level='ERROR',
+                        message=f"Function {function_name} not found in the global scope.",
+                        detailed_error="Function is not defined in the global namespace.",
+                        status='FAILURE'
+                    )
+                    break  # Stop execution if the function is not found
+
+            except Exception as e:
                 status_entry.status = 'Failed'
-                print(f"Function {function_name} not found in the global scope.")
                 status_entry.execution_end_date = timezone.now()
+                logger.exception(f"Error executing {function_name}: {e}")
                 status_entry.save()
-                break  # Stop execution if the function is not found
 
-        except Exception as e:
-            status_entry.status = 'Failed'
-            status_entry.execution_end_date = timezone.now()
-            print(f"Error executing {function_name}: {e}")
+                # Log the error during execution
+                Log.objects.create(
+                    function_name=function_name,
+                    log_level='ERROR',
+                    message=f"Error executing {function_name}: {e}",
+                    detailed_error=traceback.format_exc(),
+                    status='FAILURE'
+                )
+
+                execution_log.end_time = timezone.now()
+                execution_log.status = 'FAILED'
+                execution_log.details = str(e)
+                execution_log.save()
+                break  # Stop execution if any function throws an exception
+
+            # Calculate duration
+            if status_entry.execution_start_date and status_entry.execution_end_date:
+                status_entry.duration = status_entry.execution_end_date - status_entry.execution_start_date
+
+            # Save the final status and duration
             status_entry.save()
-            break  # Stop execution if any function throws an exception
+            logger.info(f"Updated FunctionExecutionStatus for {function_name} to {status_entry.status}")
 
-        # Calculate duration
-        if status_entry.execution_start_date and status_entry.execution_end_date:
-            status_entry.duration = status_entry.execution_end_date - status_entry.execution_start_date
+    except Exception as outer_e:
+        logger.exception(f"Unexpected error in execute_functions_in_background: {outer_e}")
+        Log.objects.create(
+            function_name='execute_functions_in_background',
+            log_level='ERROR',
+            message=f"Unexpected error in execution: {outer_e}",
+            detailed_error=traceback.format_exc(),
+            status='FAILURE'
+        )
+        execution_log.end_time = timezone.now()
+        execution_log.status = 'FAILED'
+        execution_log.details = str(outer_e)
+        execution_log.save()
+    else:
+        # If loop completes without break, mark execution as successful
+        execution_log.end_time = timezone.now()
+        execution_log.status = 'SUCCESS'
+        execution_log.details = "All functions executed successfully."
+        execution_log.save()
 
-        # Save the final status and duration
-        status_entry.save()
-        print(f"Updated FunctionExecutionStatus for {function_name} to {status_entry.status}")
 
 
 @login_required
 def run_process_execution(request):
     if request.method == 'POST':
-        process_id = request.POST.get('process_id')
-        selected_function_ids = request.POST.getlist('selected_functions')
-        
-        # Parse the execution date
-        mis_date = request.POST.get('execution_date')
-        execution_date = datetime.strptime(mis_date, '%Y-%m-%d')
-        print(f"Execution date received: {mis_date}")
-        
-        # Retrieve the selected process
-        process = get_object_or_404(Process_Rn, id=process_id)
-        print(f"Process selected: {process.process_name} (ID: {process.id})")
-        
-        # Fetch the RunProcess records in order of their execution (by 'order' field)
-        # run_processes = RunProcess.objects.filter(id__in=selected_function_ids).order_by('order')
-        run_processes = RunProcess.objects.filter(process=process).order_by('order')
-        print(f"Number of selected functions to execute: {run_processes.count()}")
+        try:
+            process_id = request.POST.get('process_id')
+            selected_function_ids = request.POST.getlist('selected_functions')
+            
+            # Parse the execution date
+            mis_date = request.POST.get('execution_date')
+            execution_date = datetime.strptime(mis_date, '%Y-%m-%d')
+            logger.info(f"Execution date received: {mis_date}")
+            
+            # Retrieve the selected process
+            process = get_object_or_404(Process_Rn, id=process_id)
+            logger.info(f"Process selected: {process.process_name} (ID: {process.id})")
+            
+            # Fetch the RunProcess records in order of their execution (by 'order' field)
+            run_processes = RunProcess.objects.filter(process=process).order_by('order')
+            logger.info(f"Number of selected functions to execute: {run_processes.count()}")
 
-        # Generate the process_run_id and run_count
-        process_run_id, run_count = generate_process_run_id(process, execution_date)
-        print(f"Generated process_run_id: {process_run_id}, run_count: {run_count}")
+            # Generate the process_run_id and run_count
+            process_run_id, run_count = generate_process_run_id(process, execution_date)
+            logger.info(f"Generated process_run_id: {process_run_id}, run_count: {run_count}")
 
-        # Save all functions as "Pending"
-        function_status_entries = []
-        for run_process in run_processes:
-            status_entry = FunctionExecutionStatus.objects.create(
+            # Save all functions as "Pending"
+            function_status_entries = []
+            for run_process in run_processes:
+                status_entry = FunctionExecutionStatus.objects.create(
+                    process=process,
+                    function=run_process.function,
+                    reporting_date=mis_date,  # Use the original string date for the execution status
+                    status='Pending',  # Initially marked as "Pending"
+                    process_run_id=process_run_id,
+                    run_count=run_count,
+                    execution_order=run_process.order
+                )
+                function_status_entries.append(status_entry)
+                logger.info(f"Function {run_process.function.function_name} marked as Pending.")
+
+            # Redirect to the monitoring page so the user can see the function statuses
+            response = redirect('monitor_specific_process', process_run_id=process_run_id)
+
+            # Create a new execution log entry
+            execution_log = ProcessExecutionLog.objects.create(
                 process=process,
-                function=run_process.function,
-                reporting_date=mis_date,  # Use the original string date for the execution status
-                status='Pending',  # Initially marked as "Pending"
-                process_run_id=process_run_id,
-                run_count=run_count,
-                execution_order=run_process.order
+                user=request.user,
+                user_name=request.user.name if request.user else '',
+                user_surname=request.user.surname if request.user else '',
+                start_time=timezone.now(),
+                status='RUNNING'
             )
-            function_status_entries.append(status_entry)
-            print(f"Function {run_process.function.function_name} marked as Pending.")
 
-        # Redirect to the monitoring page so the user can see the function statuses
-        response = redirect('monitor_specific_process', process_run_id=process_run_id)
+            # Execute functions in the background (thread)
+            execution_thread = threading.Thread(
+                target=execute_functions_in_background, 
+                args=(function_status_entries, process_run_id, mis_date, execution_log)
+            )
+            execution_thread.start()
 
-        # Execute functions in the background (thread)
-        execution_thread = threading.Thread(target=execute_functions_in_background, args=(function_status_entries, process_run_id, mis_date))
-        execution_thread.start()
+            return response  # Redirects immediately while the background task executes
 
-        return response  # Redirects immediately while the background task executes
+        except Exception as e:
+            logger.exception(f"Error in run_process_execution: {e}")
+            messages.error(request, "An error occurred while starting the process execution.")
+            return redirect('process_list')
+
         
 
 @login_required
@@ -382,7 +615,7 @@ def get_process_functions(request, process_id):
     functions_html = render_to_string('operations/_functions_list.html', {'run_processes': process.run_processes.all()})
     return JsonResponse({'html': functions_html})
 
-
+####################################################################################################################
 
 # Monitor running process page
 @login_required

@@ -8,13 +8,17 @@
         {% include 'operations/operations_sidebar.html' %}
 
         <!-- Main Content Area -->
-        <div class="col-md-9 ms-sm-auto col-lg-10 px-md-3" style="margin-left: 260px;">
-            <h1 class="mt-4">{{ title }}</h1>
+        <div class="col-md-9 ms-sm-auto col-lg-10 px-md-3 mt-3" style="margin-left: 260px;">
+            <!-- <h1 class="mt-4">{{ title }}</h1> -->
             <div class="row">
                 <div class="col-md-10 offset-md-1">
                     <div class="card">
-                        <div class="card-header bg-primary text-white">
-                            {{ title }}
+                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                            <span>{{ title }}</span>
+                            <!-- Cancel Button -->
+                            <a href="{% url 'process_list' %}" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
                         </div>
                         <div class="card-body">
                             <!-- Display form errors -->
@@ -51,7 +55,11 @@
                                         <thead class="table-primary">
                                             <tr>
                                                 <th>Function</th>
-                                                <th>Execution Order</th>
+                                                <th>
+                                                    Execution Order 
+                                                    <br>
+                                                    <small class="text-muted">(Auto-incremented, editable)</small>
+                                                </th>
                                                 <th>Actions</th>
                                             </tr>
                                         </thead>
@@ -70,7 +78,9 @@
                                                 <td>
                                                     <div class="d-flex align-items-center justify-content-center">
                                                         {{ item_form.DELETE }}
-                                                        <button type="button" class="btn btn-danger btn-sm ms-2 delete-button">Delete</button>
+                                                        <button type="button" class="btn btn-danger btn-sm ms-2 delete-button">
+                                                            <i class="fas fa-trash-alt"></i> Delete
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -79,8 +89,12 @@
                                     </table>
                                 </fieldset>
                                 <div class="d-flex justify-content-between mt-3">
-                                    <button type="button" class="btn btn-secondary" id="add-form-button">Add Function</button>
-                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                    <button type="button" class="btn btn-secondary" id="add-form-button">
+                                        <i class="fas fa-plus"></i> Add Function
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Save Changes
+                                    </button>
                                 </div>
                             </form>
                         </div>
@@ -92,56 +106,64 @@
 </div>
 
 <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const formsetContainer = document.getElementById("formset-container");
-        const totalForms = document.getElementById("id_runprocess_set-TOTAL_FORMS");
-        let formNum = formsetContainer.children.length;
+document.addEventListener("DOMContentLoaded", function () {
+    const formsetContainer = document.getElementById("formset-container");
+    const totalForms = document.getElementById("id_runprocess_set-TOTAL_FORMS");
+    let formNum = formsetContainer.children.length;
 
-        // Function to add a new formset row
-        document.getElementById("add-form-button").addEventListener("click", function () {
-            const newForm = formsetContainer.children[0].cloneNode(true);
+    document.getElementById("add-form-button").addEventListener("click", function () {
+        const newForm = formsetContainer.children[0].cloneNode(true);
+        const formRegex = new RegExp(`runprocess_set-(\\d+)-`, "g");
+        newForm.innerHTML = newForm.innerHTML.replace(formRegex, `runprocess_set-${formNum}-`);
 
-            // Update the form's index for the new form
-            const formRegex = new RegExp(`runprocess_set-(\\d+)-`, "g");
-            newForm.innerHTML = newForm.innerHTML.replace(formRegex, `runprocess_set-${formNum}-`);
-
-            // Clear the values of the new form fields
-            newForm.querySelectorAll("input, select").forEach((input) => {
-                if (input.type !== "hidden" && input.type !== "checkbox") {
-                    input.value = ""; // Clear visible fields only
-                }
-                const name = input.getAttribute("name");
-                if (name) {
-                    input.setAttribute("name", name.replace(formRegex, `runprocess_set-${formNum}-`));
-                }
-                const id = input.getAttribute("id");
-                if (id) {
-                    input.setAttribute("id", id.replace(formRegex, `runprocess_set-${formNum}-`));
-                }
-            });
-
-            formsetContainer.appendChild(newForm);
-            formNum++;
-            totalForms.value = formNum;
-        });
-
-        // Function to remove a formset row
-        formsetContainer.addEventListener("click", function (event) {
-            if (event.target.classList.contains("delete-button")) {
-                const formRow = event.target.closest(".formset-item");
-                const deleteInput = formRow.querySelector("input[type='checkbox'][name*='DELETE']");
-                if (deleteInput) {
-                    deleteInput.checked = true; // Mark the item for deletion
-                    formRow.style.display = "none"; // Hide the row visually
-                } else {
-                    // If no DELETE checkbox exists (newly added rows), simply remove the row
-                    formRow.remove();
-                    formNum--;
-                    totalForms.value = formNum;
-                }
+        newForm.querySelectorAll("input, select").forEach((input) => {
+            if (input.type !== "hidden" && input.type !== "checkbox") {
+                input.value = "";
+            }
+            const name = input.getAttribute("name");
+            if (name) {
+                input.setAttribute("name", name.replace(formRegex, `runprocess_set-${formNum}-`));
+            }
+            const id = input.getAttribute("id");
+            if (id) {
+                input.setAttribute("id", id.replace(formRegex, `runprocess_set-${formNum}-`));
             }
         });
+
+        // Auto-populate the execution order for the new form
+        let orderInput = newForm.querySelector('input[name$="-order"]');
+        if(orderInput) {
+            orderInput.value = formNum + 1;
+        }
+
+        formsetContainer.appendChild(newForm);
+        formNum++;
+        totalForms.value = formNum;
     });
+
+    formsetContainer.addEventListener("click", function (event) {
+        if (event.target.classList.contains("delete-button")) {
+            const formRow = event.target.closest(".formset-item");
+            const deleteInput = formRow.querySelector("input[type='checkbox'][name*='DELETE']");
+            if (deleteInput) {
+                deleteInput.checked = true;
+                formRow.style.display = "none";
+            } else {
+                formRow.remove();
+                formNum--;
+                totalForms.value = formNum;
+            }
+        }
+    });
+
+    // Auto-populate execution order for existing rows on page load
+    const orderInputs = document.querySelectorAll('input[name$="-order"]');
+    orderInputs.forEach((input, index) => {
+        if (!input.value) {
+            input.value = index + 1;
+        }
+    });
+});
 </script>
 
 <style>
@@ -152,7 +174,8 @@
         text-align: center;
         white-space: nowrap;
     }
-    .formset-item td input, .formset-item td select {
+    .formset-item td input, 
+    .formset-item td select {
         width: 100%;
     }
     .btn-danger {
@@ -166,5 +189,4 @@
         display: none;
     }
 </style>
-
 {% endblock %}

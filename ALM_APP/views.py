@@ -1446,7 +1446,7 @@ def export_liquidity_gap_to_excel(request):
 
             total_outflows_cur = sum(outflow_data_cur.get(bucket['bucket_number'], 0) for bucket in date_buckets)
             net_liquidity_gap_total_cur = sum(net_liquidity_gap_cur.get(bucket['bucket_number'], 0) for bucket in date_buckets)
-            cumulative_gap_total_cur = sum(cumulative_gap_cur.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+            cumulative_gap_total_cur = sum(net_liquidity_gap_cur.get(bucket['bucket_number'], 0) for bucket in date_buckets)
             net_gap_percentage_total_cur = (net_liquidity_gap_total_cur / total_outflows_cur * 100) if total_outflows_cur else 0
 
             prefix_count = 2
@@ -1769,7 +1769,7 @@ def export_liquidity_gap_cons_to_excel(request):
 
     total_outflows = sum(outflow_data.get(bucket['bucket_number'], 0) for bucket in date_buckets)
     net_liquidity_gap_total = sum(net_liquidity_gap.get(bucket['bucket_number'], 0) for bucket in date_buckets)
-    cumulative_gap_total = sum(cumulative_gap.get(bucket['bucket_number'], 0) for bucket in date_buckets)
+    cumulative_gap_total = sum(net_liquidity_gap.get(bucket['bucket_number'], 0) for bucket in date_buckets)
     if total_outflows:
         net_gap_percentage_total = (net_liquidity_gap_total / total_outflows) * 100
     else:
@@ -2037,12 +2037,12 @@ def project_cash_flows_view(request):
     process_name = 'Blessmoe'
     fic_mis_date = '2024-08-31'
     # status = populate_dim_dates_from_time_buckets(fic_mis_date)
-    # status=populate_dim_product(fic_mis_date)
+    status=populate_dim_product(fic_mis_date)
     # status= aggregate_by_prod_code(fic_mis_date, process_name)
     # status=update_date(fic_mis_date)
     # status = populate_liquidity_gap_results_base(fic_mis_date, process_name)
     # status= calculate_time_buckets_and_spread(process_name, fic_mis_date)
-    status= aggregate_cashflows_to_product_level(fic_mis_date)
+    # status= aggregate_cashflows_to_product_level(fic_mis_date)
 
     
 

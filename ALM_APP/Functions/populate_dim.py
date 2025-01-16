@@ -1,13 +1,7 @@
 from django.db import transaction
 from django.db.models import Max
-from ..models import (
-    Ldn_Product_Master,
-    Ldn_Common_Coa_Master,
-    Dim_Product,
-    Ldn_Financial_Instrument,
-    Ldn_Customer_Info,
-    PartyTypeMapping  # Ensure this model is defined and migrated
-)
+from ..models import *
+import traceback
 
 def get_party_type_map():
     """
@@ -36,28 +30,68 @@ def populate_dim_product(fic_mis_date):
     already exist. Party type mappings are fetched dynamically from PartyTypeMapping.
     """
     try:
+        # Log start of function
+        logger_message = f"Starting Dim_Product population for fic_mis_date: {fic_mis_date}."
+        print(logger_message)
+        Log.objects.create(
+            function_name='populate_dim_product',
+            log_level='INFO',
+            message=logger_message,
+            status='SUCCESS'
+        )
+
         # Step 0: Delete existing records for this fic_mis_date in Dim_Product
         deleted_count = Dim_Product.objects.filter(fic_mis_date=fic_mis_date).delete()[0]
-        print(f"Deleted {deleted_count} existing records for fic_mis_date: {fic_mis_date}")
+        logger_message = f"Deleted {deleted_count} existing records for fic_mis_date: {fic_mis_date}"
+        print(logger_message)
+        Log.objects.create(
+            function_name='populate_dim_product',
+            log_level='INFO',
+            message=logger_message,
+            status='SUCCESS'
+        )
 
         # Step 1: Find the maximum fic_mis_date among Ldn_Product_Master and Ldn_Common_Coa_Master
         max_fic_mis_date_product_master = Ldn_Product_Master.objects.aggregate(Max('fic_mis_date'))['fic_mis_date__max']
         max_fic_mis_date_coa_master = Ldn_Common_Coa_Master.objects.aggregate(Max('fic_mis_date'))['fic_mis_date__max']
         max_fic_mis_date = max(max_fic_mis_date_product_master, max_fic_mis_date_coa_master)
 
-        print(f"Using fic_mis_date: {fic_mis_date} for Ldn_Financial_Instrument.")
-        print(f"Using maximum fic_mis_date: {max_fic_mis_date} for Ldn_Product_Master and Ldn_Common_Coa_Master.")
+        logger_message = (
+            f"Using fic_mis_date: {fic_mis_date} for Ldn_Financial_Instrument.\n"
+            f"Using maximum fic_mis_date: {max_fic_mis_date} for Ldn_Product_Master and Ldn_Common_Coa_Master."
+        )
+        print(logger_message)
+        Log.objects.create(
+            function_name='populate_dim_product',
+            log_level='INFO',
+            message=logger_message,
+            status='SUCCESS'
+        )
 
         # Step 2: Get all relevant financial instruments for this fic_mis_date
         financial_instruments = Ldn_Financial_Instrument.objects.filter(fic_mis_date=fic_mis_date)
-        print(f"Retrieved {financial_instruments.count()} records from Ldn_Financial_Instrument for fic_mis_date: {fic_mis_date}")
+        logger_message = f"Retrieved {financial_instruments.count()} records from Ldn_Financial_Instrument for fic_mis_date: {fic_mis_date}"
+        print(logger_message)
+        Log.objects.create(
+            function_name='populate_dim_product',
+            log_level='INFO',
+            message=logger_message,
+            status='SUCCESS'
+        )
 
         # Step 3: Retrieve Ldn_Product_Master data for the product codes in the financial instruments
         product_master_data = Ldn_Product_Master.objects.filter(
             fic_mis_date=max_fic_mis_date,
             v_prod_code__in=financial_instruments.values_list('v_prod_code', flat=True)
         )
-        print(f"Retrieved {product_master_data.count()} records from Ldn_Product_Master for maximum fic_mis_date: {max_fic_mis_date}")
+        logger_message = f"Retrieved {product_master_data.count()} records from Ldn_Product_Master for maximum fic_mis_date: {max_fic_mis_date}"
+        print(logger_message)
+        Log.objects.create(
+            function_name='populate_dim_product',
+            log_level='INFO',
+            message=logger_message,
+            status='SUCCESS'
+        )
 
         # Step 4: Retrieve Ldn_Common_Coa_Master data for the same maximum fic_mis_date
         #         grouping by v_common_coa_code to get the latest record for each code
@@ -70,12 +104,26 @@ def populate_dim_product(fic_mis_date):
             fic_mis_date__in=[item['latest_fic_mis_date'] for item in latest_coa_master],
             v_common_coa_code__in=[item['v_common_coa_code'] for item in latest_coa_master]
         )
-        print(f"Retrieved {coa_master_data.count()} records from Ldn_Common_Coa_Master for maximum fic_mis_date: {max_fic_mis_date}")
+        logger_message = f"Retrieved {coa_master_data.count()} records from Ldn_Common_Coa_Master for maximum fic_mis_date: {max_fic_mis_date}"
+        print(logger_message)
+        Log.objects.create(
+            function_name='populate_dim_product',
+            log_level='INFO',
+            message=logger_message,
+            status='SUCCESS'
+        )
 
         # Step 5: Build lookup dictionaries for product and COA
         product_lookup = {p.v_prod_code: p for p in product_master_data}
         coa_lookup = {c.v_common_coa_code: c for c in coa_master_data}
-        print(f"Created lookup dictionaries with {len(product_lookup)} Product entries and {len(coa_lookup)} COA entries.")
+        logger_message = f"Created lookup dictionaries with {len(product_lookup)} Product entries and {len(coa_lookup)} COA entries."
+        print(logger_message)
+        Log.objects.create(
+            function_name='populate_dim_product',
+            log_level='INFO',
+            message=logger_message,
+            status='SUCCESS'
+        )
 
         # Define sets for categorizing account types
         asset_types = {'EARNINGASSETS', 'OTHERASSET'}
@@ -128,10 +176,17 @@ def populate_dim_product(fic_mis_date):
                     v_party_type_code=dim_product_party_type_code
                 ).exists()
                 if existing_dim:
-                    print(
+                    logger_message = (
                         f"Skipping product code {fin_inst.v_prod_code}, "
                         f"party type code {dim_product_party_type_code} as it already exists "
                         f"for fic_mis_date {fic_mis_date}."
+                    )
+                    print(logger_message)
+                    Log.objects.create(
+                        function_name='populate_dim_product',
+                        log_level='INFO',
+                        message=logger_message,
+                        status='SUCCESS'
                     )
                     continue
 
@@ -157,13 +212,37 @@ def populate_dim_product(fic_mis_date):
                 )
                 dim_product.save()
                 new_records_count += 1
-                print(
+                logger_message = (
                     f"Inserted record for product code: {clean_string(product_record.v_prod_code)}, "
                     f"party type code: {clean_string(dim_product_party_type_code)}, "
                     f"flow type: {clean_string(v_flow_type) if v_flow_type else 'None'}."
                 )
+                print(logger_message)
+                Log.objects.create(
+                    function_name='populate_dim_product',
+                    log_level='INFO',
+                    message=logger_message,
+                    status='SUCCESS'
+                )
 
-        print(f"Dim_Product population completed. {new_records_count} new records inserted with f_latest_record_indicator='Y'.")
+        logger_message = f"Dim_Product population completed. {new_records_count} new records inserted with f_latest_record_indicator='Y'."
+        print(logger_message)
+        Log.objects.create(
+            function_name='populate_dim_product',
+            log_level='INFO',
+            message=logger_message,
+            status='SUCCESS'
+        )
+        return 1
 
     except Exception as e:
+        error_details = traceback.format_exc()
         print(f"Error during Dim_Product population: {e}")
+        Log.objects.create(
+            function_name='populate_dim_product',
+            log_level='ERROR',
+            message=str(e),
+            detailed_error=error_details,
+            status='FAILURE'
+        )
+        return 0

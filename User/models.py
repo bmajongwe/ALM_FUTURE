@@ -2,6 +2,42 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from django.utils import timezone
 
+
+
+from django.conf import settings
+from django.db import models
+
+
+
+
+class AuditTrail(models.Model):
+    ACTION_CHOICES = [
+        ('create', 'Create'),
+        ('update', 'Update'),
+        ('delete', 'Delete'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    user_name = models.CharField(max_length=30, blank=True, null=True)      # New field for first name
+    user_surname = models.CharField(max_length=30, blank=True, null=True)   # New field for surname
+    model_name = models.CharField(max_length=100)
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    object_id = models.CharField(max_length=50, null=True, blank=True)
+    change_description = models.TextField(blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user} {self.action} {self.model_name} on {self.timestamp}"
+
+    class Meta:
+        db_table = "audit_trail"
+        verbose_name = "Audit Trail"
+        verbose_name_plural = "Audit Trails"
+        ordering = ["-timestamp"]
+
+
+
+
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, surname, **extra_fields):
         if not email:

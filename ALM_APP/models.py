@@ -1,4 +1,5 @@
 # ALM_APP/models.py
+from django.conf import settings
 from django.db import models
 from datetime import timedelta, date
 from django.utils import timezone
@@ -8,6 +9,67 @@ from django.forms import ValidationError
 from django.db import models
 from django.core.exceptions import ValidationError
 
+
+
+
+class Log(models.Model):
+    LOG_LEVEL_CHOICES = [
+        ('DEBUG', 'Debug'),
+        ('INFO', 'Info'),
+        ('WARNING', 'Warning'),
+        ('ERROR', 'Error'),
+        ('CRITICAL', 'Critical'),
+    ]
+    STATUS_CHOICES = [
+        ('SUCCESS', 'Success'),
+        ('FAILURE', 'Failure'),
+    ]
+    
+    id = models.BigAutoField(primary_key=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    function_name = models.CharField(max_length=100)
+    log_level = models.CharField(max_length=10, choices=LOG_LEVEL_CHOICES)
+    message = models.TextField()  # Brief message or summary
+    detailed_error = models.TextField(blank=True, null=True)  # Detailed error description or stack trace
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='SUCCESS')
+
+    class Meta:
+        verbose_name = 'Log'
+        verbose_name_plural = 'Logs'
+        ordering = ['-timestamp']
+        db_table = 'dim_massage_logs'
+
+
+#######################################################################################3
+
+
+from django.db import models
+from django.conf import settings
+from django.utils import timezone
+
+class ProcessExecutionLog(models.Model):
+    STATUS_CHOICES = [
+        ('RUNNING', 'Running'),
+        ('SUCCESS', 'Success'),
+        ('FAILED', 'Failed'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+
+    process = models.ForeignKey('ALM_APP.Process_Rn', on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    user_name = models.CharField(max_length=30, blank=True, null=True)
+    user_surname = models.CharField(max_length=30, blank=True, null=True)
+    start_time = models.DateTimeField(default=timezone.now)
+    end_time = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='RUNNING')
+    details = models.TextField(blank=True, help_text="Additional details or error messages.")
+
+    def __str__(self):
+        return f"{self.process} executed by {self.user} ({self.status})"
+
+
+
+###################################################################################################33
 class BehavioralPatternConfig(models.Model):
     v_prod_type = models.CharField(max_length=255, unique=True)  ## Ensure v_prod_type is unique, Product type linked to the product master
     description = models.TextField()  # Optional description of the pattern
