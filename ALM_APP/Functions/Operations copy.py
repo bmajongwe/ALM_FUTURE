@@ -18,7 +18,6 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from django.utils.module_loading import import_string  # Used for dynamic function calling
 import sys
-from ..Functions.alm_execution_functions import execute_alm_process_logic
 from ..Functions.cashflow import *
 from ..Functions.Aggregated_Prod_Cashflow_Base import *
 from ..Functions.populate_liquidity_gap_results_base import *
@@ -406,10 +405,17 @@ def generate_process_run_id(process, execution_date):
     
     return process_run_id, next_run_count
 
+
+
 ###############################################################################################################
+
+
+
 # Background function for running the process
 # Background function for running the process
 logger = logging.getLogger(__name__)
+
+
 
 def execute_functions_in_background(function_status_entries, process_run_id, mis_date, execution_log):
     try:
@@ -440,8 +446,7 @@ def execute_functions_in_background(function_status_entries, process_run_id, mis
             try:
                 if function_name in globals():
                     logger.info(f"Executing function: {function_name} with date {mis_date}")
-                    process_name = status_entry.process.process_name  # Retrieve the process name
-                    result = globals()[function_name](process_name, mis_date)  # Pass both process_name and mis_date
+                    result = globals()[function_name](mis_date)  # Execute the function and capture the return value
 
                     # Update status and end date based on the return value
                     status_entry.execution_end_date = timezone.now()  # End time for the function
@@ -608,8 +613,207 @@ def run_process_execution(request):
             logger.exception(f"Error in run_process_execution: {e}")
             messages.error(request, "An error occurred while starting the process execution.")
             return redirect('process_list')
+        
 
         
+# def execute_functions_in_background(function_status_entries, process_run_id, mis_date, execution_log):
+#     try:
+#         for status_entry in function_status_entries:
+#             if cancel_flags.get(process_run_id):  # Check if cancellation was requested
+#                 status_entry.status = 'Cancelled'
+#                 status_entry.execution_end_date = timezone.now()
+#                 status_entry.duration = status_entry.execution_end_date - status_entry.execution_start_date
+#                 status_entry.save()
+#                 logger.info(f"Process {process_run_id} was cancelled.")
+
+#                 execution_log.end_time = timezone.now()
+#                 execution_log.status = 'CANCELLED'
+#                 execution_log.details = "Process was cancelled."
+#                 execution_log.save()
+#                 break  # Stop execution if cancelled
+
+#             function_name = status_entry.function.function_name
+#             logger.info(f"Preparing to execute function: {function_name}")
+
+#             # Set the function status to "Ongoing" and record the start date
+#             status_entry.status = 'Ongoing'
+#             status_entry.execution_start_date = timezone.now()  # Start time for the function
+#             status_entry.save()
+#             logger.info(f"Function {function_name} marked as Ongoing.")
+
+#             # Execute the function
+#             try:
+#                 if function_name in globals():
+#                     logger.info(f"Executing function: {function_name} with date {mis_date}")
+#                     result = globals()[function_name](mis_date)  # Execute the function and capture the return value
+
+#                     # Update status and end date based on the return value
+#                     status_entry.execution_end_date = timezone.now()  # End time for the function
+#                     if result == 1 or result == '1':
+#                         status_entry.status = 'Success'
+#                         logger.info(f"Function {function_name} executed successfully.")
+#                     elif result == 0 or result == '0':
+#                         status_entry.status = 'Failed'
+#                         logger.error(f"Function {function_name} execution failed.")
+#                         status_entry.save()
+
+#                         # Log the failure
+#                         Log.objects.create(
+#                             function_name=function_name,
+#                             log_level='ERROR',
+#                             message=f"Function {function_name} failed to execute.",
+#                             detailed_error="Execution returned 0 or failure status.",
+#                             status='FAILURE'
+#                         )
+#                         break  # Stop execution if the function fails
+#                     else:
+#                         status_entry.status = 'Failed'
+#                         logger.error(f"Unexpected return value {result} from function {function_name}.")
+#                         status_entry.save()
+
+#                         # Log the unexpected return
+#                         Log.objects.create(
+#                             function_name=function_name,
+#                             log_level='ERROR',
+#                             message=f"Unexpected return value {result} from function {function_name}.",
+#                             detailed_error=f"Return value: {result}",
+#                             status='FAILURE'
+#                         )
+#                         break  # Stop execution for any unexpected result
+#                 else:
+#                     status_entry.status = 'Failed'
+#                     logger.error(f"Function {function_name} not found in the global scope.")
+#                     status_entry.execution_end_date = timezone.now()
+#                     status_entry.save()
+
+#                     # Log the missing function
+#                     Log.objects.create(
+#                         function_name=function_name,
+#                         log_level='ERROR',
+#                         message=f"Function {function_name} not found in the global scope.",
+#                         detailed_error="Function is not defined in the global namespace.",
+#                         status='FAILURE'
+#                     )
+#                     break  # Stop execution if the function is not found
+
+#             except Exception as e:
+#                 status_entry.status = 'Failed'
+#                 status_entry.execution_end_date = timezone.now()
+#                 logger.exception(f"Error executing {function_name}: {e}")
+#                 status_entry.save()
+
+#                 # Log the error during execution
+#                 Log.objects.create(
+#                     function_name=function_name,
+#                     log_level='ERROR',
+#                     message=f"Error executing {function_name}: {e}",
+#                     detailed_error=traceback.format_exc(),
+#                     status='FAILURE'
+#                 )
+
+#                 execution_log.end_time = timezone.now()
+#                 execution_log.status = 'FAILED'
+#                 execution_log.details = str(e)
+#                 execution_log.save()
+#                 break  # Stop execution if any function throws an exception
+
+#             # Calculate duration
+#             if status_entry.execution_start_date and status_entry.execution_end_date:
+#                 status_entry.duration = status_entry.execution_end_date - status_entry.execution_start_date
+
+#             # Save the final status and duration
+#             status_entry.save()
+#             logger.info(f"Updated FunctionExecutionStatus for {function_name} to {status_entry.status}")
+
+#     except Exception as outer_e:
+#         logger.exception(f"Unexpected error in execute_functions_in_background: {outer_e}")
+#         Log.objects.create(
+#             function_name='execute_functions_in_background',
+#             log_level='ERROR',
+#             message=f"Unexpected error in execution: {outer_e}",
+#             detailed_error=traceback.format_exc(),
+#             status='FAILURE'
+#         )
+#         execution_log.end_time = timezone.now()
+#         execution_log.status = 'FAILED'
+#         execution_log.details = str(outer_e)
+#         execution_log.save()
+#     else:
+#         # If loop completes without break, mark execution as successful
+#         execution_log.end_time = timezone.now()
+#         execution_log.status = 'SUCCESS'
+#         execution_log.details = "All functions executed successfully."
+#         execution_log.save()
+
+
+
+# @login_required
+# def run_process_execution(request):
+#     if request.method == 'POST':
+#         try:
+#             process_id = request.POST.get('process_id')
+#             selected_function_ids = request.POST.getlist('selected_functions')
+            
+#             # Parse the execution date
+#             mis_date = request.POST.get('execution_date')
+#             execution_date = datetime.strptime(mis_date, '%Y-%m-%d')
+#             logger.info(f"Execution date received: {mis_date}")
+            
+#             # Retrieve the selected process
+#             process = get_object_or_404(Process_Rn, id=process_id)
+#             logger.info(f"Process selected: {process.process_name} (ID: {process.id})")
+            
+#             # Fetch the RunProcess records in order of their execution (by 'order' field)
+#             run_processes = RunProcess.objects.filter(process=process).order_by('order')
+#             logger.info(f"Number of selected functions to execute: {run_processes.count()}")
+
+#             # Generate the process_run_id and run_count
+#             process_run_id, run_count = generate_process_run_id(process, execution_date)
+#             logger.info(f"Generated process_run_id: {process_run_id}, run_count: {run_count}")
+
+#             # Save all functions as "Pending"
+#             function_status_entries = []
+#             for run_process in run_processes:
+#                 status_entry = FunctionExecutionStatus.objects.create(
+#                     process=process,
+#                     function=run_process.function,
+#                     reporting_date=mis_date,  # Use the original string date for the execution status
+#                     status='Pending',  # Initially marked as "Pending"
+#                     process_run_id=process_run_id,
+#                     run_count=run_count,
+#                     execution_order=run_process.order
+#                 )
+#                 function_status_entries.append(status_entry)
+#                 logger.info(f"Function {run_process.function.function_name} marked as Pending.")
+
+#             # Redirect to the monitoring page so the user can see the function statuses
+#             response = redirect('monitor_specific_process', process_run_id=process_run_id)
+
+#             # Create a new execution log entry
+#             execution_log = ProcessExecutionLog.objects.create(
+#                 process=process,
+#                 user=request.user,
+#                 user_name=request.user.name if request.user else '',
+#                 user_surname=request.user.surname if request.user else '',
+#                 start_time=timezone.now(),
+#                 status='RUNNING'
+#             )
+
+#             # Execute functions in the background (thread)
+#             execution_thread = threading.Thread(
+#                 target=execute_functions_in_background, 
+#                 args=(function_status_entries, process_run_id, mis_date, execution_log)
+#             )
+#             execution_thread.start()
+
+#             return response  # Redirects immediately while the background task executes
+
+#         except Exception as e:
+#             logger.exception(f"Error in run_process_execution: {e}")
+#             messages.error(request, "An error occurred while starting the process execution.")
+#             return redirect('process_list')
+
+        ###########################################################################################################
 
 @login_required
 def get_process_functions(request, process_id):

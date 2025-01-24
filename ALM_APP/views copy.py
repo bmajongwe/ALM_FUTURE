@@ -1,4 +1,3 @@
-from ALM_APP.Functions.alm_execution_functions import execute_alm_process_logic
 from .models import LiquidityGapResultsCons
 from .Functions.liquidity_gap_utils import filter_queryset_by_form, get_date_buckets, prepare_inflow_outflow_data, calculate_totals
 from .models import LiquidityGapResultsBase
@@ -369,32 +368,124 @@ class ProcessListView(ListView):
 
 
 @login_required
+# def process_create_view(request):
+#     step = request.session.get('step', 1)
+#     print(f"\n=== Current Step: {step} ===")
+
+#     # Step 1: Define Process Name and Description
+#     if step == 1:
+#         if request.method == 'POST':
+#             process_name = request.POST.get('process_name')
+#             process_description = request.POST.get('description')
+#             use_behavioral_patterns = request.POST.get(
+#                 'use_behavioral_patterns')
+
+#             # Validate Process Name
+#             if not process_name:
+#                 messages.error(request, "Process name is required.")
+#                 return render(request, 'ALM_APP/filters/process_create.html', {'step': step})
+
+#             # Save details in session and proceed
+#             request.session['process_name'] = process_name
+#             request.session['process_description'] = process_description
+#             request.session['use_behavioral_patterns'] = use_behavioral_patterns
+
+#             # If behavioral patterns are used, skip to Step 3
+#             if use_behavioral_patterns == 'yes':
+#                 request.session['step'] = 3
+#             else:
+#                 request.session['step'] = 2  # Proceed to filter selection
+#             return redirect('process_create')
+
+#         return render(request, 'ALM_APP/filters/process_create.html', {'step': step})
+
+#     # Step 2: Select Filters for the Process
+#     elif step == 2:
+#         filters = ProductFilter.objects.all()
+#         if request.method == 'POST':
+#             if 'previous' in request.POST:
+#                 request.session['step'] = 1
+#                 return redirect('process_create')
+#             else:
+#                 selected_filters = request.POST.getlist('filters')
+#                 request.session['selected_filters'] = selected_filters
+#                 request.session['step'] = 3
+#                 return redirect('process_create')
+
+#         return render(request, 'ALM_APP/filters/process_create.html', {'step': step, 'filters': filters})
+
+#     # Step 3: Confirm and Execute
+#     elif step == 3:
+#         process_name = request.session.get('process_name')
+#         process_description = request.session.get('process_description')
+#         use_behavioral_patterns = request.session.get(
+#             'use_behavioral_patterns')
+#         selected_filters = request.session.get('selected_filters', [])
+#         filters = ProductFilter.objects.filter(id__in=selected_filters)
+
+#         if request.method == 'POST':
+#             if 'previous' in request.POST:
+#                 request.session['step'] = 2 if use_behavioral_patterns == 'no' else 1
+#                 return redirect('process_create')
+#             else:
+#                 # Save the process
+#                 process = finalize_process_creation(request)
+#                 messages.success(request, f"Process '{
+#                                  process.process_name}' created successfully.")
+
+#                 # Clear session
+#                 request.session.pop('process_name', None)
+#                 request.session.pop('process_description', None)
+#                 request.session.pop('use_behavioral_patterns', None)
+#                 request.session.pop('selected_filters', None)
+#                 request.session.pop('step', None)
+
+#                 return redirect('processes_list')
+
+#         return render(request, 'ALM_APP/filters/process_create.html', {
+#             'step': step,
+#             'process_name': process_name,
+#             'process_description': process_description,
+#             'selected_filters': filters,
+#             'use_behavioral_patterns': use_behavioral_patterns
+#         })
+
+#     request.session['step'] = 1
+#     return redirect('process_create')
+
+
 def process_create_view(request):
     step = request.session.get('step', 1)
     print(f"\n=== Current Step: {step} ===")
 
+    # Step 1: Define Process Name and Description
     if step == 1:
         if request.method == 'POST':
-            process_name = request.POST.get('name')
+            process_name = request.POST.get('process_name')
             process_description = request.POST.get('description')
-            use_behavioral_patterns = request.POST.get('use_behavioral_patterns')
+            use_behavioral_patterns = request.POST.get(
+                'use_behavioral_patterns')
 
+            # Validate Process Name
             if not process_name:
                 messages.error(request, "Process name is required.")
                 return render(request, 'ALM_APP/filters/process_create.html', {'step': step})
 
+            # Save details in session and proceed
             request.session['process_name'] = process_name
             request.session['process_description'] = process_description
             request.session['use_behavioral_patterns'] = use_behavioral_patterns
 
+            # If behavioral patterns are used, skip to Step 3
             if use_behavioral_patterns == 'yes':
                 request.session['step'] = 3
             else:
-                request.session['step'] = 2
+                request.session['step'] = 2  # Proceed to filter selection
             return redirect('process_create')
 
         return render(request, 'ALM_APP/filters/process_create.html', {'step': step})
 
+    # Step 2: Select Filters for the Process
     elif step == 2:
         filters = ProductFilter.objects.all()
         if request.method == 'POST':
@@ -409,10 +500,12 @@ def process_create_view(request):
 
         return render(request, 'ALM_APP/filters/process_create.html', {'step': step, 'filters': filters})
 
+    # Step 3: Confirm and Execute
     elif step == 3:
         process_name = request.session.get('process_name')
         process_description = request.session.get('process_description')
-        use_behavioral_patterns = request.session.get('use_behavioral_patterns')
+        use_behavioral_patterns = request.session.get(
+            'use_behavioral_patterns')
         selected_filters = request.session.get('selected_filters', [])
         filters = ProductFilter.objects.filter(id__in=selected_filters)
 
@@ -422,12 +515,9 @@ def process_create_view(request):
                 return redirect('process_create')
             else:
                 # Save the process
-                try:
-                    process = finalize_process_creation(request)
-                    messages.success(request, f"Process '{process.name}' created successfully.")
-                except Exception as e:
-                    messages.error(request, f"Error creating process: {str(e)}")
-                    return redirect('process_create')
+                process = finalize_process_creation(request)
+                messages.success(request, f"Process '{
+                                 process.process_name}' created successfully.")
 
                 # Clear session
                 request.session.pop('process_name', None)
@@ -450,6 +540,7 @@ def process_create_view(request):
     return redirect('process_create')
 
 
+##################################################################################################################
 
 @login_required
 def execute_alm_process_view(request):
@@ -489,8 +580,6 @@ def execute_alm_process_view(request):
 ##################################################################################################################################
 
 def ProcessUpdateView(request, process_id):
-    # Fetch both Process and Process_Rn objects using the same process_id
-    process_rn = get_object_or_404(Process_Rn, id=process_id)
     process = get_object_or_404(Process, id=process_id)
     step = request.session.get('edit_step', 1)
     print(f"\n=== Current Edit Step: {step} ===")
@@ -505,7 +594,7 @@ def ProcessUpdateView(request, process_id):
                 messages.error(request, "Process name is required.")
                 return render(request, 'ALM_APP/filters/process_edit.html', {
                     'step': step,
-                    'process': process_rn,
+                    'process': process,
                 })
 
             request.session['edit_process_name'] = process_name
@@ -520,15 +609,15 @@ def ProcessUpdateView(request, process_id):
 
         return render(request, 'ALM_APP/filters/process_edit.html', {
             'step': step,
-            'process': process_rn,
-            'process_name': process_rn.process_name,
-            'process_description': process_rn.description,
-            'use_behavioral_patterns': 'yes' if process_rn.uses_behavioral_patterns else 'no',
+            'process': process,
+            'process_name': process.name,
+            'process_description': process.description,
+            'use_behavioral_patterns': 'yes' if process.uses_behavioral_patterns else 'no',
         })
 
     elif step == 2:
         filters = ProductFilter.objects.all()
-        selected_filters = request.session.get('edit_selected_filters', process_rn.filters.values_list('id', flat=True))
+        selected_filters = request.session.get('edit_selected_filters', process.filters.values_list('id', flat=True))
 
         if request.method == 'POST':
             if 'previous' in request.POST:
@@ -542,16 +631,16 @@ def ProcessUpdateView(request, process_id):
 
         return render(request, 'ALM_APP/filters/process_edit.html', {
             'step': step,
-            'process': process_rn,
+            'process': process,
             'filters': filters,
             'selected_filters': selected_filters,
         })
 
     elif step == 3:
-        process_name = request.session.get('edit_process_name', process_rn.process_name)
-        process_description = request.session.get('edit_process_description', process_rn.description)
+        process_name = request.session.get('edit_process_name', process.name)
+        process_description = request.session.get('edit_process_description', process.description)
         use_behavioral_patterns = request.session.get('edit_use_behavioral_patterns', 'no')
-        selected_filters = request.session.get('edit_selected_filters', process_rn.filters.values_list('id', flat=True))
+        selected_filters = request.session.get('edit_selected_filters', process.filters.values_list('id', flat=True))
         filters = ProductFilter.objects.filter(id__in=selected_filters)
 
         if request.method == 'POST':
@@ -559,12 +648,11 @@ def ProcessUpdateView(request, process_id):
                 request.session['edit_step'] = 2 if use_behavioral_patterns == 'no' else 1
                 return redirect('process_update', process_id=process_id)
             else:
-                # Update both Process_Rn and Process
-                finalize_process_update(process_rn, process, {
+                finalize_process_update(process, {
                     'name': process_name,
                     'description': process_description,
                     'use_behavioral_patterns': use_behavioral_patterns,
-                    'filters': selected_filters,
+                    'filters': filters,
                 })
                 messages.success(request, f"Process '{process_name}' updated successfully.")
 
@@ -579,7 +667,7 @@ def ProcessUpdateView(request, process_id):
 
         return render(request, 'ALM_APP/filters/process_edit.html', {
             'step': step,
-            'process': process_rn,
+            'process': process,
             'process_name': process_name,
             'process_description': process_description,
             'selected_filters': filters,
@@ -588,7 +676,6 @@ def ProcessUpdateView(request, process_id):
 
     request.session['edit_step'] = 1
     return redirect('process_update', process_id=process_id)
-
 
 
 #########################################################################
@@ -609,42 +696,17 @@ def processes_view(request, process_id):
 
 def ProcessDeleteView(request, process_id):
     if request.method == 'POST':
-        # Try fetching the process from both tables without raising 404
-        process_in_main_table = Process.objects.filter(id=process_id).first()
-        process_in_rn_table = Process_Rn.objects.filter(id=process_id).first()
-
-        # Handle deletion if the process exists in either table
+        process = get_object_or_404(Process, id=process_id)
         try:
-            if process_in_main_table:
-                process_in_main_table.delete()
-                messages.success(request, 'Process deleted successfully from Process table.')
-
-            if process_in_rn_table:
-                process_in_rn_table.delete()
-                messages.success(request, 'Process deleted successfully from Process_Rn table.')
-
-            if not process_in_main_table and not process_in_rn_table:
-                messages.error(request, 'Process does not exist in either table.')
-
+            process.delete()
+            messages.success(request, 'Process deleted successfully.')
         except Exception as e:
             messages.error(request, f'Failed to delete process: {e}')
-
         return redirect('processes_list')
 
     elif request.method == 'GET':
-        # Check for the existence of the process in either table for confirmation
-        process_in_main_table = Process.objects.filter(id=process_id).first()
-        process_in_rn_table = Process_Rn.objects.filter(id=process_id).first()
-
-        if process_in_main_table or process_in_rn_table:
-            return render(
-                request,
-                'ALM_APP/filters/process_confirm_delete.html',
-                {'object': process_in_main_table or process_in_rn_table}
-            )
-        else:
-            messages.error(request, 'Process does not exist.')
-            return redirect('processes_list')
+        process = get_object_or_404(Process, id=process_id)
+        return render(request, 'ALM_APP/filters/process_confirm_delete.html', {'object': process})
 
     return HttpResponseForbidden("Invalid request method")
 
@@ -2071,12 +2133,9 @@ def project_cash_flows_view(request):
     # status= calculate_time_buckets_and_spread(process_name, fic_mis_date)
     # status= aggregate_cashflows_to_product_level(fic_mis_date)
 
-    status=execute_alm_process_logic(process_name, fic_mis_date)
-
-
     
 
-    tatus= project_cash_flows(fic_mis_date)
+    status= project_cash_flows(fic_mis_date)
 
 
 

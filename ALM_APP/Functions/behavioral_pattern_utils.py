@@ -170,3 +170,6 @@ def delete_behavioral_pattern_by_id(id):
     except Exception as e:
         traceback.print_exc()
         return {'error': 'An unexpected error occurred while deleting the pattern.'}
+
+
+

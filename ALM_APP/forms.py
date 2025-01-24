@@ -37,6 +37,9 @@ class ProductFilterForm(forms.ModelForm):
         product_master_fields = [(field.name, field.verbose_name) for field in Ldn_Product_Master._meta.fields]
         self.fields['field_name'].choices = product_master_fields
 
+from django import forms
+from .models import Process_Rn, ProductFilter
+
 class ProcessForm(forms.ModelForm):
     filters = forms.ModelMultipleChoiceField(
         queryset=ProductFilter.objects.all(),
@@ -44,11 +47,25 @@ class ProcessForm(forms.ModelForm):
         required=False
     )
 
-
-
     class Meta:
-        model = Process
-        fields = ['name', 'filters']
+        model = Process_Rn
+        fields = ['process_name', 'description', 'uses_behavioral_patterns', 'filters']
+
+
+
+# class ProcessForm(forms.ModelForm):
+#     filters = forms.ModelMultipleChoiceField(
+#         queryset=ProductFilter.objects.all(),
+#         widget=forms.CheckboxSelectMultiple,
+#         required=False
+#     )
+
+
+
+
+#     class Meta:
+#         model = Process
+#         fields = ['name', 'filters']
 
 
 

@@ -17,8 +17,8 @@ def calculate_time_buckets_and_spread(process_name, fic_mis_date):
 
     # Step 2: Fetch process information
     try:
-        process = Process.objects.get(name=process_name)
-    except Process.DoesNotExist:
+        process = Process_Rn.objects.get(process_name=process_name)
+    except Process_Rn.DoesNotExist:
         print(f"Process '{process_name}' does not exist.")
         return
 

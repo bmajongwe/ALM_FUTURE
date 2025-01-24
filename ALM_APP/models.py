@@ -173,15 +173,36 @@ class Function(models.Model):
     def __str__(self):
         return self.function_name
 
+class ProductFilter(models.Model):
+    field_name = models.CharField(max_length=50)  # Name of the field to filter by
+    condition = models.CharField(max_length=50)  # Type of condition (equals, contains, etc.)
+    value = models.CharField(max_length=255)  # Value to filter with
+    created_by = models.CharField(max_length=50, default='System')
+    created_at = models.DateTimeField(default=timezone.now)
+    modified_by = models.CharField(max_length=50, default='System')
+    modified_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.field_name} {self.condition} {self.value}"
+
 class Process_Rn(models.Model):
     process_name = models.CharField(max_length=255, unique=True)
+    description = models.TextField(null=True, blank=True)
+    uses_behavioral_patterns = models.BooleanField(default=False)
+    filters = models.ManyToManyField(ProductFilter, related_name='processeRn', blank=True)
+    execution_date = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, default='Pending')
+    created_by = models.CharField(max_length=50, default='System')
     created_at = models.DateTimeField(auto_now_add=True)
+    modified_by = models.CharField(max_length=50, default='System')
+    modified_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = 'dim_process'
 
     def __str__(self):
         return self.process_name
+
 
 class TableMetadata(models.Model):
     TABLE_TYPE_CHOICES = [('FACT', 'Fact Table'),('DIM', 'Dimension Table'),('REF', 'Reference Table'),('STG', 'Staging Table'),('OTHER', 'Other'),]
@@ -389,17 +410,7 @@ class Fsi_Interest_Method(models.Model):
 
 
 
-class ProductFilter(models.Model):
-    field_name = models.CharField(max_length=50)  # Name of the field to filter by
-    condition = models.CharField(max_length=50)  # Type of condition (equals, contains, etc.)
-    value = models.CharField(max_length=255)  # Value to filter with
-    created_by = models.CharField(max_length=50, default='System')
-    created_at = models.DateTimeField(default=timezone.now)
-    modified_by = models.CharField(max_length=50, default='System')
-    modified_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return f"{self.field_name} {self.condition} {self.value}"
 
 
 class Process(models.Model):
