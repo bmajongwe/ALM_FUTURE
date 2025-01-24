@@ -1,5 +1,4 @@
 from datetime import datetime
-from django.shortcuts import get_object_or_404
 from django.core.exceptions import ObjectDoesNotExist
 from ..models import *
 from ALM_APP.Functions.Aggregated_Acc_level_cashflows import calculate_behavioral_pattern_distribution, calculate_time_buckets_and_spread
@@ -16,25 +15,25 @@ def execute_alm_process_logic(process_name, fic_mis_date):
         error_message = "Invalid date format. Please use YYYY-MM-DD."
         raise ValueError(error_message) from e
 
-    # Fetch the process by process_name
+    # Fetch the process by process_name in Process_Rn
     try:
-        process = Process.objects.get(name=process_name)
+        process = Process_Rn.objects.get(process_name=process_name)
     except ObjectDoesNotExist as e:
-        error_message = f"Process with name '{process_name}' does not exist."
+        error_message = f"Process with name '{process_name}' does not exist in Process_Rn."
         raise ValueError(error_message) from e
 
     # Execute logic based on the process type
     try:
         if process.uses_behavioral_patterns:
             # Behavioral patterns logic
-            calculate_behavioral_pattern_distribution(process.name, fic_mis_date)
+            calculate_behavioral_pattern_distribution(process.process_name, fic_mis_date)
         else:
             # Time buckets and spread logic
-            calculate_time_buckets_and_spread(process.name, fic_mis_date)
+            calculate_time_buckets_and_spread(process.process_name, fic_mis_date)
 
         # Log success message
-        print(f"Process '{process.name}' executed successfully for MIS date {fic_mis_date}.")
+        print(f"Process '{process.process_name}' executed successfully for MIS date {fic_mis_date}.")
         return 1  # Indicates success
     except Exception as e:
-        error_message = f"Error executing process '{process.name}': {e}"
+        error_message = f"Error executing process '{process.process_name}': {e}"
         raise RuntimeError(error_message) from e

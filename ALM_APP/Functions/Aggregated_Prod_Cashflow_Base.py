@@ -2,7 +2,7 @@ from django.db.models import Sum
 from ..models import *
 import traceback
 
-def aggregate_by_prod_code(fic_mis_date, process_name):
+def aggregate_by_prod_code( process_name, fic_mis_date):
     """
     This function groups data from AggregatedCashflowByBuckets by v_prod_code,
     sums the bucket values, and stores the result in Aggregated_Prod_Cashflow_Base.
