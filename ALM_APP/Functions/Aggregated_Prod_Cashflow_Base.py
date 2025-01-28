@@ -1,49 +1,127 @@
+import logging
+import traceback
 from django.db.models import Sum
 from ..models import *
-import traceback
+from django.utils import timezone
 
-def aggregate_by_prod_code( process_name, fic_mis_date):
+logger = logging.getLogger(__name__)
+
+def aggregate_by_prod_code(process_name, fic_mis_date):
     """
     This function groups data from AggregatedCashflowByBuckets by v_prod_code,
     sums the bucket values, and stores the result in Aggregated_Prod_Cashflow_Base.
     """
-
     inserted_records = 0
     try:
-        # Step 1: Delete any existing records in Aggregated_Prod_Cashflow_Base for the same fic_mis_date and process_name
-        deleted_count = Aggregated_Prod_Cashflow_Base.objects.filter(fic_mis_date=fic_mis_date, process_name=process_name).delete()[0]
-        logger_message = f"Deleted {deleted_count} existing records for fic_mis_date: {fic_mis_date} and process_name: {process_name}"
-        print(logger_message)
+        logger.info(f"Starting aggregation for process_name='{process_name}' and fic_mis_date='{fic_mis_date}'.")
         Log.objects.create(
             function_name='aggregate_by_prod_code',
             log_level='INFO',
-            message=logger_message,
+            message=f"Starting aggregation for process_name='{process_name}' and fic_mis_date='{fic_mis_date}'.",
             status='SUCCESS'
         )
 
-        # Step 2: Fetch all records from AggregatedCashflowByBuckets for the given fic_mis_date and process_name
-        cashflow_buckets = AggregatedCashflowByBuckets.objects.filter(fic_mis_date=fic_mis_date, process_name=process_name)
-
-        if not cashflow_buckets.exists():
-            logger_message = f"No cashflows found for fic_mis_date: {fic_mis_date} and process_name: {process_name}"
-            print(logger_message)
+        # Step 1: Delete existing records
+        try:
+            deleted_count, _ = Aggregated_Prod_Cashflow_Base.objects.filter(
+                fic_mis_date=fic_mis_date,
+                process_name=process_name
+            ).delete()
+            logger.info(f"Deleted {deleted_count} existing records for fic_mis_date='{fic_mis_date}' and process_name='{process_name}'.")
             Log.objects.create(
                 function_name='aggregate_by_prod_code',
                 log_level='INFO',
-                message=logger_message,
+                message=f"Deleted {deleted_count} existing records for fic_mis_date='{fic_mis_date}' and process_name='{process_name}'.",
                 status='SUCCESS'
+            )
+        except Exception as e:
+            error_message = f"Error deleting existing records: {e}"
+            logger.error(error_message)
+            Log.objects.create(
+                function_name='aggregate_by_prod_code',
+                log_level='ERROR',
+                message=error_message,
+                detailed_error=traceback.format_exc(),
+                status='FAILURE'
             )
             return 0
 
-        # Step 3: Group the data by v_prod_code and sum the bucket values
-        grouped_data = cashflow_buckets.values('v_prod_code', 'v_ccy_code', 'v_loan_type', 'v_party_type_code', 'financial_element').annotate(
-            **{f'bucket_{i}': Sum(f'bucket_{i}') for i in range(1, 51)}
-        )
+        # Step 2: Fetch cashflow buckets
+        try:
+            cashflow_buckets = AggregatedCashflowByBuckets.objects.filter(
+                fic_mis_date=fic_mis_date,
+                process_name=process_name
+            )
+            if not cashflow_buckets.exists():
+                logger.info(f"No cashflows found for fic_mis_date='{fic_mis_date}' and process_name='{process_name}'.")
+                Log.objects.create(
+                    function_name='aggregate_by_prod_code',
+                    log_level='INFO',
+                    message=f"No cashflows found for fic_mis_date='{fic_mis_date}' and process_name='{process_name}'.",
+                    status='SUCCESS'
+                )
+                return 0
+            logger.info(f"Fetched {cashflow_buckets.count()} cashflow bucket records for processing.")
+            Log.objects.create(
+                function_name='aggregate_by_prod_code',
+                log_level='INFO',
+                message=f"Fetched {cashflow_buckets.count()} cashflow bucket records for processing.",
+                status='SUCCESS'
+            )
+        except Exception as e:
+            error_message = f"Error fetching cashflow buckets: {e}"
+            logger.error(error_message)
+            Log.objects.create(
+                function_name='aggregate_by_prod_code',
+                log_level='ERROR',
+                message=error_message,
+                detailed_error=traceback.format_exc(),
+                status='FAILURE'
+            )
+            return 0
 
-        # Step 4: Insert the aggregated data into Aggregated_Prod_Cashflow_Base
-        for record in grouped_data:
+        # Step 3: Group and aggregate data
+        try:
+            grouped_data = cashflow_buckets.values(
+                'v_prod_code',
+                'v_ccy_code',
+                'v_loan_type',
+                'v_party_type_code',
+                'financial_element'
+            ).annotate(
+                **{f'bucket_{i}': Sum(f'bucket_{i}') for i in range(1, 51)}
+            )
+            logger.info(f"Grouped data into {grouped_data.count()} unique product code groups.")
+            Log.objects.create(
+                function_name='aggregate_by_prod_code',
+                log_level='INFO',
+                message=f"Grouped data into {grouped_data.count()} unique product code groups.",
+                status='SUCCESS'
+            )
+        except Exception as e:
+            error_message = f"Error grouping and aggregating data: {e}"
+            logger.error(error_message)
+            Log.objects.create(
+                function_name='aggregate_by_prod_code',
+                log_level='ERROR',
+                message=error_message,
+                detailed_error=traceback.format_exc(),
+                status='FAILURE'
+            )
+            return 0
+
+        # Step 4: Insert aggregated data
+        for idx, record in enumerate(grouped_data, start=1):
             try:
-                # Get the corresponding AggregatedCashflowByBucket and TimeBucketMaster record
+                logger.debug(f"Processing record {idx}/{grouped_data.count()} for v_prod_code='{record['v_prod_code']}'.")
+                Log.objects.create(
+                    function_name='aggregate_by_prod_code',
+                    log_level='DEBUG',
+                    message=f"Processing record {idx}/{grouped_data.count()} for v_prod_code='{record['v_prod_code']}'.",
+                    status='SUCCESS'
+                )
+
+                # Retrieve related AggregatedCashflowByBuckets and TimeBucketMaster
                 cashflow_by_bucket = AggregatedCashflowByBuckets.objects.filter(
                     v_prod_code=record['v_prod_code'],
                     fic_mis_date=fic_mis_date,
@@ -53,10 +131,34 @@ def aggregate_by_prod_code( process_name, fic_mis_date):
                     financial_element=record['financial_element']
                 ).first()
 
+                if not cashflow_by_bucket:
+                    logger.warning(f"No AggregatedCashflowByBuckets found for record {idx} with v_prod_code='{record['v_prod_code']}'. Skipping insertion.")
+                    Log.objects.create(
+                        function_name='aggregate_by_prod_code',
+                        log_level='WARNING',
+                        message=f"No AggregatedCashflowByBuckets found for record {idx} with v_prod_code='{record['v_prod_code']}'. Skipping insertion.",
+                        status='SUCCESS'
+                    )
+                    continue
+
                 time_bucket_master = TimeBucketMaster.objects.filter(
                     process_name=process_name
                 ).first()
 
+                if not time_bucket_master:
+                    logger.warning(f"No TimeBucketMaster found for process_name='{process_name}'. Skipping insertion for record {idx}.")
+                    Log.objects.create(
+                        function_name='aggregate_by_prod_code',
+                        log_level='WARNING',
+                        message=f"No TimeBucketMaster found for process_name='{process_name}'. Skipping insertion for record {idx}.",
+                        status='SUCCESS'
+                    )
+                    continue
+
+                # Prepare bucket data
+                bucket_data = {f'bucket_{i}': record.get(f'bucket_{i}', 0) for i in range(1, 51)}
+
+                # Create Aggregated_Prod_Cashflow_Base record
                 Aggregated_Prod_Cashflow_Base.objects.create(
                     fic_mis_date=fic_mis_date,
                     process_name=process_name,
@@ -65,14 +167,21 @@ def aggregate_by_prod_code( process_name, fic_mis_date):
                     v_loan_type=record['v_loan_type'],
                     v_party_type_code=record['v_party_type_code'],
                     financial_element=record['financial_element'],
-                    cashflow_by_bucket=cashflow_by_bucket,  # Link to AggregatedCashflowByBucket
-                    time_bucket_master=time_bucket_master,  # Link to TimeBucketMaster
-                    **{f'bucket_{i}': record.get(f'bucket_{i}', 0) for i in range(1, 51)}
+                    cashflow_by_bucket=cashflow_by_bucket,
+                    time_bucket_master=time_bucket_master,
+                    **bucket_data
                 )
                 inserted_records += 1
+                logger.debug(f"Successfully inserted Aggregated_Prod_Cashflow_Base record for v_prod_code='{record['v_prod_code']}', financial_element='{record['financial_element']}'.")
+                Log.objects.create(
+                    function_name='aggregate_by_prod_code',
+                    log_level='DEBUG',
+                    message=f"Successfully inserted Aggregated_Prod_Cashflow_Base record for v_prod_code='{record['v_prod_code']}', financial_element='{record['financial_element']}'.",
+                    status='SUCCESS'
+                )
             except Exception as e:
-                error_message = f"Error inserting record for v_prod_code: {record['v_prod_code']}, Error: {str(e)}"
-                print(error_message)
+                error_message = f"Error inserting record for v_prod_code='{record['v_prod_code']}', financial_element='{record['financial_element']}': {e}"
+                logger.error(error_message)
                 Log.objects.create(
                     function_name='aggregate_by_prod_code',
                     log_level='ERROR',
@@ -80,20 +189,33 @@ def aggregate_by_prod_code( process_name, fic_mis_date):
                     detailed_error=traceback.format_exc(),
                     status='FAILURE'
                 )
+                continue  # Continue processing other records
 
-        logger_message = f"Successfully aggregated cashflows by product code for process '{process_name}' and fic_mis_date {fic_mis_date}. Inserted {inserted_records} records."
-        print(logger_message)
-        Log.objects.create(
-            function_name='aggregate_by_prod_code',
-            log_level='INFO',
-            message=logger_message,
-            status='SUCCESS'
-        )
-        return 1
+        # Final Success Log
+        try:
+            logger.info(f"Successfully aggregated cashflows by product code for process_name='{process_name}' and fic_mis_date='{fic_mis_date}'. Inserted {inserted_records} records.")
+            Log.objects.create(
+                function_name='aggregate_by_prod_code',
+                log_level='INFO',
+                message=f"Successfully aggregated cashflows by product code for process_name='{process_name}' and fic_mis_date='{fic_mis_date}'. Inserted {inserted_records} records.",
+                status='SUCCESS'
+            )
+            return 1
+        except Exception as e:
+            error_message = f"Error logging final success message: {e}"
+            logger.error(error_message)
+            Log.objects.create(
+                function_name='aggregate_by_prod_code',
+                log_level='ERROR',
+                message=error_message,
+                detailed_error=traceback.format_exc(),
+                status='FAILURE'
+            )
+            return 0
 
     except TypeError as e:
-        error_message = f"Error executing aggregate_by_prod_code: {str(e)}"
-        print(error_message)
+        error_message = f"TypeError executing aggregate_by_prod_code: {e}"
+        logger.error(error_message)
         Log.objects.create(
             function_name='aggregate_by_prod_code',
             log_level='ERROR',
@@ -104,8 +226,8 @@ def aggregate_by_prod_code( process_name, fic_mis_date):
         return 0
 
     except Exception as e:
-        error_message = f"Error during aggregation for fic_mis_date {fic_mis_date} and process_name {process_name}: {str(e)}"
-        print(error_message)
+        error_message = f"General error during aggregation for fic_mis_date='{fic_mis_date}' and process_name='{process_name}': {e}"
+        logger.error(error_message)
         Log.objects.create(
             function_name='aggregate_by_prod_code',
             log_level='ERROR',

@@ -1,10 +1,4 @@
 
-
-
-
-
-####################################################################################################
-
 from concurrent.futures import ThreadPoolExecutor
 from django.db import transaction
 from datetime import timedelta, date

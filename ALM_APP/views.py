@@ -54,44 +54,126 @@ from .models import TimeBuckets, TimeBucketDefinition, product_level_cashflows
 
 @login_required
 
+
+
+@login_required
 def create_behavioral_pattern(request):
-    # Fetch the existing Time Bucket Definition (assuming only one is allowed)
+    """
+    View to create a behavioral pattern. Fetches the existing Time Bucket Definition
+    (assuming only one is allowed) and distinct product types from Ldn_Product_Master.
+    Integrates logging and audit trail to track user actions and any errors encountered.
+    """
+    logger.info(f"Accessed create_behavioral_pattern view by user='{request.user}'.")
+
+    # Step 1: Attempt to retrieve Time Bucket Definition and associated Time Buckets
     try:
         time_bucket = TimeBucketDefinition.objects.first()
         bucket_entries = TimeBuckets.objects.filter(definition=time_bucket).order_by('serial_number')
     except TimeBucketDefinition.DoesNotExist:
         messages.error(request, "No Time Bucket Definition exists. Please create one first.")
+        logger.warning("TimeBucketDefinition does not exist. Redirecting user to 'time_bucket_list'.")
+        Log.objects.create(
+            function_name='create_behavioral_pattern',
+            log_level='WARNING',
+            message="TimeBucketDefinition does not exist. Redirecting to time_bucket_list.",
+            status='SUCCESS'
+        )
         return redirect('time_bucket_list')
 
     # Fetch distinct product types from Ldn_Product_Master
     product_types = Ldn_Product_Master.objects.values_list('v_prod_type', flat=True).distinct()
 
     if request.method == 'POST':
-        # Call the function to process the form data
-        result = define_behavioral_pattern_from_form_data(request)
+        logger.debug(f"Received POST data for create_behavioral_pattern: {request.POST}")
+        Log.objects.create(
+            function_name='create_behavioral_pattern',
+            log_level='DEBUG',
+            message=f"Received POST data: {request.POST}",
+            status='SUCCESS'
+        )
 
-        # Check if there is an error
+        # Step 2: Call the function to process the form data
+        try:
+            result = define_behavioral_pattern_from_form_data(request)
+        except Exception as e:
+            error_details = traceback.format_exc()
+            error_message = f"Error defining behavioral pattern: {str(e)}"
+            logger.error(error_message)
+            Log.objects.create(
+                function_name='create_behavioral_pattern',
+                log_level='ERROR',
+                message=error_message,
+                detailed_error=error_details,
+                status='FAILURE'
+            )
+            messages.error(request, error_message)
+            return render(request, 'ALM_APP/behavioral/create_behavioral_pattern.html', {
+                'v_prod_type': request.POST.get('v_prod_type'),
+                'description': request.POST.get('description'),
+                'percentages': request.POST.getlist('percentage[]'),
+                'bucket_entries': bucket_entries,
+                'product_types': product_types,
+            })
+
+        # Step 3: Handle success or error from define_behavioral_pattern_from_form_data
         if 'error' in result:
-            messages.error(request, result['error'])
-
+            error_message = result['error']
+            logger.warning(f"Behavioral pattern creation error: {error_message}")
+            Log.objects.create(
+                function_name='create_behavioral_pattern',
+                log_level='WARNING',
+                message=f"Behavioral pattern creation error: {error_message}",
+                status='SUCCESS'
+            )
+            messages.error(request, error_message)
             # Return the form with existing data to repopulate the form fields
             return render(request, 'ALM_APP/behavioral/create_behavioral_pattern.html', {
                 'v_prod_type': request.POST.get('v_prod_type'),
                 'description': request.POST.get('description'),
                 'percentages': request.POST.getlist('percentage[]'),
-                'bucket_entries': bucket_entries,  # Include time bucket data for prepopulating
-                'product_types': product_types,    # Include product types for dropdown
+                'bucket_entries': bucket_entries,
+                'product_types': product_types,
             })
 
         if 'success' in result:
+            # If define_behavioral_pattern_from_form_data created a new pattern, retrieve its ID if available
+            new_pattern_id = result.get('pattern_id', None)
+            logger.info("Behavioral pattern saved successfully.")
+            Log.objects.create(
+                function_name='create_behavioral_pattern',
+                log_level='INFO',
+                message="Behavioral pattern saved successfully.",
+                status='SUCCESS'
+            )
+
+            # Step 4: Create an AuditTrail entry for the new behavioral pattern
+            AuditTrail.objects.create(
+                user=request.user,
+                user_name=request.user.name if request.user else '',
+                user_surname=request.user.surname if request.user else '',
+                model_name="BehavioralPattern",
+                action="create",
+                object_id=str(new_pattern_id) if new_pattern_id else '',
+                change_description=f"Created new behavioral pattern: {request.POST.get('v_prod_type')}."
+            )
+            logger.info(f"AuditTrail created for new behavioral pattern with ID='{new_pattern_id}'.")
+
             messages.success(request, "Behavioral pattern saved successfully!")
             return redirect('behavioral_patterns_list')
 
-    # Prepopulate the form with Time Bucket Entries and Product Types
+    # Step 5: Render the form for GET requests
+    logger.info("Accessed create_behavioral_pattern view via GET. Rendering form.")
+    Log.objects.create(
+        function_name='create_behavioral_pattern',
+        log_level='INFO',
+        message="Rendering create_behavioral_pattern form via GET request.",
+        status='SUCCESS'
+    )
     return render(request, 'ALM_APP/behavioral/create_behavioral_pattern.html', {
-        'bucket_entries': bucket_entries,  # Pass time bucket entries for prepopulating
-        'product_types': product_types,    # Pass product types for dropdown
+        'bucket_entries': bucket_entries,
+        'product_types': product_types,
     })
+
 
 
 # View for Behavioral Pattern List
@@ -102,86 +184,282 @@ def behavioral_patterns_list(request):
         '-created_at')  # Fetching all patterns sorted by newest first
     return render(request, 'ALM_APP/behavioral/behavioral_patterns_list.html', {'patterns': patterns})
 
+#####################################################################################################
 # View for Editing Behavioral Pattern
-# In your views.py
 
 @login_required
-def edit_behavioral_pattern(request, id):
-    try:
-        # Get the pattern to edit
-        pattern = BehavioralPatternConfig.objects.get(id=id)
 
-        # Fetch product types from Ldn_Product_Master for the dropdown
+def edit_behavioral_pattern(request, id):
+    """
+    View to edit an existing behavioral pattern. Fetches product types from Ldn_Product_Master
+    and updates the pattern if the form is submitted. Logs all actions and integrates
+    an audit trail for changes.
+    """
+    logger.info(f"Accessed edit_behavioral_pattern view for pattern ID='{id}' by user='{request.user}'.")
+    Log.objects.create(
+        function_name='edit_behavioral_pattern',
+        log_level='INFO',
+        message=f"Accessed edit_behavioral_pattern view for pattern ID='{id}' by user='{request.user}'.",
+        status='SUCCESS'
+    )
+
+    try:
+        # Step 1: Retrieve the pattern or handle DoesNotExist
+        pattern = BehavioralPatternConfig.objects.get(id=id)
+        logger.info(f"Loaded BehavioralPatternConfig with ID='{id}'.")
+        Log.objects.create(
+            function_name='edit_behavioral_pattern',
+            log_level='INFO',
+            message=f"Loaded BehavioralPatternConfig with ID='{id}'.",
+            status='SUCCESS'
+        )
+
+        # Step 2: Fetch product types for the dropdown
         product_types = Ldn_Product_Master.objects.values_list('v_prod_type', flat=True).distinct()
 
         if request.method == 'POST':
+            logger.debug(f"Received POST data for edit_behavioral_pattern: {request.POST}")
+            Log.objects.create(
+                function_name='edit_behavioral_pattern',
+                log_level='DEBUG',
+                message=f"Received POST data for pattern ID='{id}': {request.POST}",
+                status='SUCCESS'
+            )
+
             # Extract data from POST request
             tenors = request.POST.getlist('tenor[]')
             multipliers = request.POST.getlist('multiplier[]')
             percentages = request.POST.getlist('percentage[]')
 
+            logger.debug(
+                f"Validating lengths of tenors, multipliers, percentages for pattern ID='{id}'. "
+                f"tenors={len(tenors)}, multipliers={len(multipliers)}, percentages={len(percentages)}"
+            )
+            Log.objects.create(
+                function_name='edit_behavioral_pattern',
+                log_level='DEBUG',
+                message=(
+                    f"Validating lengths for pattern ID='{id}': "
+                    f"tenors={len(tenors)}, multipliers={len(multipliers)}, percentages={len(percentages)}"
+                ),
+                status='SUCCESS'
+            )
+
             # Validate data lengths
             if not (len(tenors) == len(multipliers) == len(percentages)):
+                error_message = "Mismatch in the number of entries for Tenors, Multipliers, and Percentages."
+                logger.warning(error_message)
+                Log.objects.create(
+                    function_name='edit_behavioral_pattern',
+                    log_level='WARNING',
+                    message=error_message,
+                    status='SUCCESS'
+                )
                 return render(request, 'ALM_APP/behavioral/edit_behavioral_pattern.html', {
-                    'error': "Mismatch in the number of entries for Tenors, Multipliers, and Percentages.",
+                    'error': error_message,
                     'v_prod_type': request.POST.get('v_prod_type', pattern.v_prod_type),
                     'description': request.POST.get('description', pattern.description),
                     'tenors': tenors,
                     'multipliers': multipliers,
                     'percentages': percentages,
-                    'product_types': product_types,  # Pass product types for the dropdown
+                    'product_types': product_types,
                 })
 
-            # Call the utility function to update the pattern
-            result = update_behavioral_pattern_from_form_data(request, pattern)
-
-            if 'error' in result:
+            # Step 3: Call the utility function to update the pattern
+            try:
+                result = update_behavioral_pattern_from_form_data(request, pattern)
+            except Exception as e:
+                error_details = traceback.format_exc()
+                error_message = f"Error updating behavioral pattern ID='{id}': {str(e)}"
+                logger.error(error_message)
+                Log.objects.create(
+                    function_name='edit_behavioral_pattern',
+                    log_level='ERROR',
+                    message=error_message,
+                    detailed_error=error_details,
+                    status='FAILURE'
+                )
+                messages.error(request, error_message)
                 return render(request, 'ALM_APP/behavioral/edit_behavioral_pattern.html', {
-                    'error': result['error'],
+                    'error': error_message,
                     'v_prod_type': request.POST.get('v_prod_type', pattern.v_prod_type),
                     'description': request.POST.get('description', pattern.description),
                     'tenors': tenors,
                     'multipliers': multipliers,
                     'percentages': percentages,
-                    'product_types': product_types,  # Pass product types for the dropdown
+                    'product_types': product_types,
+                })
+
+            # Step 4: Check result for success or error
+            if 'error' in result:
+                error_message = result['error']
+                logger.warning(f"Behavioral pattern update error for ID='{id}': {error_message}")
+                Log.objects.create(
+                    function_name='edit_behavioral_pattern',
+                    log_level='WARNING',
+                    message=f"Behavioral pattern update error for ID='{id}': {error_message}",
+                    status='SUCCESS'
+                )
+                return render(request, 'ALM_APP/behavioral/edit_behavioral_pattern.html', {
+                    'error': error_message,
+                    'v_prod_type': request.POST.get('v_prod_type', pattern.v_prod_type),
+                    'description': request.POST.get('description', pattern.description),
+                    'tenors': tenors,
+                    'multipliers': multipliers,
+                    'percentages': percentages,
+                    'product_types': product_types,
                 })
 
             # If successful, display the success message and redirect
             messages.success(request, "Behavioral pattern updated successfully!")
+            logger.info(f"Behavioral pattern ID='{id}' updated successfully.")
+            Log.objects.create(
+                function_name='edit_behavioral_pattern',
+                log_level='INFO',
+                message=f"Behavioral pattern ID='{id}' updated successfully by user='{request.user}'.",
+                status='SUCCESS'
+            )
+
+            # Step 5: Create an AuditTrail entry for the updated behavioral pattern
+            AuditTrail.objects.create(
+                user=request.user,
+                user_name=request.user.name if request.user else '',
+                user_surname=request.user.surname if request.user else '',
+                model_name="BehavioralPatternConfig",
+                action="update",
+                object_id=str(pattern.id),
+                change_description=f"Updated behavioral pattern with ID {pattern.id} for product type {pattern.v_prod_type}."
+            )
+            logger.info(f"AuditTrail entry created for updated behavioral pattern ID='{pattern.id}'.")
+
             return redirect('behavioral_patterns_list')
 
-        # If GET request, prepopulate the form with the current data
+        # If GET request, prepopulate the form
+        logger.info(f"Rendering edit form for BehavioralPatternConfig ID='{id}' via GET request.")
+        Log.objects.create(
+            function_name='edit_behavioral_pattern',
+            log_level='INFO',
+            message=f"Rendering edit form for BehavioralPatternConfig ID='{id}' via GET request.",
+            status='SUCCESS'
+        )
         return render(request, 'ALM_APP/behavioral/edit_behavioral_pattern.html', {
             'v_prod_type': pattern.v_prod_type,
             'description': pattern.description,
             'tenors': [entry.tenor for entry in pattern.entries.all()],
             'multipliers': [entry.multiplier for entry in pattern.entries.all()],
             'percentages': [entry.percentage for entry in pattern.entries.all()],
-            'product_types': product_types,  # Pass product types for the dropdown
+            'product_types': product_types,
         })
 
     except BehavioralPatternConfig.DoesNotExist:
+        error_message = f"Behavioral pattern with ID='{id}' not found."
+        logger.error(error_message)
+        Log.objects.create(
+            function_name='edit_behavioral_pattern',
+            log_level='ERROR',
+            message=error_message,
+            status='FAILURE'
+        )
         messages.error(request, "Behavioral pattern not found.")
         return redirect('behavioral_patterns_list')
 
     except Exception as e:
+        error_details = traceback.format_exc()
+        error_message = f"An unexpected error occurred while editing ID='{id}': {str(e)}"
+        logger.exception(error_message)
+        Log.objects.create(
+            function_name='edit_behavioral_pattern',
+            log_level='ERROR',
+            message=error_message,
+            detailed_error=error_details,
+            status='FAILURE'
+        )
         messages.error(request, f"An unexpected error occurred: {str(e)}")
         return redirect('behavioral_patterns_list')
 
+##################################################################################################################
 
 # View for Deleting Behavioral Pattern
+
+
+logger = logging.getLogger(__name__)
+
 @login_required
 def delete_behavioral_pattern(request, id):
+    """
+    View to delete an existing behavioral pattern by its ID.
+    Logs the deletion process and creates an AuditTrail entry for record-keeping.
+    """
+    logger.info(f"Accessed delete_behavioral_pattern view for pattern ID='{id}' by user='{request.user}'.")
+    pattern = BehavioralPatternConfig.objects.get(id=id)
+    Log.objects.create(
+        
+        function_name='delete_behavioral_pattern',
+        log_level='INFO',
+        message=f"Accessed delete_behavioral_pattern view for pattern ID='{id}' by user='{request.user}'.",
+        status='SUCCESS'
+    )
+
     if request.method == 'POST':
-        result = delete_behavioral_pattern_by_id(id)
+        logger.debug(f"Received POST request to delete pattern ID='{id}'.")
+        Log.objects.create(
+            function_name='delete_behavioral_pattern',
+            log_level='DEBUG',
+            message=f"Received POST to delete pattern ID='{id}'.",
+            status='SUCCESS'
+        )
+
+        try:
+            result = delete_behavioral_pattern_by_id(id)
+        except Exception as e:
+            error_details = traceback.format_exc()
+            error_message = f"Error deleting behavioral pattern ID='{id}': {str(e)}"
+            logger.error(error_message)
+            Log.objects.create(
+                function_name='delete_behavioral_pattern',
+                log_level='ERROR',
+                message=error_message,
+                detailed_error=error_details,
+                status='FAILURE'
+            )
+            messages.error(request, error_message)
+            return redirect('behavioral_patterns_list')
 
         if 'error' in result:
-            messages.error(request, result['error'])
+            error_message = result['error']
+            logger.warning(f"Behavioral pattern deletion error for ID='{id}': {error_message}")
+            Log.objects.create(
+                function_name='delete_behavioral_pattern',
+                log_level='WARNING',
+                message=f"Behavioral pattern deletion error for ID='{id}': {error_message}",
+                status='SUCCESS'
+            )
+            messages.error(request, error_message)
         else:
-            messages.success(
-                request, "Behavioral pattern deleted successfully!")
+            success_message = f"Behavioral pattern ID='{id}' deleted successfully!"
+            logger.info(success_message)
+            Log.objects.create(
+                function_name='delete_behavioral_pattern',
+                log_level='INFO',
+                message=success_message,
+                status='SUCCESS'
+            )
+            messages.success(request, "Behavioral pattern deleted successfully!")
+
+            # Create an AuditTrail entry for the deletion
+            AuditTrail.objects.create(
+                user=request.user,
+                user_name=request.user.name if request.user else '',
+                user_surname=request.user.surname if request.user else '',
+                model_name="BehavioralPatternConfig",
+                action="delete",
+                object_id=str(id),
+                change_description=f"Deleted behavioral pattern with ID {id} for product type {pattern.v_prod_type}.."
+            )
+            logger.info(f"AuditTrail entry created for deleted behavioral pattern ID='{id}'.")
 
         return redirect('behavioral_patterns_list')
+############################################################################################################
 
 @login_required
 def view_behavioral_pattern(request, id):
@@ -195,22 +473,95 @@ def view_behavioral_pattern(request, id):
     })
 
 
+#####################################################################################################
+
+logger = logging.getLogger(__name__)
+
 @login_required
 def create_time_bucket(request):
-    # Check if a Time Bucket Definition already exists
-    if TimeBucketDefinition.objects.exists():
-        messages.error(request, "Only one Time Bucket Definition is allowed.")
-        # Redirect to the list page if one already exists
+    """
+    View to create a single Time Bucket Definition along with associated TimeBuckets.
+    If a Time Bucket Definition already exists, the user is redirected to the list page.
+    Integrates logging and audit trail to capture user actions and any encountered errors.
+    """
+    logger.info(f"Accessed create_time_bucket view by user='{request.user}'.")
+    Log.objects.create(
+        function_name='create_time_bucket',
+        log_level='INFO',
+        message=f"Accessed create_time_bucket view by user='{request.user}'.",
+        status='SUCCESS'
+    )
+
+    # Step 1: Check if a Time Bucket Definition already exists
+    try:
+        if TimeBucketDefinition.objects.exists():
+            error_message = "Only one Time Bucket Definition is allowed."
+            logger.warning(error_message)
+            Log.objects.create(
+                function_name='create_time_bucket',
+                log_level='WARNING',
+                message=error_message,
+                status='SUCCESS'
+            )
+            messages.error(request, error_message)
+            return redirect('time_bucket_list')
+    except Exception as e:
+        error_details = traceback.format_exc()
+        error_message = f"Error checking existing Time Bucket Definitions: {str(e)}"
+        logger.error(error_message)
+        Log.objects.create(
+            function_name='create_time_bucket',
+            log_level='ERROR',
+            message=error_message,
+            detailed_error=error_details,
+            status='FAILURE'
+        )
+        messages.error(request, error_message)
         return redirect('time_bucket_list')
 
+    # Step 2: Handle POST request to create a new Time Bucket Definition
     if request.method == 'POST':
-        # Call the function to process the form data
-        result = define_time_bucket_from_form_data(request)
+        logger.debug(f"Received POST data for create_time_bucket: {request.POST}")
+        Log.objects.create(
+            function_name='create_time_bucket',
+            log_level='DEBUG',
+            message=f"Received POST data: {request.POST}",
+            status='SUCCESS'
+        )
 
-        # Check if there is an error
+        try:
+            result = define_time_bucket_from_form_data(request)
+        except Exception as e:
+            error_details = traceback.format_exc()
+            error_message = f"Error defining time bucket: {str(e)}"
+            logger.error(error_message)
+            Log.objects.create(
+                function_name='create_time_bucket',
+                log_level='ERROR',
+                message=error_message,
+                detailed_error=error_details,
+                status='FAILURE'
+            )
+            messages.error(request, error_message)
+            return render(request, 'ALM_APP/time_buckets/create_time_bucket.html', {
+                'name': request.POST.get('name'),
+                'frequencies': request.POST.getlist('frequency[]'),
+                'multipliers': request.POST.getlist('multiplier[]'),
+                'start_dates': request.POST.getlist('start_date[]'),
+                'end_dates': request.POST.getlist('end_date[]')
+            })
+
+        # Step 3: Check the result for errors or success
         if 'error' in result:
-            # Use Django messages framework to display the error on the frontend
-            messages.error(request, result['error'])
+            error_message = result['error']
+            logger.warning(f"Time bucket creation error: {error_message}")
+            Log.objects.create(
+                function_name='create_time_bucket',
+                log_level='WARNING',
+                message=f"Time bucket creation error: {error_message}",
+                status='SUCCESS'
+            )
+            messages.error(request, error_message)
 
             # Return the form with existing data to repopulate the form fields
             return render(request, 'ALM_APP/time_buckets/create_time_bucket.html', {
@@ -221,15 +572,41 @@ def create_time_bucket(request):
                 'end_dates': request.POST.getlist('end_date[]')
             })
 
-        # If no error, assume success and redirect using the PRG pattern
         if 'success' in result:
+            logger.info("Time bucket definition saved successfully.")
+            Log.objects.create(
+                function_name='create_time_bucket',
+                log_level='INFO',
+                message="Time bucket definition saved successfully.",
+                status='SUCCESS'
+            )
+
+            # Step 4: Create an AuditTrail entry for new Time Bucket Definition
+            new_definition_id = result.get('definition_id')
+            AuditTrail.objects.create(
+                user=request.user,
+                user_name=request.user.name if request.user else '',
+                user_surname=request.user.surname if request.user else '',
+                model_name="TimeBucketDefinition",
+                action="create",
+                object_id=str(new_definition_id) if new_definition_id else '',
+                change_description=f"Created new TimeBucketDefinition with ID {new_definition_id}."
+            )
+            logger.info(f"AuditTrail created for new TimeBucketDefinition ID='{new_definition_id}'.")
+
             messages.success(request, "Time bucket saved successfully!")
-            # Redirect to a success page or list
             return redirect('time_bucket_list')
 
-    # If it's not a POST request, render the form
-    # Redirect to the time buckets list page
+    # Step 5: Render the form for GET requests
+    logger.info("Accessed create_time_bucket view via GET. Rendering form.")
+    Log.objects.create(
+        function_name='create_time_bucket',
+        log_level='INFO',
+        message="Rendering create_time_bucket form via GET request.",
+        status='SUCCESS'
+    )
     return render(request, 'ALM_APP/time_buckets/create_time_bucket.html')
+
 
 
 # View for Listing Time Buckets
@@ -239,21 +616,82 @@ def time_buckets_list(request):
         '-created_at')  # Fetching all time buckets sorted by newest first
     return render(request, 'ALM_APP/time_buckets/time_bucket_list.html', {'time_buckets': time_buckets})
 
-
+#####################################################################################################
 # View for Editing a Time Bucket
+
+
+logger = logging.getLogger(__name__)
+
 @login_required
 def edit_time_bucket(request, id):
+    """
+    View to edit an existing Time Bucket Definition. Prepopulates form data if the definition exists.
+    Updates the definition upon POST and logs all actions. Also integrates AuditTrail for changes.
+    """
+    logger.info(f"Accessed edit_time_bucket view for TimeBucketDefinition ID='{id}' by user='{request.user}'.")
+    Log.objects.create(
+        function_name='edit_time_bucket',
+        log_level='INFO',
+        message=f"Accessed edit_time_bucket view for ID='{id}' by user='{request.user}'.",
+        status='SUCCESS'
+    )
+
     try:
-        # Get the time bucket definition to edit
+        # Step 1: Retrieve the time bucket definition to edit
         time_bucket = TimeBucketDefinition.objects.get(id=id)
+        logger.info(f"Loaded TimeBucketDefinition with ID='{id}'.")
+        Log.objects.create(
+            function_name='edit_time_bucket',
+            log_level='INFO',
+            message=f"Loaded TimeBucketDefinition with ID='{id}'.",
+            status='SUCCESS'
+        )
 
         if request.method == 'POST':
-            # Call the utility function to update the time bucket
-            result = update_time_bucket_from_form_data(request, time_bucket)
+            logger.debug(f"Received POST data for edit_time_bucket: {request.POST}")
+            Log.objects.create(
+                function_name='edit_time_bucket',
+                log_level='DEBUG',
+                message=f"Received POST data for definition ID='{id}': {request.POST}",
+                status='SUCCESS'
+            )
 
-            if 'error' in result:
+            try:
+                # Step 2: Call the utility function to update the time bucket
+                result = update_time_bucket_from_form_data(request, time_bucket)
+            except Exception as e:
+                error_details = traceback.format_exc()
+                error_message = f"Error updating TimeBucketDefinition ID='{id}': {str(e)}"
+                logger.error(error_message)
+                Log.objects.create(
+                    function_name='edit_time_bucket',
+                    log_level='ERROR',
+                    message=error_message,
+                    detailed_error=error_details,
+                    status='FAILURE'
+                )
+                messages.error(request, error_message)
                 return render(request, 'ALM_APP/time_buckets/edit_time_bucket.html', {
-                    'error': result['error'],
+                    'error': error_message,
+                    'name': time_bucket.name,
+                    'frequencies': [entry.frequency for entry in time_bucket.buckets.all()],
+                    'multipliers': [entry.multiplier for entry in time_bucket.buckets.all()],
+                    'start_dates': [entry.start_date for entry in time_bucket.buckets.all()],
+                    'end_dates': [entry.end_date for entry in time_bucket.buckets.all()],
+                })
+
+            # Step 3: Check result for error or success
+            if 'error' in result:
+                error_message = result['error']
+                logger.warning(f"Time bucket update error for ID='{id}': {error_message}")
+                Log.objects.create(
+                    function_name='edit_time_bucket',
+                    log_level='WARNING',
+                    message=f"Time bucket update error for ID='{id}': {error_message}",
+                    status='SUCCESS'
+                )
+                return render(request, 'ALM_APP/time_buckets/edit_time_bucket.html', {
+                    'error': error_message,
                     'name': time_bucket.name,
                     'frequencies': [entry.frequency for entry in time_bucket.buckets.all()],
                     'multipliers': [entry.multiplier for entry in time_bucket.buckets.all()],
@@ -263,10 +701,36 @@ def edit_time_bucket(request, id):
 
             # If successful, display the success message and redirect
             messages.success(request, "Time bucket updated successfully!")
-            # Redirect back to the time buckets list
+            logger.info(f"TimeBucketDefinition ID='{id}' updated successfully.")
+            Log.objects.create(
+                function_name='edit_time_bucket',
+                log_level='INFO',
+                message=f"TimeBucketDefinition ID='{id}' updated successfully by user='{request.user}'.",
+                status='SUCCESS'
+            )
+
+            # Step 4: Create an AuditTrail entry for the updated Time Bucket Definition
+            AuditTrail.objects.create(
+                user=request.user,
+                user_name=request.user.name if request.user else '',
+                user_surname=request.user.surname if request.user else '',
+                model_name="TimeBucketDefinition",
+                action="update",
+                object_id=str(time_bucket.id),
+                change_description=f"Updated TimeBucketDefinition with ID {time_bucket.id} (name='{time_bucket.name}')."
+            )
+            logger.info(f"AuditTrail entry created for updated TimeBucketDefinition ID='{time_bucket.id}'.")
+
             return redirect('time_bucket_list')
 
-        # If GET request, prepopulate the form with the current data
+        # If GET request, prepopulate the form with current data
+        logger.info(f"Rendering edit form for TimeBucketDefinition ID='{id}' via GET.")
+        Log.objects.create(
+            function_name='edit_time_bucket',
+            log_level='INFO',
+            message=f"Rendering edit form for TimeBucketDefinition ID='{id}' via GET request.",
+            status='SUCCESS'
+        )
         return render(request, 'ALM_APP/time_buckets/edit_time_bucket.html', {
             'name': time_bucket.name,
             'frequencies': [entry.frequency for entry in time_bucket.buckets.all()],
@@ -276,22 +740,113 @@ def edit_time_bucket(request, id):
         })
 
     except TimeBucketDefinition.DoesNotExist:
+        error_message = f"TimeBucketDefinition with ID='{id}' not found."
+        logger.error(error_message)
+        Log.objects.create(
+            function_name='edit_time_bucket',
+            log_level='ERROR',
+            message=error_message,
+            status='FAILURE'
+        )
         messages.error(request, "Time bucket not found.")
         return redirect('time_bucket_list')
 
+    except Exception as e:
+        error_details = traceback.format_exc()
+        error_message = f"An unexpected error occurred while editing TimeBucketDefinition ID='{id}': {str(e)}"
+        logger.exception(error_message)
+        Log.objects.create(
+            function_name='edit_time_bucket',
+            log_level='ERROR',
+            message=error_message,
+            detailed_error=error_details,
+            status='FAILURE'
+        )
+        messages.error(request, f"An unexpected error occurred: {str(e)}")
+        return redirect('time_bucket_list')
+
+##########################################################################################################
+
 
 # View for Deleting a Time Bucket
+
+
+logger = logging.getLogger(__name__)
+
 @login_required
 def delete_time_bucket(request, id):
+    """
+    View to delete an existing Time Bucket Definition by its ID.
+    Logs the deletion process and creates an AuditTrail entry for record-keeping.
+    """
+    logger.info(f"Accessed delete_time_bucket view for ID='{id}' by user='{request.user}'.")
+    Log.objects.create(
+        function_name='delete_time_bucket',
+        log_level='INFO',
+        message=f"Accessed delete_time_bucket view for ID='{id}' by user='{request.user}'.",
+        status='SUCCESS'
+    )
+
     if request.method == 'POST':
-        result = delete_time_bucket_by_id(id)
+        logger.debug(f"Received POST request to delete TimeBucketDefinition ID='{id}'.")
+        Log.objects.create(
+            function_name='delete_time_bucket',
+            log_level='DEBUG',
+            message=f"Received POST request to delete TimeBucketDefinition ID='{id}'.",
+            status='SUCCESS'
+        )
+
+        try:
+            result = delete_time_bucket_by_id(id)
+        except Exception as e:
+            error_details = traceback.format_exc()
+            error_message = f"Error deleting time bucket ID='{id}': {str(e)}"
+            logger.error(error_message)
+            Log.objects.create(
+                function_name='delete_time_bucket',
+                log_level='ERROR',
+                message=error_message,
+                detailed_error=error_details,
+                status='FAILURE'
+            )
+            messages.error(request, error_message)
+            return redirect('time_bucket_list')
 
         if 'error' in result:
-            messages.error(request, result['error'])
+            error_message = result['error']
+            logger.warning(f"Time bucket deletion warning for ID='{id}': {error_message}")
+            Log.objects.create(
+                function_name='delete_time_bucket',
+                log_level='WARNING',
+                message=f"Time bucket deletion warning for ID='{id}': {error_message}",
+                status='SUCCESS'
+            )
+            messages.error(request, error_message)
         else:
+            success_message = f"Time bucket ID='{id}' deleted successfully!"
+            logger.info(success_message)
+            Log.objects.create(
+                function_name='delete_time_bucket',
+                log_level='INFO',
+                message=success_message,
+                status='SUCCESS'
+            )
             messages.success(request, "Time bucket deleted successfully!")
 
+            # Create an AuditTrail entry for the deletion
+            AuditTrail.objects.create(
+                user=request.user,
+                user_name=request.user.name if request.user else '',
+                user_surname=request.user.surname if request.user else '',
+                model_name="TimeBucketDefinition",
+                action="delete",
+                object_id=str(id),
+                change_description=f"Deleted TimeBucketDefinition with ID {id}."
+            )
+            logger.info(f"AuditTrail entry created for deleted TimeBucketDefinition ID='{id}'.")
+
         return redirect('time_bucket_list')
+####################################################################################################
 
 
 @login_required
@@ -367,49 +922,138 @@ class ProcessListView(ListView):
     context_object_name = 'processes'
 
 
+###############################################################################################
+
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def process_create_view(request):
+    """
+    A multi-step view for creating a process with optional behavioral patterns and associated filters.
+    Utilizes session data to manage steps and includes detailed logging and audit trail integration.
+    """
     step = request.session.get('step', 1)
-    print(f"\n=== Current Step: {step} ===")
+    logger.info(f"Accessed process_create_view with step='{step}' by user='{request.user}'.")
+    Log.objects.create(
+        function_name='process_create_view',
+        log_level='INFO',
+        message=f"Accessed process_create_view with step='{step}' by user='{request.user}'.",
+        status='SUCCESS'
+    )
 
+    # Step 1: Basic Process Information
     if step == 1:
+        logger.debug("Step 1: Collecting basic process information.")
+        Log.objects.create(
+            function_name='process_create_view',
+            log_level='DEBUG',
+            message="Step 1: Collecting basic process information.",
+            status='SUCCESS'
+        )
+
         if request.method == 'POST':
             process_name = request.POST.get('name')
             process_description = request.POST.get('description')
             use_behavioral_patterns = request.POST.get('use_behavioral_patterns')
 
+            logger.debug(f"Received POST data at step 1: process_name='{process_name}', "
+                         f"use_behavioral_patterns='{use_behavioral_patterns}'")
+            Log.objects.create(
+                function_name='process_create_view',
+                log_level='DEBUG',
+                message=(
+                    f"Received POST data at step 1: process_name='{process_name}', "
+                    f"use_behavioral_patterns='{use_behavioral_patterns}'"
+                ),
+                status='SUCCESS'
+            )
+
             if not process_name:
-                messages.error(request, "Process name is required.")
+                error_message = "Process name is required."
+                logger.warning(error_message)
+                Log.objects.create(
+                    function_name='process_create_view',
+                    log_level='WARNING',
+                    message=error_message,
+                    status='SUCCESS'
+                )
+                messages.error(request, error_message)
                 return render(request, 'ALM_APP/filters/process_create.html', {'step': step})
 
+            # Store the data in session
             request.session['process_name'] = process_name
             request.session['process_description'] = process_description
             request.session['use_behavioral_patterns'] = use_behavioral_patterns
 
+            # Determine next step based on behavioral pattern usage
             if use_behavioral_patterns == 'yes':
                 request.session['step'] = 3
             else:
                 request.session['step'] = 2
+
+            logger.info(f"Step 1 completed. Transitioning to step='{request.session['step']}'.")
+            Log.objects.create(
+                function_name='process_create_view',
+                log_level='INFO',
+                message=f"Step 1 completed. Transitioning to step='{request.session['step']}'.",
+                status='SUCCESS'
+            )
             return redirect('process_create')
 
         return render(request, 'ALM_APP/filters/process_create.html', {'step': step})
 
+    # Step 2: Select Filters
     elif step == 2:
+        logger.debug("Step 2: Selecting filters for the process.")
+        Log.objects.create(
+            function_name='process_create_view',
+            log_level='DEBUG',
+            message="Step 2: Selecting filters for the process.",
+            status='SUCCESS'
+        )
+
         filters = ProductFilter.objects.all()
+
         if request.method == 'POST':
             if 'previous' in request.POST:
                 request.session['step'] = 1
+                logger.info("User clicked 'previous' at step 2, returning to step 1.")
+                Log.objects.create(
+                    function_name='process_create_view',
+                    log_level='INFO',
+                    message="User clicked 'previous' at step 2, returning to step 1.",
+                    status='SUCCESS'
+                )
                 return redirect('process_create')
             else:
                 selected_filters = request.POST.getlist('filters')
                 request.session['selected_filters'] = selected_filters
                 request.session['step'] = 3
+                logger.info(f"Selected filters: {selected_filters}. Moving to step 3.")
+                Log.objects.create(
+                    function_name='process_create_view',
+                    log_level='INFO',
+                    message=f"Selected filters: {selected_filters}. Moving to step 3.",
+                    status='SUCCESS'
+                )
                 return redirect('process_create')
 
-        return render(request, 'ALM_APP/filters/process_create.html', {'step': step, 'filters': filters})
+        return render(request, 'ALM_APP/filters/process_create.html', {
+            'step': step,
+            'filters': filters
+        })
 
+    # Step 3: Confirmation & Finalization
     elif step == 3:
+        logger.debug("Step 3: Confirmation and finalization of process creation.")
+        Log.objects.create(
+            function_name='process_create_view',
+            log_level='DEBUG',
+            message="Step 3: Confirmation and finalization of process creation.",
+            status='SUCCESS'
+        )
+
         process_name = request.session.get('process_name')
         process_description = request.session.get('process_description')
         use_behavioral_patterns = request.session.get('use_behavioral_patterns')
@@ -418,15 +1062,58 @@ def process_create_view(request):
 
         if request.method == 'POST':
             if 'previous' in request.POST:
-                request.session['step'] = 2 if use_behavioral_patterns == 'no' else 1
+                previous_step = 2 if use_behavioral_patterns == 'no' else 1
+                request.session['step'] = previous_step
+                logger.info(f"User clicked 'previous' at step 3, returning to step='{previous_step}'.")
+                Log.objects.create(
+                    function_name='process_create_view',
+                    log_level='INFO',
+                    message=f"User clicked 'previous' at step 3, returning to step='{previous_step}'.",
+                    status='SUCCESS'
+                )
                 return redirect('process_create')
             else:
-                # Save the process
+                # Attempt to finalize process creation
                 try:
                     process = finalize_process_creation(request)
-                    messages.success(request, f"Process '{process.name}' created successfully.")
+                    success_message = f"Process '{process.name}' created successfully."
+                    messages.success(request, success_message)
+                    logger.info(success_message)
+                    Log.objects.create(
+                        function_name='process_create_view',
+                        log_level='INFO',
+                        message=success_message,
+                        status='SUCCESS'
+                    )
+
+                    # Create an AuditTrail entry for process creation
+                    AuditTrail.objects.create(
+                        user=request.user,
+                        user_name=request.user.name if request.user else '',
+                        user_surname=request.user.surname if request.user else '',
+                        model_name="Process,Process_Rn",
+                        action="create",
+                        object_id=str(process.id),
+                        change_description=(
+                            f"Created process '{process.name}' with "
+                            f"behavioral_patterns='{use_behavioral_patterns}' and "
+                            f"{len(selected_filters)} selected filters."
+                        )
+                    )
+                    logger.info(f"AuditTrail entry created for new Process ID='{process.id}'.")
+
                 except Exception as e:
-                    messages.error(request, f"Error creating process: {str(e)}")
+                    error_details = traceback.format_exc()
+                    error_message = f"Error creating process: {str(e)}"
+                    logger.error(error_message)
+                    Log.objects.create(
+                        function_name='process_create_view',
+                        log_level='ERROR',
+                        message=error_message,
+                        detailed_error=error_details,
+                        status='FAILURE'
+                    )
+                    messages.error(request, error_message)
                     return redirect('process_create')
 
                 # Clear session
@@ -446,63 +1133,286 @@ def process_create_view(request):
             'use_behavioral_patterns': use_behavioral_patterns
         })
 
+    # If step is invalid or session step is missing, reset to 1
+    logger.warning("Invalid step detected or session step missing. Resetting to step=1.")
+    Log.objects.create(
+        function_name='process_create_view',
+        log_level='WARNING',
+        message="Invalid step detected or session step missing. Resetting to step=1.",
+        status='SUCCESS'
+    )
     request.session['step'] = 1
     return redirect('process_create')
 
+###############################################################################################
 
 
+logger = logging.getLogger(__name__)
 @login_required
 def execute_alm_process_view(request):
+    """
+    View to execute an ALM process for a given fic_mis_date.
+    This function checks whether the selected process uses behavioral patterns
+    and calls the appropriate functions to complete the ALM flow.
+    Logs all actions to the 'Log' table but does not integrate audit trails.
+    """
+    logger.info(f"Accessed execute_alm_process_view by user='{request.user}' if authenticated.")
+    Log.objects.create(
+        function_name='execute_alm_process_view',
+        log_level='INFO',
+        message=f"Accessed execute_alm_process_view by user='{request.user}' if authenticated.",
+        status='SUCCESS'
+    )
+
     if request.method == 'POST':
+        logger.debug(f"Received POST data in execute_alm_process_view: {request.POST}")
+        Log.objects.create(
+            function_name='execute_alm_process_view',
+            log_level='DEBUG',
+            message=f"Received POST data: {request.POST}",
+            status='SUCCESS'
+        )
+
         process_id = request.POST.get('process_id')
         fic_mis_date = request.POST.get('fic_mis_date')
 
+        # Validate date format
         try:
             datetime.strptime(fic_mis_date, "%Y-%m-%d")
         except ValueError:
-            messages.error(
-                request, "Invalid date format. Please use YYYY-MM-DD.")
+            error_message = "Invalid date format. Please use YYYY-MM-DD."
+            logger.warning(error_message)
+            Log.objects.create(
+                function_name='execute_alm_process_view',
+                log_level='WARNING',
+                message=error_message,
+                status='SUCCESS'
+            )
+            messages.error(request, error_message)
             return redirect('processes_list')
 
-        process = get_object_or_404(Process, id=process_id)
-
+        # Fetch the process
         try:
-            if process.uses_behavioral_patterns:
-                # If the process uses behavioral patterns, skip filtering and use the behavioral patterns directly
-                calculate_behavioral_pattern_distribution(
-                    process.name, fic_mis_date)
-            else:
-                # Normal process without behavioral patterns
-                calculate_time_buckets_and_spread(process.name, fic_mis_date)
-
-            messages.success(request, f"Process '{
-                             process.name}' executed successfully.")
+            process = get_object_or_404(Process_Rn, id=process_id)
+            logger.info(f"Fetched Process_Rn with ID='{process_id}' (name='{process.process_name}').")
+            Log.objects.create(
+                function_name='execute_alm_process_view',
+                log_level='INFO',
+                message=f"Fetched Process_Rn with ID='{process_id}' (name='{process.process_name}').",
+                status='SUCCESS'
+            )
         except Exception as e:
-            messages.error(request, f"Error executing process: {e}")
+            error_details = traceback.format_exc()
+            error_message = f"Error fetching process with ID='{process_id}': {str(e)}"
+            logger.error(error_message)
+            Log.objects.create(
+                function_name='execute_alm_process_view',
+                log_level='ERROR',
+                message=error_message,
+                detailed_error=error_details,
+                status='FAILURE'
+            )
+            messages.error(request, error_message)
+            return redirect('processes_list')
+
+        # Execute the process flow
+        try:
+            logger.info(f"Starting ALM process execution for '{process.process_name}' with date='{fic_mis_date}'.")
+            Log.objects.create(
+                function_name='execute_alm_process_view',
+                log_level='INFO',
+                message=f"Starting ALM process execution for '{process.process_name}' with date='{fic_mis_date}'.",
+                status='SUCCESS'
+            )
+
+            # Determine if behavioral patterns should be applied
+            if process.uses_behavioral_patterns:
+                calculate_behavioral_pattern_distribution(process.process_name, fic_mis_date)
+                logger.debug(f"Behavioral pattern distribution calculated for '{process.process_name}'.")
+                Log.objects.create(
+                    function_name='execute_alm_process_view',
+                    log_level='DEBUG',
+                    message=f"Behavioral pattern distribution calculated for '{process.process_name}'.",
+                    status='SUCCESS'
+                )
+            else:
+                calculate_time_buckets_and_spread(process.process_name, fic_mis_date)
+                logger.debug(f"Time buckets and spread calculated for '{process.process_name}'.")
+                Log.objects.create(
+                    function_name='execute_alm_process_view',
+                    log_level='DEBUG',
+                    message=f"Time buckets and spread calculated for '{process.process_name}'.",
+                    status='SUCCESS'
+                )
+
+            # Additional steps in the ALM flow
+            aggregate_by_prod_code(process.process_name, fic_mis_date)
+            logger.debug(f"Aggregated by product code for '{process.process_name}'.")
+            Log.objects.create(
+                function_name='execute_alm_process_view',
+                log_level='DEBUG',
+                message=f"Aggregated by product code for '{process.process_name}'.",
+                status='SUCCESS'
+            )
+
+            populate_dim_product(fic_mis_date)
+            logger.debug(f"Dim product populated for date='{fic_mis_date}'.")
+            Log.objects.create(
+                function_name='execute_alm_process_view',
+                log_level='DEBUG',
+                message=f"Dim product populated for date='{fic_mis_date}'.",
+                status='SUCCESS'
+            )
+
+            populate_dim_dates_from_time_buckets(fic_mis_date)
+            logger.debug(f"Dim dates populated from time buckets for date='{fic_mis_date}'.")
+            Log.objects.create(
+                function_name='execute_alm_process_view',
+                log_level='DEBUG',
+                message=f"Dim dates populated from time buckets for date='{fic_mis_date}'.",
+                status='SUCCESS'
+            )
+
+            populate_liquidity_gap_results_base(fic_mis_date, process.process_name)
+            logger.debug(f"Liquidity gap results base populated for '{process.process_name}'.")
+            Log.objects.create(
+                function_name='execute_alm_process_view',
+                log_level='DEBUG',
+                message=f"Liquidity gap results base populated for '{process.process_name}'.",
+                status='SUCCESS'
+            )
+
+            success_message = f"Process '{process.process_name}' executed successfully."
+            logger.info(success_message)
+            Log.objects.create(
+                function_name='execute_alm_process_view',
+                log_level='INFO',
+                message=success_message,
+                status='SUCCESS'
+            )
+            messages.success(request, success_message)
+
+        except Exception as e:
+            error_details = traceback.format_exc()
+            error_message = f"Error executing process '{process.process_name}': {str(e)}"
+            logger.error(error_message)
+            Log.objects.create(
+                function_name='execute_alm_process_view',
+                log_level='ERROR',
+                message=error_message,
+                detailed_error=error_details,
+                status='FAILURE'
+            )
+            messages.error(request, error_message)
 
         return redirect('processes_list')
 
+    # Render a simple form if GET request
+    logger.info("Rendering execute_alm_process_view form via GET request.")
+    Log.objects.create(
+        function_name='execute_alm_process_view',
+        log_level='INFO',
+        message="Rendering execute_alm_process_view form via GET request.",
+        status='SUCCESS'
+    )
     return render(request, 'ALM_APP/filters/process_execute.html')
 
 
 
 ##################################################################################################################################
 
-def ProcessUpdateView(request, process_id):
-    # Fetch both Process and Process_Rn objects using the same process_id
-    process_rn = get_object_or_404(Process_Rn, id=process_id)
-    process = get_object_or_404(Process, id=process_id)
-    step = request.session.get('edit_step', 1)
-    print(f"\n=== Current Edit Step: {step} ===")
 
+
+logger = logging.getLogger(__name__)
+
+@login_required
+def ProcessUpdateView(request, process_id):
+    """
+    A multi-step view for editing an existing process. This view modifies both
+    Process_Rn and Process objects using the same process_id. Integrates detailed
+    logging and an audit trail for change tracking.
+    """
+    # Step 0: Fetch the existing objects and current editing step
+    logger.info(f"Accessed ProcessUpdateView for process_id='{process_id}' by user='{request.user}'.")
+    Log.objects.create(
+        function_name='ProcessUpdateView',
+        log_level='INFO',
+        message=f"Accessed ProcessUpdateView for process_id='{process_id}' by user='{request.user}'.",
+        status='SUCCESS'
+    )
+
+    try:
+        process_rn = get_object_or_404(Process_Rn, id=process_id)
+        process = get_object_or_404(Process, id=process_id)
+        logger.debug(f"Fetched Process_Rn and Process for ID='{process_id}'.")
+        Log.objects.create(
+            function_name='ProcessUpdateView',
+            log_level='DEBUG',
+            message=f"Fetched Process_Rn and Process for ID='{process_id}'.",
+            status='SUCCESS'
+        )
+    except Exception as e:
+        error_details = traceback.format_exc()
+        error_message = f"Error retrieving Process_Rn or Process with ID='{process_id}': {str(e)}"
+        logger.error(error_message)
+        Log.objects.create(
+            function_name='ProcessUpdateView',
+            log_level='ERROR',
+            message=error_message,
+            detailed_error=error_details,
+            status='FAILURE'
+        )
+        messages.error(request, error_message)
+        return redirect('processes_list')
+
+    step = request.session.get('edit_step', 1)
+    logger.info(f"Current Edit Step for process_id='{process_id}': {step}")
+    Log.objects.create(
+        function_name='ProcessUpdateView',
+        log_level='INFO',
+        message=f"Current Edit Step for process_id='{process_id}': {step}",
+        status='SUCCESS'
+    )
+
+    # Step 1: Basic Process Information
     if step == 1:
+        logger.debug("Step 1: Editing basic process information.")
+        Log.objects.create(
+            function_name='ProcessUpdateView',
+            log_level='DEBUG',
+            message="Step 1: Editing basic process information.",
+            status='SUCCESS'
+        )
+
         if request.method == 'POST':
             process_name = request.POST.get('name')
             process_description = request.POST.get('description')
             use_behavioral_patterns = request.POST.get('use_behavioral_patterns')
 
+            logger.debug(
+                f"POST data at step 1: name='{process_name}', description='{process_description}', "
+                f"use_behavioral_patterns='{use_behavioral_patterns}'"
+            )
+            Log.objects.create(
+                function_name='ProcessUpdateView',
+                log_level='DEBUG',
+                message=(
+                    f"POST data at step 1: name='{process_name}', "
+                    f"description='{process_description}', use_behavioral_patterns='{use_behavioral_patterns}'"
+                ),
+                status='SUCCESS'
+            )
+
             if not process_name:
-                messages.error(request, "Process name is required.")
+                error_message = "Process name is required."
+                logger.warning(error_message)
+                Log.objects.create(
+                    function_name='ProcessUpdateView',
+                    log_level='WARNING',
+                    message=error_message,
+                    status='SUCCESS'
+                )
+                messages.error(request, error_message)
                 return render(request, 'ALM_APP/filters/process_edit.html', {
                     'step': step,
                     'process': process_rn,
@@ -512,10 +1422,22 @@ def ProcessUpdateView(request, process_id):
             request.session['edit_process_description'] = process_description
             request.session['edit_use_behavioral_patterns'] = use_behavioral_patterns
 
+            # Move to the next step based on behavioral pattern usage
             if use_behavioral_patterns == 'yes':
                 request.session['edit_step'] = 3
             else:
                 request.session['edit_step'] = 2
+
+            logger.info(f"Step 1 completed, transitioning to step='{request.session['edit_step']}' for process_id='{process_id}'.")
+            Log.objects.create(
+                function_name='ProcessUpdateView',
+                log_level='INFO',
+                message=(
+                    f"Step 1 completed, transitioning to step='{request.session['edit_step']}' "
+                    f"for process_id='{process_id}'."
+                ),
+                status='SUCCESS'
+            )
             return redirect('process_update', process_id=process_id)
 
         return render(request, 'ALM_APP/filters/process_edit.html', {
@@ -526,18 +1448,44 @@ def ProcessUpdateView(request, process_id):
             'use_behavioral_patterns': 'yes' if process_rn.uses_behavioral_patterns else 'no',
         })
 
+    # Step 2: Select Filters
     elif step == 2:
+        logger.debug("Step 2: Editing filters for the process.")
+        Log.objects.create(
+            function_name='ProcessUpdateView',
+            log_level='DEBUG',
+            message="Step 2: Editing filters for the process.",
+            status='SUCCESS'
+        )
+
         filters = ProductFilter.objects.all()
-        selected_filters = request.session.get('edit_selected_filters', process_rn.filters.values_list('id', flat=True))
+        selected_filters = request.session.get(
+            'edit_selected_filters',
+            process_rn.filters.values_list('id', flat=True)
+        )
 
         if request.method == 'POST':
             if 'previous' in request.POST:
                 request.session['edit_step'] = 1
+                logger.info("User clicked 'previous' at step 2, returning to step 1.")
+                Log.objects.create(
+                    function_name='ProcessUpdateView',
+                    log_level='INFO',
+                    message="User clicked 'previous' at step 2, returning to step 1.",
+                    status='SUCCESS'
+                )
                 return redirect('process_update', process_id=process_id)
             else:
                 selected_filters = request.POST.getlist('filters')
                 request.session['edit_selected_filters'] = selected_filters
                 request.session['edit_step'] = 3
+                logger.info(f"Selected filters: {selected_filters}. Moving to step 3.")
+                Log.objects.create(
+                    function_name='ProcessUpdateView',
+                    log_level='INFO',
+                    message=f"Selected filters: {selected_filters}. Moving to step 3.",
+                    status='SUCCESS'
+                )
                 return redirect('process_update', process_id=process_id)
 
         return render(request, 'ALM_APP/filters/process_edit.html', {
@@ -547,26 +1495,95 @@ def ProcessUpdateView(request, process_id):
             'selected_filters': selected_filters,
         })
 
+    # Step 3: Confirmation & Finalization
     elif step == 3:
+        logger.debug("Step 3: Confirming and finalizing process update.")
+        Log.objects.create(
+            function_name='ProcessUpdateView',
+            log_level='DEBUG',
+            message="Step 3: Confirming and finalizing process update.",
+            status='SUCCESS'
+        )
+
         process_name = request.session.get('edit_process_name', process_rn.process_name)
         process_description = request.session.get('edit_process_description', process_rn.description)
         use_behavioral_patterns = request.session.get('edit_use_behavioral_patterns', 'no')
-        selected_filters = request.session.get('edit_selected_filters', process_rn.filters.values_list('id', flat=True))
+        selected_filters = request.session.get(
+            'edit_selected_filters',
+            process_rn.filters.values_list('id', flat=True)
+        )
         filters = ProductFilter.objects.filter(id__in=selected_filters)
 
         if request.method == 'POST':
             if 'previous' in request.POST:
-                request.session['edit_step'] = 2 if use_behavioral_patterns == 'no' else 1
+                previous_step = 2 if use_behavioral_patterns == 'no' else 1
+                request.session['edit_step'] = previous_step
+                logger.info(f"User clicked 'previous' at step 3, returning to step='{previous_step}'.")
+                Log.objects.create(
+                    function_name='ProcessUpdateView',
+                    log_level='INFO',
+                    message=f"User clicked 'previous' at step 3, returning to step='{previous_step}'.",
+                    status='SUCCESS'
+                )
                 return redirect('process_update', process_id=process_id)
             else:
-                # Update both Process_Rn and Process
-                finalize_process_update(process_rn, process, {
-                    'name': process_name,
-                    'description': process_description,
-                    'use_behavioral_patterns': use_behavioral_patterns,
-                    'filters': selected_filters,
-                })
-                messages.success(request, f"Process '{process_name}' updated successfully.")
+                logger.debug(f"Finalizing process update with name='{process_name}', description='{process_description}', filters={list(selected_filters)}.")
+                Log.objects.create(
+                    function_name='ProcessUpdateView',
+                    log_level='DEBUG',
+                    message=(
+                        f"Finalizing process update with name='{process_name}', description='{process_description}', "
+                        f"filters={list(selected_filters)}."
+                    ),
+                    status='SUCCESS'
+                )
+
+                try:
+                    finalize_process_update(process_rn, process, {
+                        'name': process_name,
+                        'description': process_description,
+                        'use_behavioral_patterns': use_behavioral_patterns,
+                        'filters': selected_filters,
+                    })
+                    success_message = f"Process '{process_name}' updated successfully."
+                    messages.success(request, success_message)
+                    logger.info(success_message)
+                    Log.objects.create(
+                        function_name='ProcessUpdateView',
+                        log_level='INFO',
+                        message=success_message,
+                        status='SUCCESS'
+                    )
+
+                    # Create an AuditTrail entry for updating the process
+                    AuditTrail.objects.create(
+                        user=request.user,
+                        user_name=request.user.name if request.user else '',
+                        user_surname=request.user.surname if request.user else '',
+                        model_name="Process,Process_Rn",
+                        action="update",
+                        object_id=str(process_id),
+                        change_description=(
+                            f"Updated process '{process_name}' with "
+                            f"behavioral_patterns='{use_behavioral_patterns}' and "
+                            f"{len(selected_filters)} selected filters."
+                        )
+                    )
+                    logger.info(f"AuditTrail entry created for updated process ID='{process_id}'.")
+
+                except Exception as e:
+                    error_details = traceback.format_exc()
+                    error_message = f"Error updating process: {str(e)}"
+                    logger.error(error_message)
+                    Log.objects.create(
+                        function_name='ProcessUpdateView',
+                        log_level='ERROR',
+                        message=error_message,
+                        detailed_error=error_details,
+                        status='FAILURE'
+                    )
+                    messages.error(request, error_message)
+                    return redirect('process_update', process_id=process_id)
 
                 # Clear session
                 request.session.pop('edit_process_name', None)
@@ -586,6 +1603,16 @@ def ProcessUpdateView(request, process_id):
             'use_behavioral_patterns': use_behavioral_patterns,
         })
 
+    # If step is invalid or not found, reset to step 1
+    logger.warning(
+        f"Invalid or missing edit_step detected for process_id='{process_id}'. Resetting to step=1."
+    )
+    Log.objects.create(
+        function_name='ProcessUpdateView',
+        log_level='WARNING',
+        message=f"Invalid or missing edit_step detected for process_id='{process_id}'. Resetting to step=1.",
+        status='SUCCESS'
+    )
     request.session['edit_step'] = 1
     return redirect('process_update', process_id=process_id)
 
@@ -607,47 +1634,163 @@ def processes_view(request, process_id):
 
 ####################################################################################
 
+
+
+logger = logging.getLogger(__name__)
+
+@login_required
 def ProcessDeleteView(request, process_id):
+    """
+    View to delete an existing process by its ID from both Process and Process_Rn tables.
+    Integrates logging and audit trail for record-keeping.
+    """
+    logger.info(f"Accessed ProcessDeleteView for process_id='{process_id}' by user='{request.user}'.")
+    Log.objects.create(
+        function_name='ProcessDeleteView',
+        log_level='INFO',
+        message=f"Accessed ProcessDeleteView for process_id='{process_id}' by user='{request.user}'.",
+        status='SUCCESS'
+    )
+
     if request.method == 'POST':
+        logger.debug(f"Received POST request to delete process_id='{process_id}'.")
+        Log.objects.create(
+            function_name='ProcessDeleteView',
+            log_level='DEBUG',
+            message=f"Received POST request to delete process_id='{process_id}'.",
+            status='SUCCESS'
+        )
+
         # Try fetching the process from both tables without raising 404
         process_in_main_table = Process.objects.filter(id=process_id).first()
         process_in_rn_table = Process_Rn.objects.filter(id=process_id).first()
 
-        # Handle deletion if the process exists in either table
         try:
+            deleted_any = False
+
+            # Handle deletion if the process exists in the main table
             if process_in_main_table:
+                main_table_name = process_in_main_table.name if hasattr(process_in_main_table, 'name') else f"Process-{process_id}"
                 process_in_main_table.delete()
-                messages.success(request, 'Process deleted successfully from Process table.')
+                success_message = f"Process '{main_table_name}' deleted successfully from Process table."
+                logger.info(success_message)
+                Log.objects.create(
+                    function_name='ProcessDeleteView',
+                    log_level='INFO',
+                    message=success_message,
+                    status='SUCCESS'
+                )
+                messages.success(request, success_message)
+                deleted_any = True
 
+                # Audit trail for main table deletion
+                AuditTrail.objects.create(
+                    user=request.user,
+                    user_name=request.user.name if request.user else '',
+                    user_surname=request.user.surname if request.user else '',
+                    model_name="Process",
+                    action="delete",
+                    object_id=str(process_id),
+                    change_description=f"Deleted process (main table) with ID {process_id}."
+                )
+                logger.info(f"AuditTrail entry created for deleted process ID='{process_id}' in main table.")
+
+            # Handle deletion if the process exists in the RN table
             if process_in_rn_table:
+                rn_table_name = process_in_rn_table.process_name if hasattr(process_in_rn_table, 'process_name') else f"ProcessRn-{process_id}"
                 process_in_rn_table.delete()
-                messages.success(request, 'Process deleted successfully from Process_Rn table.')
+                success_message = f"Process '{rn_table_name}' deleted successfully from Process_Rn table."
+                logger.info(success_message)
+                Log.objects.create(
+                    function_name='ProcessDeleteView',
+                    log_level='INFO',
+                    message=success_message,
+                    status='SUCCESS'
+                )
+                messages.success(request, success_message)
+                deleted_any = True
 
-            if not process_in_main_table and not process_in_rn_table:
-                messages.error(request, 'Process does not exist in either table.')
+                # Audit trail for RN table deletion
+                AuditTrail.objects.create(
+                    user=request.user,
+                    user_name=request.user.name if request.user else '',
+                    user_surname=request.user.surname if request.user else '',
+                    model_name="Process_Rn",
+                    action="delete",
+                    object_id=str(process_id),
+                    change_description=f"Deleted process (RN table) with ID {process_id}."
+                )
+                logger.info(f"AuditTrail entry created for deleted process ID='{process_id}' in RN table.")
+
+            # If the process was not found in either table
+            if not deleted_any:
+                error_message = f"Process with ID='{process_id}' does not exist in either table."
+                logger.warning(error_message)
+                Log.objects.create(
+                    function_name='ProcessDeleteView',
+                    log_level='WARNING',
+                    message=error_message,
+                    status='SUCCESS'
+                )
+                messages.error(request, error_message)
 
         except Exception as e:
-            messages.error(request, f'Failed to delete process: {e}')
+            error_details = traceback.format_exc()
+            error_message = f"Failed to delete process ID='{process_id}': {str(e)}"
+            logger.error(error_message)
+            Log.objects.create(
+                function_name='ProcessDeleteView',
+                log_level='ERROR',
+                message=error_message,
+                detailed_error=error_details,
+                status='FAILURE'
+            )
+            messages.error(request, error_message)
 
         return redirect('processes_list')
 
     elif request.method == 'GET':
+        logger.debug(f"Received GET request for process_id='{process_id}' deletion confirmation.")
+        Log.objects.create(
+            function_name='ProcessDeleteView',
+            log_level='DEBUG',
+            message=f"Received GET request for process_id='{process_id}' deletion confirmation.",
+            status='SUCCESS'
+        )
+
         # Check for the existence of the process in either table for confirmation
         process_in_main_table = Process.objects.filter(id=process_id).first()
         process_in_rn_table = Process_Rn.objects.filter(id=process_id).first()
 
         if process_in_main_table or process_in_rn_table:
+            # Show confirmation page
+            obj = process_in_main_table or process_in_rn_table
             return render(
                 request,
                 'ALM_APP/filters/process_confirm_delete.html',
-                {'object': process_in_main_table or process_in_rn_table}
+                {'object': obj}
             )
         else:
+            error_message = f"Process with ID='{process_id}' does not exist in either table."
+            logger.warning(error_message)
+            Log.objects.create(
+                function_name='ProcessDeleteView',
+                log_level='WARNING',
+                message=error_message,
+                status='SUCCESS'
+            )
             messages.error(request, 'Process does not exist.')
             return redirect('processes_list')
 
+    logger.warning("Invalid request method encountered in ProcessDeleteView.")
+    Log.objects.create(
+        function_name='ProcessDeleteView',
+        log_level='WARNING',
+        message="Invalid request method encountered in ProcessDeleteView.",
+        status='SUCCESS'
+    )
     return HttpResponseForbidden("Invalid request method")
-
+#################################################################
 
 
 
@@ -668,55 +1811,127 @@ def ProcessDeleteView(request, process_id):
 
 
 
+logger = logging.getLogger(__name__)
 
 @login_required
 
+
 def liquidity_gap_report_base(request):
+    """
+    View to display a base Liquidity Gap Report. Reads from session and GET parameters to filter data.
+    Produces a multi-currency view of inflows, outflows, net liquidity gaps, and optional drill-downs.
+    Logs actions to the Log table but does not integrate audit trails.
+    """
+    logger.info("Accessed liquidity_gap_report_base view.")
+    Log.objects.create(
+        function_name='liquidity_gap_report_base',
+        log_level='INFO',
+        message="Accessed liquidity_gap_report_base view.",
+        status='SUCCESS'
+    )
+
+    # Step 1: Manage GET parameters and session-based filters
     if request.GET:
+        logger.debug(f"Received GET parameters for liquidity_gap_report_base: {request.GET}")
+        Log.objects.create(
+            function_name='liquidity_gap_report_base',
+            log_level='DEBUG',
+            message=f"Received GET parameters: {request.GET}",
+            status='SUCCESS'
+        )
+
         session_filters = request.session.get('filters_base', {})
         new_params = request.GET.dict()
         merged_filters = {**session_filters, **new_params}
+        request.session['filters_base'] = merged_filters
         filters = merged_filters
-        request.session['filters_base'] = filters
     else:
         filters = request.session.get('filters_base', {})
 
+    # Step 2: Initialize the form and base queryset
     form = LiquidityGapReportFilterForm(filters or None)
     base_queryset = LiquidityGapResultsBase.objects.all()
 
-    # Fetch fic_mis_date from the form or fallback to the latest date
-    fic_mis_date = form.cleaned_data.get('fic_mis_date') if form.is_valid() else None
+    # Step 3: Determine fic_mis_date from form or fallback to the latest
+    if form.is_valid():
+        fic_mis_date = form.cleaned_data.get('fic_mis_date')
+    else:
+        fic_mis_date = None
+
     if not fic_mis_date:
         fic_mis_date = get_latest_fic_mis_date()
         if not fic_mis_date:
-            messages.error(request, "No data available for the selected filters.")
+            error_message = "No data available for the selected filters."
+            logger.warning(error_message)
+            Log.objects.create(
+                function_name='liquidity_gap_report_base',
+                log_level='WARNING',
+                message=error_message,
+                status='SUCCESS'
+            )
+            messages.error(request, error_message)
             return render(
                 request,
                 'ALM_APP/reports/liquidity_gap_report_base.html',
                 {'form': form}
             )
 
-    # Get date buckets for fic_mis_date
+    logger.debug(f"Using fic_mis_date='{fic_mis_date}' for liquidity gap report.")
+    Log.objects.create(
+        function_name='liquidity_gap_report_base',
+        log_level='DEBUG',
+        message=f"Using fic_mis_date='{fic_mis_date}' for report.",
+        status='SUCCESS'
+    )
+
+    # Step 4: Retrieve date buckets for the fic_mis_date
     date_buckets = get_date_buckets(fic_mis_date)
     if not date_buckets.exists():
-        messages.error(request, "No date buckets available for the selected filters.")
+        error_message = "No date buckets available for the selected filters."
+        logger.warning(error_message)
+        Log.objects.create(
+            function_name='liquidity_gap_report_base',
+            log_level='WARNING',
+            message=error_message,
+            status='SUCCESS'
+        )
+        messages.error(request, error_message)
         return render(
             request,
             'ALM_APP/reports/liquidity_gap_report_base.html',
             {'form': form}
         )
 
-    # Read drill-down params
+    # Step 5: Read additional drill-down and currency params
     drill_down_product = request.GET.get('drill_down_product')
     drill_down_splits = request.GET.get('drill_down_splits')
-
-    # Read selected_currency to lock page to a specific currency
     selected_currency = request.GET.get('selected_currency', None)
 
-    # Filter the base queryset by form + fic_mis_date
-    base_queryset = filter_queryset_by_form(form, base_queryset).filter(fic_mis_date=fic_mis_date)
+    logger.debug(
+        f"Drill-down params: product='{drill_down_product}', splits='{drill_down_splits}', currency='{selected_currency}'."
+    )
+    Log.objects.create(
+        function_name='liquidity_gap_report_base',
+        log_level='DEBUG',
+        message=(
+            f"Drill-down params: product='{drill_down_product}', "
+            f"splits='{drill_down_splits}', currency='{selected_currency}'."
+        ),
+        status='SUCCESS'
+    )
 
-    # Prepare a data structure for each currency
+    # Step 6: Filter the base queryset by form + fic_mis_date
+    base_queryset = filter_queryset_by_form(form, base_queryset).filter(fic_mis_date=fic_mis_date)
+    logger.debug(f"Base queryset filtered with {base_queryset.count()} records remaining.")
+    Log.objects.create(
+        function_name='liquidity_gap_report_base',
+        log_level='DEBUG',
+        message=f"Base queryset filtered to {base_queryset.count()} records.",
+        status='SUCCESS'
+    )
+
+    # Step 7: Prepare currency-specific data structure
+    from collections import defaultdict
     currency_data = defaultdict(lambda: {
         'inflow_data': {},
         'outflow_data': {},
@@ -736,24 +1951,29 @@ def liquidity_gap_report_base(request):
         currencies = [selected_currency]
     else:
         currencies = base_queryset.values_list('v_ccy_code', flat=True).distinct()
+    logger.info(f"Processing currencies: {list(currencies)}")
+    Log.objects.create(
+        function_name='liquidity_gap_report_base',
+        log_level='INFO',
+        message=f"Processing currencies: {list(currencies)}",
+        status='SUCCESS'
+    )
 
-    # Build currency-specific data
+    # Step 8: Build currency-specific data
     for currency in currencies:
         currency_queryset = base_queryset.filter(v_ccy_code=currency)
-
-        # Further localize the drill-down to this currency
         local_drill_down_qs = currency_queryset
+
         if drill_down_product:
             local_drill_down_qs = local_drill_down_qs.filter(v_prod_type=drill_down_product)
         if drill_down_splits:
             local_drill_down_qs = local_drill_down_qs.filter(v_product_name=drill_down_splits)
 
-        # ----------------------------
-        # AGGREGATED DRILL-DOWN LOGIC
-        # ----------------------------
+        # Aggregated drill-down logic
         local_aggregated_product_details = None
         local_aggregated_split_details = None
 
+        # If drilling down by splits
         if drill_down_splits:
             drill_down_splits_details = list(
                 local_drill_down_qs
@@ -779,6 +1999,7 @@ def liquidity_gap_report_base(request):
                 for split_name, buckets in grouped_split_data.items()
             ]
 
+        # If drilling down by product
         elif drill_down_product:
             drill_down_details = list(
                 local_drill_down_qs
@@ -804,48 +2025,57 @@ def liquidity_gap_report_base(request):
                 for product_name, buckets in grouped_data.items()
             ]
 
+        # Prepare inflow/outflow data
         inflow_data, outflow_data = prepare_inflow_outflow_data(local_drill_down_qs)
         net_liquidity_gap, net_gap_percentage, cumulative_gap = calculate_totals(
             date_buckets, inflow_data, outflow_data
         )
 
+        # Compute total for each product in inflow_data
         for product, buckets in inflow_data.items():
             inflow_data[product]['total'] = sum(
                 buckets.get(b['bucket_number'], 0) for b in date_buckets
             )
+        # Compute total for each product in outflow_data
         for product, buckets in outflow_data.items():
             outflow_data[product]['total'] = sum(
                 buckets.get(b['bucket_number'], 0) for b in date_buckets
             )
 
+        # Compute total for net_liquidity_gap
         net_liquidity_gap['total'] = sum(
             net_liquidity_gap.get(b['bucket_number'], 0) for b in date_buckets
         )
+        # Compute total for net_gap_percentage
         net_gap_percentage['total'] = (
             sum(net_gap_percentage.get(b['bucket_number'], 0) for b in date_buckets) / len(date_buckets)
         ) if len(date_buckets) > 0 else 0
 
+        # Compute total for cumulative_gap
         last_bucket = date_buckets.last()
-        cumulative_gap['total'] = (
-            cumulative_gap.get(last_bucket['bucket_number'], 0) if last_bucket else 0
-        )
+        cumulative_gap['total'] = cumulative_gap.get(last_bucket['bucket_number'], 0) if last_bucket else 0
 
+        # Identify first/remaining inflow product
         if inflow_data:
-            first_inflow_product = list(inflow_data.items())[0]
+            first_inflow_product_key = list(inflow_data.keys())[0]
+            first_inflow_product = (first_inflow_product_key, inflow_data[first_inflow_product_key])
             remaining_inflow_data = inflow_data.copy()
-            remaining_inflow_data.pop(first_inflow_product[0], None)
+            remaining_inflow_data.pop(first_inflow_product_key, None)
         else:
             first_inflow_product = None
             remaining_inflow_data = {}
 
+        # Identify first/remaining outflow product
         if outflow_data:
-            first_outflow_product = list(outflow_data.items())[0]
+            first_outflow_product_key = list(outflow_data.keys())[0]
+            first_outflow_product = (first_outflow_product_key, outflow_data[first_outflow_product_key])
             remaining_outflow_data = outflow_data.copy()
-            remaining_outflow_data.pop(first_outflow_product[0], None)
+            remaining_outflow_data.pop(first_outflow_product_key, None)
         else:
             first_outflow_product = None
             remaining_outflow_data = {}
 
+        # Update currency_data structure
         currency_data[currency].update({
             'inflow_data': inflow_data,
             'outflow_data': outflow_data,
@@ -860,6 +2090,18 @@ def liquidity_gap_report_base(request):
             'aggregated_split_details': local_aggregated_split_details,
         })
 
+        logger.debug(f"Processed currency='{currency}' in liquidity gap report with {len(inflow_data)} inflow items and {len(outflow_data)} outflow items.")
+        Log.objects.create(
+            function_name='liquidity_gap_report_base',
+            log_level='DEBUG',
+            message=(
+                f"Processed currency='{currency}' with {len(inflow_data)} inflow items "
+                f"and {len(outflow_data)} outflow items."
+            ),
+            status='SUCCESS'
+        )
+
+    # Prepare context for rendering
     context = {
         'form': form,
         'fic_mis_date': fic_mis_date,
@@ -871,48 +2113,143 @@ def liquidity_gap_report_base(request):
         'selected_currency': selected_currency,
     }
 
+    logger.info("Finished building data for liquidity_gap_report_base. Rendering template.")
+    Log.objects.create(
+        function_name='liquidity_gap_report_base',
+        log_level='INFO',
+        message="Finished building data for liquidity_gap_report_base. Rendering template.",
+        status='SUCCESS'
+    )
+
     return render(request, 'ALM_APP/reports/liquidity_gap_report_base.html', context)
 
 
-
+#######################
 
 
 
 ########################################################################################################################
+
+
+logger = logging.getLogger(__name__)
+@login_required
 def liquidity_gap_report_cons(request):
+    """
+    View to display a consolidated Liquidity Gap Report. Reads from session and GET parameters
+    to filter data. Produces a multi-currency view of inflows, outflows, net liquidity gaps,
+    and optional drill-downs. Logs actions to the Log table but does not integrate audit trails.
+    """
+    logger.info("Accessed liquidity_gap_report_cons view.")
+    Log.objects.create(
+        function_name='liquidity_gap_report_cons',
+        log_level='INFO',
+        message="Accessed liquidity_gap_report_cons view.",
+        status='SUCCESS'
+    )
+
+    # Step 1: Manage GET parameters and session-based filters
     if request.GET:
+        logger.debug(f"Received GET parameters for liquidity_gap_report_cons: {request.GET}")
+        Log.objects.create(
+            function_name='liquidity_gap_report_cons',
+            log_level='DEBUG',
+            message=f"Received GET parameters: {request.GET}",
+            status='SUCCESS'
+        )
+
         session_filters = request.session.get('filters_cons', {})
         new_params = request.GET.dict()
         merged_filters = {**session_filters, **new_params}
+        request.session['filters_cons'] = merged_filters
         filters = merged_filters
-        request.session['filters_cons'] = filters
     else:
         filters = request.session.get('filters_cons', {})
+
+    # Step 2: Initialize the form and cons_queryset
     form = LiquidityGapReportFilterForm_cons(filters or None)
     cons_queryset = LiquidityGapResultsCons.objects.all()
+    logger.debug("Initialized LiquidityGapReportFilterForm_cons and base cons_queryset.")
+    Log.objects.create(
+        function_name='liquidity_gap_report_cons',
+        log_level='DEBUG',
+        message="Initialized LiquidityGapReportFilterForm_cons and base cons_queryset.",
+        status='SUCCESS'
+    )
 
-    fic_mis_date = form.cleaned_data.get('fic_mis_date') if form.is_valid() else None
+    # Step 3: Determine fic_mis_date from the form or fallback to the latest
+    if form.is_valid():
+        fic_mis_date = form.cleaned_data.get('fic_mis_date')
+    else:
+        fic_mis_date = None
+
     if not fic_mis_date:
         fic_mis_date = get_latest_fic_mis_date()
         if not fic_mis_date:
-            messages.error(request, "No data available for the selected filters.")
+            error_message = "No data available for the selected filters."
+            logger.warning(error_message)
+            Log.objects.create(
+                function_name='liquidity_gap_report_cons',
+                log_level='WARNING',
+                message=error_message,
+                status='SUCCESS'
+            )
+            messages.error(request, error_message)
             return render(request, 'ALM_APP/reports/liquidity_gap_report_cons.html', {'form': form})
 
+    logger.debug(f"Using fic_mis_date='{fic_mis_date}' for liquidity gap report (consolidated).")
+    Log.objects.create(
+        function_name='liquidity_gap_report_cons',
+        log_level='DEBUG',
+        message=f"Using fic_mis_date='{fic_mis_date}' for report (consolidated).",
+        status='SUCCESS'
+    )
+
+    # Step 4: Retrieve date buckets for fic_mis_date
     date_buckets = get_date_buckets(fic_mis_date)
     if not date_buckets.exists():
-        messages.error(request, "No date buckets available for the selected filters.")
+        error_message = "No date buckets available for the selected filters."
+        logger.warning(error_message)
+        Log.objects.create(
+            function_name='liquidity_gap_report_cons',
+            log_level='WARNING',
+            message=error_message,
+            status='SUCCESS'
+        )
+        messages.error(request, error_message)
         return render(request, 'ALM_APP/reports/liquidity_gap_report_cons.html', {'form': form})
 
-    drill_down_product_cons = request.GET.get('drill_down_product_cons', None)
-    drill_down_splits_cons = request.GET.get('drill_down_splits_cons', None)
+    # Step 5: Drill-down parameters
+    drill_down_product_cons = request.GET.get('drill_down_product_cons')
+    drill_down_splits_cons = request.GET.get('drill_down_splits_cons')
+    logger.debug(
+        f"Drill-down params: product='{drill_down_product_cons}', splits='{drill_down_splits_cons}'."
+    )
+    Log.objects.create(
+        function_name='liquidity_gap_report_cons',
+        log_level='DEBUG',
+        message=(
+            f"Drill-down params: product='{drill_down_product_cons}', "
+            f"splits='{drill_down_splits_cons}'."
+        ),
+        status='SUCCESS'
+    )
 
+    # Step 6: Filter the queryset
     cons_queryset = filter_queryset_by_form(form, cons_queryset).filter(fic_mis_date=fic_mis_date)
+    logger.debug(f"Filtered cons_queryset to {cons_queryset.count()} records.")
+    Log.objects.create(
+        function_name='liquidity_gap_report_cons',
+        log_level='DEBUG',
+        message=f"Filtered cons_queryset to {cons_queryset.count()} records.",
+        status='SUCCESS'
+    )
 
     drill_down_details_cons = None
     drill_down_splits_details_cons = None
     aggregated_product_details_cons = None
     aggregated_split_details_cons = None
 
+    # Step 7: Handle splits drill-down if specified
     if drill_down_splits_cons:
         drill_down_splits_details_cons = list(
             cons_queryset.filter(v_product_name=drill_down_splits_cons)
@@ -938,6 +2275,7 @@ def liquidity_gap_report_cons(request):
             for split_name, buckets in grouped_split_data_cons.items()
         ]
 
+    # Step 8: Handle product drill-down if specified
     elif drill_down_product_cons:
         drill_down_details_cons = list(
             cons_queryset.filter(v_prod_type=drill_down_product_cons)
@@ -963,11 +2301,13 @@ def liquidity_gap_report_cons(request):
             for product_name, buckets in grouped_data_cons.items()
         ]
 
+    # Step 9: Prepare inflow and outflow data
     cons_inflow_data, cons_outflow_data = prepare_inflow_outflow_data(cons_queryset)
     cons_net_liquidity_gap, cons_net_gap_percentage, cons_cumulative_gap = calculate_totals(
         date_buckets, cons_inflow_data, cons_outflow_data
     )
 
+    # Extract first and remaining inflow data
     if cons_inflow_data:
         cons_first_inflow_product = list(cons_inflow_data.items())[0]
         cons_remaining_inflow_data = cons_inflow_data.copy()
@@ -976,6 +2316,7 @@ def liquidity_gap_report_cons(request):
         cons_first_inflow_product = None
         cons_remaining_inflow_data = {}
 
+    # Extract first and remaining outflow data
     if cons_outflow_data:
         cons_first_outflow_product = list(cons_outflow_data.items())[0]
         cons_remaining_outflow_data = cons_outflow_data.copy()
@@ -996,8 +2337,16 @@ def liquidity_gap_report_cons(request):
         'cumulative_gap': cons_cumulative_gap,
     }
 
-    print("Consolidated Data:", cons_data)
+    logger.debug(f"Prepared consolidated data for liquidity gap: {cons_data}")
+    # Do not log the entire structure if it's too large, for brevity we do minimal logs
+    Log.objects.create(
+        function_name='liquidity_gap_report_cons',
+        log_level='DEBUG',
+        message=f"Prepared consolidated data for liquidity gap (keys: {list(cons_data.keys())}).",
+        status='SUCCESS'
+    )
 
+    # Optional sub-drill data
     drill_cons_data = None
     if drill_down_product_cons or drill_down_splits_cons:
         if drill_down_product_cons:
@@ -1017,24 +2366,45 @@ def liquidity_gap_report_cons(request):
             'net_gap_percentage': drill_net_gap_percentage,
             'cumulative_gap': drill_cumulative_gap,
         }
+        logger.debug("Prepared drill-down data for consolidated liquidity gap report.")
+        Log.objects.create(
+            function_name='liquidity_gap_report_cons',
+            log_level='DEBUG',
+            message="Prepared drill-down data for consolidated liquidity gap report.",
+            status='SUCCESS'
+        )
 
     # Extract distinct currencies
     currency_data = cons_queryset.values_list('v_ccy_code', flat=True).distinct()
-
+    logger.debug(f"Extracted currency data for consolidated report: {list(currency_data)}")
+    Log.objects.create(
+        function_name='liquidity_gap_report_cons',
+        log_level='DEBUG',
+        message=f"Extracted currency data: {list(currency_data)}",
+        status='SUCCESS'
+    )
 
     context = {
         'form': form,
         'fic_mis_date': fic_mis_date,
         'date_buckets': date_buckets,
-        'currency_data': currency_data,  # Pass currency data to the template
+        'currency_data': currency_data,
         'cons_data': cons_data,
         'drill_cons_data': drill_cons_data,
         'total_columns': len(date_buckets) + 3,
         'drill_down_product_cons': drill_down_product_cons,
         'drill_down_splits_cons': drill_down_splits_cons,
         'aggregated_product_details_cons': aggregated_product_details_cons,
-        'aggregated_split_details_cons': aggregated_split_details_cons
+        'aggregated_split_details_cons': aggregated_split_details_cons,
     }
+
+    logger.info("Rendering liquidity_gap_report_cons template with consolidated data.")
+    Log.objects.create(
+        function_name='liquidity_gap_report_cons',
+        log_level='INFO',
+        message="Rendering liquidity_gap_report_cons template with consolidated data.",
+        status='SUCCESS'
+    )
 
     return render(request, 'ALM_APP/reports/liquidity_gap_report_cons.html', context)
 
