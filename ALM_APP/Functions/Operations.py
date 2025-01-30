@@ -3,8 +3,11 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.forms import inlineformset_factory
 from django.db import transaction
 import threading
+from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+import openpyxl
+from openpyxl.utils import *
 from ..models import Process_Rn, RunProcess,Function,FunctionExecutionStatus
 from ..forms import ProcessFormOp, RunProcessForm
 from django.db import transaction
@@ -633,7 +636,7 @@ def monitor_running_process_view(request):
     if selected_date:
         processes = (
             FunctionExecutionStatus.objects.filter(reporting_date=selected_date)
-            .values('process__process_name', 'process_run_id')
+            .values('process__process_name', 'process_run_id','created_by__email')
             .annotate(
                 latest_run=Max('process_run_id'),  # Latest run ID
                 start_time=Min('execution_start_date'),  # Earliest start time
@@ -655,6 +658,7 @@ def monitor_running_process_view(request):
                 process['overall_status'] = 'Ongoing'
             else:
                 process['overall_status'] = 'Success'
+            
 
             # Calculate duration if start and end times are available
             start_time = process['start_time']
@@ -738,6 +742,7 @@ def running_processes_view(request):
     return render(request, 'operations/running_processes.html', context)
 
 # Updated function to handle cancellation request
+# Updated function to handle cancellation request
 @login_required
 def cancel_running_process(request, process_run_id):
     # Check if the process is running
@@ -759,6 +764,386 @@ def cancel_running_process(request, process_run_id):
         messages.error(request, f"An error occurred while cancelling the process '{process_run_id}'.")
 
     return redirect('running_processes')  # Redirect to the running processes list
+
+
+@login_required
+def data_quality_check(request):
+    """
+    View for the Data Quality Check page.
+    """
+    return render(request, 'operations/data_quality_check.html')
+
+
+@login_required
+def check_missing_customers(request):
+    """
+    View to check for missing customers with AJAX support for pagination and Excel download.
+    """
+    # AJAX call to fetch fic_mis_dates
+    if request.headers.get("x-requested-with") == "XMLHttpRequest" and "fic_mis_date" not in request.GET:
+        fic_mis_dates = (
+            Ldn_Financial_Instrument.objects.values_list("fic_mis_date", flat=True)
+            .distinct()
+            .order_by("-fic_mis_date")
+        )
+        return JsonResponse({"fic_mis_dates": list(fic_mis_dates)})
+
+    # Excel download
+    if request.GET.get("download") == "true":
+        fic_mis_date = request.GET.get("fic_mis_date")
+        if fic_mis_date:
+            missing_customers = Ldn_Financial_Instrument.objects.filter(
+                fic_mis_date=fic_mis_date
+            ).exclude(
+                v_cust_ref_code__in=Ldn_Customer_Info.objects.values_list("v_party_id", flat=True)
+            ).values("v_cust_ref_code", "v_account_number", "fic_mis_date")
+
+            # Create an Excel file
+            workbook = openpyxl.Workbook()
+            sheet = workbook.active
+            sheet.title = "Missing Customers"
+
+            # Add headers
+            headers = ["Customer Reference Code", "Account Number", "Reporting Date"]
+            sheet.append(headers)
+
+            # Add data rows
+            for customer in missing_customers:
+                sheet.append(
+                    [
+                        customer["v_cust_ref_code"],
+                        customer["v_account_number"],
+                        customer["fic_mis_date"],
+                    ]
+                )
+
+            # Save the workbook to the HTTP response
+            response = HttpResponse(
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            response["Content-Disposition"] = f'attachment; filename="missing_customers_{fic_mis_date}.xlsx"'
+            workbook.save(response)  # Save directly to response
+            return response
+        
+    # AJAX call to fetch paginated missing customers
+    if request.headers.get("x-requested-with") == "XMLHttpRequest" and "fic_mis_date" in request.GET:
+        fic_mis_date = request.GET.get("fic_mis_date")
+        page = int(request.GET.get("page", 1))
+        rows_per_page = int(request.GET.get("rows_per_page", 100))
+
+        if fic_mis_date:
+            missing_customers = Ldn_Financial_Instrument.objects.filter(
+                fic_mis_date=fic_mis_date
+            ).exclude(
+                v_cust_ref_code__in=Ldn_Customer_Info.objects.values_list("v_party_id", flat=True)
+            ).values("v_cust_ref_code", "v_account_number", "fic_mis_date")
+
+            paginator = Paginator(missing_customers, rows_per_page)
+            paginated_data = list(paginator.get_page(page).object_list)
+            return JsonResponse(
+                {
+                    "data": paginated_data,
+                    "total_pages": paginator.num_pages,
+                    "current_page": page,
+                    "total_records": paginator.count,
+                }
+            )
+        else:
+            return JsonResponse(
+                {"data": [], "total_pages": 0, "current_page": 1, "total_records": 0}
+            )
+
+    
+
+    # Render initial template
+    return render(request, "operations/check_missing_customers.html", {})
+
+@login_required
+def check_missing_products(request):
+    """
+    View to check for missing products based on the given fic_mis_date.
+    It compares v_prod_code in Ldn_Financial_Instrument with v_prod_code in Ldn_Product_Master.
+    """
+
+    # AJAX call to fetch fic_mis_dates
+    if request.headers.get("x-requested-with") == "XMLHttpRequest" and "fic_mis_date" not in request.GET:
+        fic_mis_dates = (
+            Ldn_Financial_Instrument.objects.values_list("fic_mis_date", flat=True)
+            .distinct()
+            .order_by("-fic_mis_date")
+        )
+        return JsonResponse({"fic_mis_dates": list(fic_mis_dates)})
+
+    # Excel download
+    if request.GET.get("download") == "true":
+        fic_mis_date = request.GET.get("fic_mis_date")
+        if fic_mis_date:
+            # Fetch distinct product codes
+            missing_products = (
+                Ldn_Financial_Instrument.objects.filter(
+                    fic_mis_date=fic_mis_date
+                )
+                .exclude(
+                    v_prod_code__in=Ldn_Product_Master.objects.values_list("v_prod_code", flat=True)
+                )
+                .values("v_prod_code", "fic_mis_date")
+                .distinct()  # Ensure distinct product codes
+                )
+
+            # Create an Excel workbook
+            workbook = openpyxl.Workbook()
+            sheet = workbook.active
+            sheet.title = "Missing Products"
+
+            # Add headers
+            headers = ["Product Code", "Reporting Date"]
+            sheet.append(headers)
+
+            # Add data rows
+            for product in missing_products:
+                sheet.append(
+                    [
+                        product["v_prod_code"],
+                        product["fic_mis_date"],
+                    ]
+                )
+
+            # Save the workbook to the HTTP response
+            response = HttpResponse(
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            response["Content-Disposition"] = f'attachment; filename="missing_products_{fic_mis_date}.xlsx"'
+            workbook.save(response)  # Save directly to response
+            return response
+
+    # AJAX call to fetch paginated missing products
+    if request.headers.get("x-requested-with") == "XMLHttpRequest" and "fic_mis_date" in request.GET:
+        fic_mis_date = request.GET.get("fic_mis_date")
+        page = int(request.GET.get("page", 1))
+        rows_per_page = int(request.GET.get("rows_per_page", 100))
+
+        if fic_mis_date:
+            missing_products = (
+                    Ldn_Financial_Instrument.objects.filter(
+                        fic_mis_date=fic_mis_date
+                    )
+                    .exclude(
+                        v_prod_code__in=Ldn_Product_Master.objects.values_list("v_prod_code", flat=True)
+                    )
+                    .values("v_prod_code", "fic_mis_date")
+                    .distinct()  # Ensure distinct product codes
+                                )
+
+
+            paginator = Paginator(missing_products, rows_per_page)
+            paginated_data = list(paginator.get_page(page).object_list)
+            return JsonResponse(
+                {
+                    "data": paginated_data,
+                    "total_pages": paginator.num_pages,
+                    "current_page": page,
+                    "total_records": paginator.count,
+                }
+            )
+        else:
+            return JsonResponse(
+                {"data": [], "total_pages": 0, "current_page": 1, "total_records": 0}
+            )
+
+    # Render the initial template
+    return render(request, "operations/check_missing_products.html", {})
+
+
+@login_required
+def check_cashflow_data(request):
+    """
+    View to check cashflow data quality based on provided rules.
+    """
+    # AJAX request to get distinct fic_mis_dates
+    if request.headers.get("x-requested-with") == "XMLHttpRequest" and "fic_mis_date" not in request.GET:
+        fic_mis_dates = (
+            Ldn_Financial_Instrument.objects.values_list("fic_mis_date", flat=True)
+            .distinct()
+            .order_by("-fic_mis_date")
+        )
+        return JsonResponse({"fic_mis_dates": list(fic_mis_dates)})
+
+    fic_mis_date = request.GET.get("fic_mis_date")
+    rows_per_page = int(request.GET.get("rows_per_page", 10))
+    download = request.GET.get("download", False)
+
+    if fic_mis_date:
+        cashflow_data = Ldn_Financial_Instrument.objects.filter(
+            fic_mis_date=fic_mis_date
+        ).values(
+            "v_account_number",
+            "d_maturity_date",
+            "d_next_payment_date",
+            "fic_mis_date",
+            "n_curr_payment_recd",
+            "n_eop_bal",
+            "v_amrt_repayment_type",
+        )
+
+        errors = {
+            "rule1": [], "rule2": [], "rule3": [],
+            "rule4": [], "rule5": [], "rule6": []
+        }
+
+        for record in cashflow_data:
+            v_account_number = record["v_account_number"]
+            d_maturity_date = record["d_maturity_date"]
+            d_next_payment_date = record["d_next_payment_date"]
+            curr_fic_mis_date = record["fic_mis_date"]  # avoid overshadowing the outer var
+            n_curr_payment_recd = record["n_curr_payment_recd"]
+            n_eop_bal = record["n_eop_bal"]
+            v_amrt_repayment_type = record["v_amrt_repayment_type"]
+
+            # For convenience, define these booleans to check if data is non-null
+            has_dates = (d_maturity_date is not None and d_next_payment_date is not None)
+            has_balances = (n_curr_payment_recd is not None and n_eop_bal is not None)
+            has_all_three_dates = (curr_fic_mis_date is not None and has_dates)
+
+            # -------------------------
+            # Rule 1: Maturity date >= Next Payment date
+            # "Maturity date must be >= Next Payment date"
+            # If data is missing, skip or treat as error
+            # -------------------------
+            if has_dates:
+                if d_maturity_date < d_next_payment_date:
+                    errors["rule1"].append({
+                        "v_account_number": v_account_number,
+                        "error": (
+                            f"Maturity date {d_maturity_date} must be >= next payment date {d_next_payment_date}."
+                        ),
+                    })
+            # else:
+            #     # If you want to treat missing data as an error, uncomment:
+            #     errors["rule1"].append({
+            #         "v_account_number": v_account_number,
+            #         "error": "Missing maturity date or next payment date."
+            #     })
+
+            # -------------------------
+            # Rule 2: Next Payment date <= Maturity date
+            # "Next payment date <= Maturity date"
+            # -------------------------
+            if has_dates:
+                if d_next_payment_date > d_maturity_date:
+                    errors["rule2"].append({
+                        "v_account_number": v_account_number,
+                        "error": (
+                            f"Next payment date {d_next_payment_date} must be <= maturity date {d_maturity_date}."
+                        ),
+                    })
+
+            # -------------------------
+            # Rule 3: Reporting Date < maturity date && reporting date < next payment date
+            # "Reporting Date must be less than maturity date and next payment date"
+            # -------------------------
+            if has_all_three_dates:
+                if curr_fic_mis_date >= d_maturity_date or curr_fic_mis_date >= d_next_payment_date:
+                    errors["rule3"].append({
+                        "v_account_number": v_account_number,
+                        "error": (
+                            f"Reporting Date {curr_fic_mis_date} must be < maturity date {d_maturity_date} "
+                            f"and < next payment date {d_next_payment_date}."
+                        ),
+                    })
+
+            # -------------------------
+            # Rule 4: If maturity date == next payment date, then current payment >= eop_bal
+            # -------------------------
+            if has_dates and has_balances:
+                if d_maturity_date == d_next_payment_date and n_curr_payment_recd < n_eop_bal:
+                    errors["rule4"].append({
+                        "v_account_number": v_account_number,
+                        "error": (
+                            f"If {d_maturity_date} == {d_next_payment_date}, then "
+                            f"Current payment {n_curr_payment_recd} must be >= end-of-period balance {n_eop_bal}."
+                        ),
+                    })
+
+            # -------------------------
+            # Rule 5: If maturity date > next payment date, then current payment < eop_bal
+            # -------------------------
+            if has_dates and has_balances:
+                if d_maturity_date > d_next_payment_date and n_curr_payment_recd >= n_eop_bal:
+                    errors["rule5"].append({
+                        "v_account_number": v_account_number,
+                        "error": (
+                            f"If {d_maturity_date} > {d_next_payment_date}, then "
+                            f"Current payment {n_curr_payment_recd} must be < end-of-period balance {n_eop_bal}."
+                        ),
+                    })
+
+            # -------------------------
+            # Rule 6: Repayment type must be 'BULLET' or 'AMORTIZED'
+            # -------------------------
+            # We also check `is None` in case the DB is missing that field
+            if v_amrt_repayment_type not in ["BULLET", "AMORTIZED"]:
+                errors["rule6"].append({
+                    "v_account_number": v_account_number,
+                    "error": (
+                        f"Repayment type must be 'BULLET' or 'AMORTIZED' but found '{v_amrt_repayment_type}'."
+                    ),
+                })
+
+        # ----------------------------------------
+        # Handle "download" (Excel export) request
+        # ----------------------------------------
+        if download:
+            # Create Excel workbook
+            workbook = openpyxl.Workbook()
+            del workbook["Sheet"]
+
+            for rule, rule_errors in errors.items():
+                sheet = workbook.create_sheet(title=rule.upper())
+                headers = ["#", "Account Number", "Error"]
+                sheet.append(headers)
+
+                for index, error in enumerate(rule_errors, start=1):
+                    sheet.append([
+                        index,
+                        error["v_account_number"],
+                        error["error"]
+                    ])
+
+                # Adjust column width
+                for col_num, column in enumerate(headers, start=1):
+                    sheet.column_dimensions[get_column_letter(col_num)].width = 25
+
+            # Save the Excel file
+            response = HttpResponse(
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            response["Content-Disposition"] = f"attachment; filename=cashflow_data_errors_{fic_mis_date}.xlsx"
+            workbook.save(response)
+            return response
+
+        # -------------------------------
+        # Paginate errors for front-end
+        # -------------------------------
+        paginated_errors = {}
+        for rule, rule_errors in errors.items():
+            paginator = Paginator(rule_errors, rows_per_page)
+            page_number = int(request.GET.get(f"{rule}_page", 1))
+            page_obj = paginator.get_page(page_number)
+            paginated_errors[rule] = {
+                "errors": list(page_obj),
+                "total_pages": paginator.num_pages,
+                "current_page": page_number,
+                "total_records": paginator.count,
+            }
+
+        return JsonResponse({"paginated_errors": paginated_errors})
+
+    return render(request, "operations/check_cashflow_data.html")
+
+
+
+
+
 
 
 # INSERT INTO `dim_function` (`function_name`, `description`) VALUES 

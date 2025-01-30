@@ -1,15 +1,39 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
 <div class="container mt-5">
-    <h1 class="h3 text-danger text-center">Delete Process</h1>
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
 
-    <p>Are you sure you want to delete the process: <strong>{{ process.process_name }}</strong>?</p>
+            <div class="card shadow">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">Confirm Deletion</h5>
+                </div>
+                <div class="card-body">
+                    <p>
+                        Are you sure you want to delete the process: 
+                        <strong>"{{ process.process_name }}"</strong>?
+                    </p>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <button 
+                          type="submit" 
+                          class="btn btn-danger btn-sm"
+                        >
+                          Yes, Delete
+                        </button>
+                        <a 
+                          href="{% url 'process_list' %}" 
+                          class="btn btn-secondary btn-sm"
+                        >
+                          Cancel
+                        </a>
+                    </form>
+                </div>
+            </div>
 
-    <form method="post">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-danger">Yes, Delete</button>
-        <a href="{% url 'process_list' %}" class="btn btn-secondary">Cancel</a>
-    </form>
+        </div>
+    </div>
 </div>
 {% endblock %}

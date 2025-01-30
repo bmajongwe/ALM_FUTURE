@@ -127,8 +127,12 @@ urlpatterns = [
     path('get-updated-status-table/', views.get_updated_status_table,
          name='get_updated_status_table'),
     path('running-processes/', running_processes_view, name='running_processes'),
-    path('cancel-process/<str:process_run_id>/',
-         cancel_running_process, name='cancel_running_process'),
+    path('cancel-process/<str:process_run_id>/', cancel_running_process, name='cancel_running_process'),
+    path('data-quality-check/', views.data_quality_check, name='data_quality_check'),
+    path('check-missing-customers/', views.check_missing_customers, name='check_missing_customers'),
+    path('check-missing-products/', views.check_missing_products, name='check_missing_products'),
+    path('check-cashflow-data/', views.check_cashflow_data, name='check_cashflow_data'),
+    # path('check-missing-fields/', views.check_missing_fields, name='check_missing_fields'),
 
 
 

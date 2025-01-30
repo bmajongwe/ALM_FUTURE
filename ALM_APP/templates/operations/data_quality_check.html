@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar -->
+        {% include 'operations/operations_sidebar.html' %}
+
+        <!-- Main Content -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4" style="margin-left: 260px;">
+            <section class="mt-5">
+                <h1 class="text-center mb-4">Data Quality Checks</h1>
+                <div class="row g-4">
+
+                    <!-- Card 1: Check Missing Customers -->
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card text-white bg-dark-blue shadow h-100">
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title">Check Missing Customers</h5>
+                                <p class="card-text">Ensure all customer data is complete and accurate.</p>
+                                <a href="{% url 'check_missing_customers' %}" class="btn btn-outline-light mt-auto">Check Now</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Check Missing Products -->
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card text-white bg-dark-blue shadow h-100">
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title">Check Missing Products</h5>
+                                <p class="card-text">Verify that all products are correctly loaded into the system.</p>
+                                <a href="{% url 'check_missing_products' %}" class="btn btn-outline-light mt-auto">Check Now</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Check Cashflow Data -->
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card text-white bg-dark-blue shadow h-100">
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title">Check Cashflow Data</h5>
+                                <p class="card-text">Validate the accuracy of all cashflow data entries.</p>
+                                <a href="{% url 'check_cashflow_data' %}" class="btn btn-outline-light mt-auto">Check Now</a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+
+<style>
+    /* Custom Styles */
+
+    /* General Colors */
+    h1.text-center {
+        color: #4a5568; /* Muted gray */
+        font-weight: bold;
+    }
+
+    .bg-dark-blue {
+        background-color: #2a3f5f; /* Muted dark blue */
+    }
+
+    /* Buttons */
+    .btn-outline-light {
+        border-color: #e2e8f0;
+        color: #e2e8f0;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .btn-outline-light:hover {
+        background-color: #e2e8f0;
+        color: #2a3f5f;
+    }
+
+    /* Card Shadows */
+    .card {
+        border: none;
+    }
+
+    .shadow {
+        box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Adjust layout for a polished look */
+    .row.g-4 {
+        margin-top: 1rem;
+    }
+</style>
+{% endblock %}

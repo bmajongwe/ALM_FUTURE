@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Include Operations Sidebar -->
+        {% include 'operations/operations_sidebar.html' %}
+
+        <!-- Main Content Area -->
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4" style="margin-left: 260px;">
+            <div class="mt-5">
+                <h1 class="text-center mb-4">Check Missing Products</h1>
+                
+                <!-- Form to Filter by fic_mis_date -->
+                <form id="filter-form" class="mb-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="fic_mis_date" class="form-label">Select Reporting Date:</label>
+                            <select id="fic_mis_date" name="fic_mis_date" class="form-control">
+                                <option value="">Select a date</option>
+                                <!-- Options will be dynamically populated -->
+                            </select>
+                        </div>
+                        <div class="col-md-2 align-self-end">
+                            <button type="submit" class="btn btn-primary w-100">Check</button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Download Button with Loading Spinner -->
+                <div class="d-flex justify-content-start mb-3">
+                    <button id="download-button" class="btn btn-success btn-sm shadow-sm">
+                        <i class="fas fa-download"></i> Download Missing Products
+                    </button>
+                    <div id="loading-spinner" class="ms-3 d-none">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Section -->
+                <div id="results-section">
+                    <!-- No Date Selected Message -->
+                    <div class="alert alert-warning text-center" id="no-date-message" style="display: none;">
+                        Please select a Reporting Date before checking.
+                    </div>
+
+                    <!-- No Data Message -->
+                    <div class="alert alert-info text-center" id="no-data-message" style="display: none;">
+                        No missing products found for the selected date.
+                    </div>
+
+                    <!-- Results Table -->
+                    <div class="table-responsive" id="table-container" style="display: none;">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Product Code (v_prod_code)</th>
+                                    <th>Reporting Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body">
+                                <!-- Data will be dynamically populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Pagination Controls -->
+                <nav>
+                    <ul class="pagination justify-content-center" id="pagination-controls">
+                        <!-- Pagination buttons will be dynamically populated -->
+                    </ul>
+                </nav>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        const tableBody = $("#table-body");
+        const tableContainer = $("#table-container");
+        const noDataMessage = $("#no-data-message");
+        const noDateMessage = $("#no-date-message");
+        const paginationControls = $("#pagination-controls");
+        const ficMisDateSelect = $("#fic_mis_date");
+        const downloadButton = $("#download-button");
+        const loadingSpinner = $("#loading-spinner");
+
+        let currentPage = 1;
+        let rowsPerPage = 10;
+
+        // Fetch available Reporting Dates
+        $.ajax({
+            url: "{% url 'check_missing_products' %}",
+            method: "GET",
+            headers: {
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            success: function (data) {
+                data.fic_mis_dates.forEach(function (date) {
+                    ficMisDateSelect.append(`<option value="${date}">${date}</option>`);
+                });
+            },
+            error: function (xhr, status, error) {
+                console.error("Error fetching Reporting Dates:", error);
+            }
+        });
+
+        // Fetch paginated data
+        function fetchData(page = 1) {
+            const ficMisDate = ficMisDateSelect.val();
+
+            if (!ficMisDate) {
+                noDateMessage.show(); // Show message if no date selected
+                tableContainer.hide();
+                noDataMessage.hide();
+                return;
+            }
+
+            noDateMessage.hide(); // Hide message if date is selected
+
+            $.ajax({
+                url: "{% url 'check_missing_products' %}",
+                method: "GET",
+                data: {
+                    fic_mis_date: ficMisDate,
+                    page: page,
+                    rows_per_page: rowsPerPage
+                },
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                success: function (data) {
+                    if (data.data.length > 0) {
+                        populateTable(data.data, page);
+                        populatePagination(data.total_pages, data.current_page);
+                        tableContainer.show();
+                        noDataMessage.hide();
+                    } else {
+                        tableContainer.hide();
+                        noDataMessage.show();
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("Error fetching data:", error);
+                }
+            });
+        }
+
+        // Populate table with data
+        function populateTable(data, currentPage) {
+            tableBody.empty();
+            const startIndex = (currentPage - 1) * rowsPerPage;
+
+            data.forEach((item, index) => {
+                tableBody.append(`
+                    <tr>
+                        <td>${startIndex + index + 1}</td>
+                        <td>${item.v_prod_code}</td>
+                        <td>${item.fic_mis_date}</td>
+                    </tr>
+                `);
+            });
+        }
+
+        // Populate pagination controls
+        function populatePagination(totalPages, currentPage) {
+            paginationControls.empty();
+
+            if (totalPages > 1) {
+                paginationControls.append(`
+                    <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                        <a class="page-link" href="#" data-page="1">First</a>
+                    </li>
+                `);
+
+                paginationControls.append(`
+                    <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                        <a class="page-link" href="#" data-page="${currentPage - 1}">Previous</a>
+                    </li>
+                `);
+
+                paginationControls.append(`
+                    <li class="page-item disabled">
+                        <a class="page-link" href="#">Page ${currentPage}</a>
+                    </li>
+                `);
+
+                paginationControls.append(`
+                    <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                        <a class="page-link" href="#" data-page="${currentPage + 1}">Next</a>
+                    </li>
+                `);
+
+                paginationControls.append(`
+                    <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                        <a class="page-link" href="#" data-page="${totalPages}">Last</a>
+                    </li>
+                `);
+            }
+        }
+
+        // Handle pagination click
+        paginationControls.on("click", ".page-link", function (e) {
+            e.preventDefault();
+            const page = $(this).data("page");
+            if (page) {
+                currentPage = page;
+                fetchData(currentPage);
+            }
+        });
+
+        // Handle form submission
+        $("#filter-form").submit(function (e) {
+            e.preventDefault();
+            currentPage = 1;
+            fetchData(currentPage);
+        });
+
+        // Handle Excel download
+        downloadButton.click(function (event) {
+            event.preventDefault();
+            loadingSpinner.removeClass("d-none"); // Show the spinner
+            const ficMisDate = ficMisDateSelect.val();
+
+            if (!ficMisDate) {
+                noDateMessage.show(); // Show message if no date selected
+                loadingSpinner.addClass("d-none");
+                return;
+            }
+
+            noDateMessage.hide(); // Hide message if date is selected
+
+            const downloadUrl = `{% url 'check_missing_products' %}?fic_mis_date=${ficMisDate}&download=true`;
+
+            fetch(downloadUrl, {
+                method: "GET",
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+            })
+                .then(response => {
+                    if (!response.ok) throw new Error("Network response was not ok.");
+                    return response.blob();
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.style.display = "none";
+                    a.href = url;
+                    a.download = `missing_products_${ficMisDate}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => {
+                    console.error("Error downloading the file:", error);
+                })
+                .finally(() => {
+                    loadingSpinner.addClass("d-none"); // Hide the spinner
+                });
+        });
+
+        // Initial fetch
+        fetchData();
+    });
+</script>
+{% endblock %}

@@ -77,6 +77,7 @@
                             <th>Process Name</th>
                             <th>Process ID</th>
                             <th>Overall Status</th>
+                            <th>Executed by</th>
                             <th>Execution Start Time</th>
                             <th>Execution End Time</th>
                             <th>Total Duration (mins)</th>
@@ -100,6 +101,7 @@
                                         <span class="badge bg-warning">{{ process.overall_status }}</span>
                                     {% endif %}
                                 </td>
+                                <td>{{ process.created_by__email }}</td>
                                 <td>{{ process.start_time|date:"M d, Y, g:i a" }}</td>
                                 <td>{{ process.end_time|date:"M d, Y, g:i a" }}</td>
                                 <td>{{ process.duration|floatformat:2 }}</td>

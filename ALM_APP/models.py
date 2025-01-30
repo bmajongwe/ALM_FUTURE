@@ -224,7 +224,7 @@ class FunctionExecutionStatus(models.Model):
     execution_order = models.PositiveIntegerField(null=True)
     reporting_date = models.DateField(null=True)
     status = models.CharField(max_length=20, choices=[('Pending', 'Pending'), ('Ongoing', 'Ongoing'), ('Success', 'Success'), ('Failed', 'Failed')], default='Pending')
-    
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)  # Link to the User model
     # Track process execution instances
     process_run_id = models.CharField(max_length=50)  # Combined process_id, execution_date, and run_count
     run_count = models.PositiveIntegerField()  # Tracks how many times this process has been executed on a particular date
@@ -289,6 +289,7 @@ class Ldn_Financial_Instrument(models.Model):
     n_eop_curr_prin_bal = models.DecimalField(max_digits=10, decimal_places=2, null=True)
     n_eop_int_bal = models.DecimalField(max_digits=10, decimal_places=2, null=True)
     n_eop_bal = models.DecimalField(max_digits=10, decimal_places=2, null=True)
+    n_curr_payment_recd= models.DecimalField(max_digits=10, decimal_places=2, null=True)
     n_collateral_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True)
     n_acct_risk_score = models.DecimalField(max_digits=5, decimal_places=2, null=True)
     v_ccy_code = models.CharField(max_length=10, null=True)

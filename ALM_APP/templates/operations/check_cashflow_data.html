@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        {% include 'operations/operations_sidebar.html' %}
+
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4" style="margin-left: 260px;">
+            <h1 class="mt-5 text-center">Check Cashflow Data Quality</h1>
+
+            <!-- Filter Form -->
+            <form id="filter-form" class="mb-4">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="fic_mis_date" class="form-label">Select Reporting Date:</label>
+                        <select id="fic_mis_date" name="fic_mis_date" class="form-control">
+                            <option value="">Select a date</option>
+                            <!-- Dates dynamically populated -->
+                        </select>
+                    </div>
+                    <div class="col-md-2 align-self-end">
+                        <button type="submit" class="btn btn-primary w-100">Check</button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Download Button -->
+            <div class="mb-3">
+                <button id="download-button" class="btn btn-success">
+                    <i class="fas fa-download"></i> Download Excel
+                </button>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div id="loading-spinner" class="text-center my-3 d-none">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results-section">
+                <div id="tables-container" style="display: none;">
+                    <div id="rule-tables">
+                        <!-- Tables dynamically populated -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    $(document).ready(function () {
+        const ficMisDateSelect = $("#fic_mis_date");
+        const tablesContainer = $("#tables-container");
+        const loadingSpinner = $("#loading-spinner");
+        const ruleTablesContainer = $("#rule-tables");
+
+        // Define rule names
+        const ruleNames = {
+            rule1: "D_MATURITY_DATE >= D_NEXT_PAYMENT_DATE",
+            rule2: "D_NEXT_PAYMENT_DATE <= D_MATURITY_DATE",
+            rule3: "FIC_MIS_DATE < D_MATURITY_DATE and D_NEXT_PAYMENT_DATE",
+            rule4: "IF D_MATURITY_DATE = D_NEXT_PAYMENT_DATE -> N_CURR_PAYMENT_RECD >= N_EOP_BAL",
+            rule5: "IF D_MATURITY_DATE > D_NEXT_PAYMENT_DATE -> N_CURR_PAYMENT_RECD < N_EOP_BAL",
+            rule6: "V_AMRT_REPAYMENT_TYPE must be BULLET or AMORTIZED",
+        };
+
+        // Fetch Reporting Dates
+        $.ajax({
+            url: "{% url 'check_cashflow_data' %}",
+            method: "GET",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+            success: function (data) {
+                data.fic_mis_dates.forEach(date => {
+                    ficMisDateSelect.append(`<option value="${date}">${date}</option>`);
+                });
+            }
+        });
+
+        // Handle form submission
+        $("#filter-form").submit(function (e) {
+            e.preventDefault();
+            const ficMisDate = ficMisDateSelect.val();
+            if (!ficMisDate) return alert("Please select a date!");
+
+            tablesContainer.hide();
+            loadingSpinner.removeClass("d-none");
+            ruleTablesContainer.empty();
+
+            $.ajax({
+                url: "{% url 'check_cashflow_data' %}",
+                method: "GET",
+                data: { fic_mis_date: ficMisDate },
+                success: function (response) {
+                    loadingSpinner.addClass("d-none");
+                    tablesContainer.show();
+
+                    for (const [rule, data] of Object.entries(response.paginated_errors)) {
+                        const tableId = `${rule}-table-body`;
+                        const paginationId = `${rule}-pagination`;
+
+                        ruleTablesContainer.append(`
+                            <div class="mt-4">
+                                <h5>${ruleNames[rule]}</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Account Number</th>
+                                                <th>Error</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="${tableId}">
+                                            ${data.errors.length === 0
+                                                ? `<tr><td colspan="3" class="text-center">No errors found.</td></tr>`
+                                                : data.errors.map((error, index) => `
+                                                    <tr>
+                                                        <td>${(data.current_page - 1) * 10 + index + 1}</td>
+                                                        <td>${error.v_account_number}</td>
+                                                        <td>${error.error}</td>
+                                                    </tr>`).join("")}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <nav>
+                                    <ul class="pagination justify-content-center" id="${paginationId}">
+                                        ${generatePagination(data, rule)}
+                                    </ul>
+                                </nav>
+                            </div>
+                        `);
+                    }
+                }
+            });
+        });
+
+        function generatePagination(data, rule) {
+            const { current_page, total_pages } = data;
+            let paginationHtml = "";
+
+            if (total_pages > 1) {
+                if (current_page > 1) {
+                    paginationHtml += `
+                        <li class="page-item">
+                            <a class="page-link" href="#" data-rule="${rule}" data-page="1">First</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="#" data-rule="${rule}" data-page="${current_page - 1}">Previous</a>
+                        </li>`;
+                }
+                paginationHtml += `
+                    <li class="page-item disabled">
+                        <span class="page-link">Page ${current_page} of ${total_pages}</span>
+                    </li>`;
+                if (current_page < total_pages) {
+                    paginationHtml += `
+                        <li class="page-item">
+                            <a class="page-link" href="#" data-rule="${rule}" data-page="${current_page + 1}">Next</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="#" data-rule="${rule}" data-page="${total_pages}">Last</a>
+                        </li>`;
+                }
+            }
+
+            return paginationHtml;
+        }
+
+        // Handle pagination click
+        $(document).on("click", ".page-link", function (e) {
+            e.preventDefault();
+            const rule = $(this).data("rule");
+            const page = $(this).data("page");
+            const ficMisDate = ficMisDateSelect.val();
+
+            if (rule && page && ficMisDate) {
+                $.ajax({
+                    url: "{% url 'check_cashflow_data' %}",
+                    method: "GET",
+                    data: { fic_mis_date: ficMisDate, [`${rule}_page`]: page },
+                    success: function (response) {
+                        const tableBody = $(`#${rule}-table-body`);
+                        const pagination = $(`#${rule}-pagination`);
+                        const data = response.paginated_errors[rule];
+
+                        tableBody.empty();
+                        tableBody.append(
+                            data.errors.length === 0
+                                ? `<tr><td colspan="3" class="text-center">No errors found.</td></tr>`
+                                : data.errors.map((error, index) => `
+                                    <tr>
+                                        <td>${(data.current_page - 1) * 10 + index + 1}</td>
+                                        <td>${error.v_account_number}</td>
+                                        <td>${error.error}</td>
+                                    </tr>`).join("")
+                        );
+
+                        pagination.html(generatePagination(data, rule));
+                    }
+                });
+            }
+        });
+
+        // Handle Excel download
+        $("#download-button").click(function () {
+            const ficMisDate = ficMisDateSelect.val();
+            if (!ficMisDate) return alert("Please select a date to download!");
+
+            const downloadUrl = `{% url 'check_cashflow_data' %}?fic_mis_date=${ficMisDate}&download=true`;
+            window.location.href = downloadUrl;
+        });
+    });
+</script>
+{% endblock %}
