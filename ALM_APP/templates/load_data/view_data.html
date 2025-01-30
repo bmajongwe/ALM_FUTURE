@@ -1,15 +1,18 @@
 {% extends "base.html" %}
 {% load custom_filters %}
 {% block content %}
+
 <div class="container mt-5">
     <h2 class="mb-4 text-center">View Data</h2>
+
     <!-- Back Button -->
     <div class="d-flex justify-content-start mb-4">
         <a href="{% url 'data_management' %}" class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left"></i> Back 
+            <i class="fas fa-arrow-left"></i> Back
         </a>
     </div>
-    
+
+    <!-- Django Messages -->
     {% if messages %}
         <div class="mb-4">
             {% for message in messages %}
@@ -20,6 +23,7 @@
         </div>
     {% endif %}
 
+    <!-- Selection Form -->
     <div class="row justify-content-center">
         <div class="col-lg-12 col-md-12">
             <form method="get" class="shadow p-4 rounded bg-light" action="{% url 'filter_table' %}" id="dataForm">
@@ -30,48 +34,94 @@
                 <div class="form-group mb-4">
                     {{ table_form.fic_mis_date }}
                 </div>
-                <button type="submit" class="btn btn-primary" id="viewDataButton" disabled>View Data</button>
+                <button type="submit" class="btn btn-primary" id="viewDataButton" disabled>
+                    View Data
+                </button>
             </form>
         </div>
     </div>
 
-    {% if data %}
-        <div class="mt-3">
-            <a href="{% url 'download_data' table_name=table_name %}?{{ request.GET.urlencode }}" class="btn btn-success">Download CSV</a>
+    {% if page_obj %}
+        <!-- Additional Controls: Download CSV, Clear Filters -->
+        <div class="mt-3 d-flex justify-content-start gap-3">
+            <a href="{% url 'download_data' table_name=table_name %}?{{ request.GET.urlencode }}"
+               class="btn btn-success">
+                Download CSV
+            </a>
+            <button class="btn btn-secondary" onclick="clearAllFilters()">Clear Filters</button>
         </div>
 
-        <!-- Increased table height container -->
+        <!-- Table container with vertical scroll -->
         <div class="table-responsive mt-5" style="height: 440px; overflow-y: auto; position: relative;">
+            <style>
+                .sticky-col-left {
+                    position: sticky;
+                    left: 0;
+                    z-index: 1020;
+                }
+                .sticky-col-left.th-sticky {
+                    background-color: #343a40;
+                    color: #fff;
+                    z-index: 1030;
+                }
+            </style>
+
             <table class="table table-bordered table-striped" id="dataTable" style="min-width: 100%;">
                 <thead class="thead-dark" style="position: sticky; top: 0; z-index: 1000; background-color: #343a40;">
                     <tr>
-                        <th>Actions</th> <!-- New column for actions -->
+                        <th class="sticky-col-left th-sticky" style="left: 0;">Actions</th>
                         {% for column in columns %}
                             <th style="background-color: inherit;">
                                 {{ column }}
                                 <div class="dropdown">
-                                    <a href="#" class="dropdown-toggle" data-bs-toggle="dropdown">Filter</a>
-                                    <div class="dropdown-menu p-3" id="dropdownMenu{{ column }}" style="width: 250px; z-index: 1050;">
+                                    <a href="#" class="dropdown-toggle" data-bs-toggle="dropdown">
+                                        Filter
+                                    </a>
+                                    <div class="dropdown-menu p-3" id="dropdownMenu{{ column }}"
+                                         style="width: 250px; z-index: 1050;">
                                         <div class="mb-2">
-                                            <button type="button" class="btn btn-link" onclick="sortTable('{{ column }}', 'asc')">Sort A to Z</button>
-                                            <button type="button" class="btn btn-link" onclick="sortTable('{{ column }}', 'desc')">Sort Z to A</button>
+                                            <button type="button" class="btn btn-link p-0"
+                                                    onclick="sortTable('{{ column }}', 'asc')">
+                                                Sort A to Z
+                                            </button>
+                                            <button type="button" class="btn btn-link p-0"
+                                                    onclick="sortTable('{{ column }}', 'desc')">
+                                                Sort Z to A
+                                            </button>
                                         </div>
-                                        <input type="text" class="form-control mb-2" id="searchInput{{ column }}" onkeyup="filterDropdown('{{ column }}')" placeholder="Search...">
+                                        <input type="text" class="form-control mb-2"
+                                               id="searchInput{{ column }}"
+                                               onkeyup="filterDropdown('{{ column }}')"
+                                               placeholder="Search...">
                                         <div class="scrollable-checkbox-list" style="max-height: 200px; overflow-y: auto;">
                                             <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" id="selectAll{{ column }}" onclick="selectAllCheckboxes('{{ column }}', this)">
-                                                <label class="form-check-label" for="selectAll{{ column }}">(Select All)</label>
+                                                <input class="form-check-input" type="checkbox"
+                                                       id="selectAll{{ column }}"
+                                                       onclick="selectAllCheckboxes('{{ column }}', this)">
+                                                <label class="form-check-label" for="selectAll{{ column }}">
+                                                    (Select All)
+                                                </label>
                                             </div>
                                             {% for value in column_unique_values|get_item:column %}
                                                 <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" value="{{ value }}" id="check{{ column }}{{ value }}">
-                                                    <label class="form-check-label" for="check{{ column }}{{ value }}">{{ value }}</label>
+                                                    <input class="form-check-input" type="checkbox"
+                                                           value="{{ value }}"
+                                                           id="check{{ column }}{{ value }}">
+                                                    <label class="form-check-label"
+                                                           for="check{{ column }}{{ value }}">
+                                                        {{ value }}
+                                                    </label>
                                                 </div>
                                             {% endfor %}
                                         </div>
                                         <div class="d-flex justify-content-between mt-3">
-                                            <button type="button" class="btn btn-success btn-sm" onclick="applyFilters('{{ column }}')">OK</button>
-                                            <button type="button" class="btn btn-secondary btn-sm">Cancel</button>
+                                            <button type="button" class="btn btn-success btn-sm"
+                                                    onclick="applyFilters('{{ column }}')">
+                                                OK
+                                            </button>
+                                            <button type="button" class="btn btn-secondary btn-sm">
+                                                Cancel
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -80,22 +130,38 @@
                     </tr>
                 </thead>
                 <tbody id="dataBody">
-                    {% for row in data %}
+                    {% for row in page_obj.object_list %}
                         <tr data-id="{{ row.id }}">
-                            <td>
-                                <button class="btn btn-warning btn-sm edit-row"><i class="fas fa-pencil-alt"></i></button>
-                                <button class="btn btn-danger btn-sm delete-row" data-bs-toggle="modal" data-bs-target="#deleteModal" data-id="{{ row.id }}"><i class="fas fa-trash-alt"></i></button>
-                                <button class="btn btn-success btn-sm save-row d-none"><i class="fas fa-save"></i></button>
-                                <button class="btn btn-secondary btn-sm cancel-row d-none"><i class="fas fa-times"></i></button>
+                            <td class="sticky-col-left" style="left: 0; background-color: #fff;">
+                                <button class="btn btn-warning btn-sm edit-row" title="Edit Row">
+                                    <i class="fas fa-pencil-alt"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm delete-row" data-bs-toggle="modal"
+                                        data-bs-target="#deleteModal" data-id="{{ row.id }}" title="Delete Row">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                <button class="btn btn-success btn-sm save-row d-none" title="Save Changes">
+                                    <i class="fas fa-save"></i>
+                                </button>
+                                <button class="btn btn-secondary btn-sm cancel-row d-none" title="Cancel Editing">
+                                    <i class="fas fa-times"></i>
+                                </button>
                             </td>
                             {% for column in columns %}
-                                <td class="editable-field" data-column="{{ column }}">{{ row|get_attribute:column }}</td>
+                                <td class="editable-field" data-column="{{ column }}">
+                                    {{ row|get_attribute:column }}
+                                </td>
                             {% endfor %}
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="{{ columns|length|add:'1' }}">No data available.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        <!-- No visible pagination controls are shown -->
     {% endif %}
 
     <!-- Delete Confirmation Modal -->
@@ -117,18 +183,18 @@
         </div>
     </div>
 
-    <!-- Include jQuery, Bootstrap, and Moment.js -->
+    <!-- Include jQuery, Bootstrap, Moment.js -->
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
 
-
     <script>
+        // ------------------------- On Document Ready -------------------------
         $(document).ready(function() {
             const viewDataButton = $('#viewDataButton');
             const tableField = $('select[name="table_name"]');
             const dateField = $('select[name="fic_mis_date"]');
-    
+
             function toggleButton() {
                 if (tableField.val() && dateField.val()) {
                     viewDataButton.prop('disabled', false);
@@ -136,16 +202,13 @@
                     viewDataButton.prop('disabled', true);
                 }
             }
-    
             toggleButton();
             tableField.change(toggleButton);
             dateField.change(toggleButton);
-    
+
             tableField.change(function() {
                 const tableName = $(this).val();
-                dateField.empty();
-                dateField.append('<option value="">Select Date</option>');
-    
+                dateField.empty().append('<option value="">Select Date</option>');
                 if (tableName) {
                     $.ajax({
                         url: "{% url 'get_fic_mis_dates' %}",
@@ -163,134 +226,99 @@
                 toggleButton();
             });
         });
-    </script>
 
-    <script>
-        console.log("Script loaded successfully");
-
-        let deleteRowId = null; // Store the ID of the row to delete
-
+        // ------------------------- Deletion Logic -------------------------
+        let deleteRowId = null; 
         $(document).on('click', '.delete-row', function() {
-            deleteRowId = $(this).data('id'); // Get the row ID from the button's data-id attribute
+            deleteRowId = $(this).data('id');
         });
-
         $('#confirmDelete').click(function() {
-            const tableName = $("select[name='table_name']").val(); // Use the selected table name
+            const tableName = $("select[name='table_name']").val();
             if (deleteRowId !== null) {
                 $.ajax({
-                    url: `{% url 'delete_row' 'table_name_placeholder' 0 %}`.replace('table_name_placeholder', tableName).replace('0', deleteRowId),
+                    url: `{% url 'delete_row' 'table_name_placeholder' 0 %}`
+                         .replace('table_name_placeholder', tableName)
+                         .replace('0', deleteRowId),
                     method: 'POST',
-                    data: {
-                        'csrfmiddlewaretoken': '{{ csrf_token }}',
-                    },
+                    data: { 'csrfmiddlewaretoken': '{{ csrf_token }}' },
                     success: function(response) {
                         if (response.success) {
-                            $(`tr[data-id="${deleteRowId}"]`).remove(); // Remove the row from the table
-                            $('#deleteModal').modal('hide'); // Hide the modal
+                            $(`tr[data-id="${deleteRowId}"]`).remove();
+                            $('#deleteModal').modal('hide');
                         } else {
                             alert('Error: ' + response.error);
                         }
                     },
-                    error: function(xhr, status, error) {
-                        console.log(xhr.responseText);
+                    error: function(xhr) {
                         alert('Error deleting the row: ' + xhr.responseText);
                     }
                 });
             }
         });
 
-        // Inline editing function
+        // ------------------------- Inline Editing -------------------------
         $(document).on('click', '.edit-row', function() {
             const row = $(this).closest('tr');
             row.find('.editable-field').each(function() {
                 const cell = $(this);
                 const value = cell.text().trim();
-                cell.data('original-value', value);  // Store original value
+                cell.data('original-value', value);
                 cell.html(`<input type="text" class="form-control" value="${value}">`);
             });
             row.find('.edit-row, .delete-row').addClass('d-none');
             row.find('.save-row, .cancel-row').removeClass('d-none');
         });
 
-        // Save changes
         $(document).on('click', '.save-row', function() {
             const row = $(this).closest('tr');
             const rowId = row.data('id');
-            const tableName = $("select[name='table_name']").val();  // Use the selected table name
+            const tableName = $("select[name='table_name']").val();
             const updatedData = {};
 
             row.find('.editable-field').each(function() {
                 const cell = $(this);
                 const input = cell.find('input');
-                let value = input.val().trim();  // Trim the value to remove unnecessary spaces
+                let value = input.val().trim();
                 const column = cell.data('column');
 
-                // Handle None and date formats
-                if (value === "" || value.toLowerCase() === 'none') {
+                if (!value || value.toLowerCase() === 'none') {
                     value = null;
-                } else if (moment(value, [
-                    'MMMM D, YYYY',  
-                    'YYYY-MM-DD',    
-                    'MM/DD/YYYY',    
-                    'DD/MM/YYYY',    
-                    'MM-DD-YYYY',    
-                    'DD-MM-YYYY',    
-                    'YYYY/MM/DD',    
-                    'D MMM YYYY',    
-                    'MMM D, YYYY',   
-                    'MMM DD, YYYY',  
-                    'D-MMM-YY',      
-                    'D-MMM-YYYY',    
-                    'MMM D YYYY',    
-                    'MMM DD YYYY',   
-                    'MMMM D YYYY',   
-                    'DD.MM.YYYY',    
-                    'D.MM.YYYY',     
-                    'D MMMM YYYY'    
-                ], true).isValid()) {
-                    value = moment(value, [
-                        'MMMM D, YYYY',
-                        'YYYY-MM-DD',
-                        'MM/DD/YYYY',
-                        'DD/MM/YYYY',
-                        'MM-DD-YYYY',
-                        'DD-MM-YYYY',
-                        'YYYY/MM/DD',
-                        'D MMM YYYY',
-                        'MMM D, YYYY',
-                        'MMM DD, YYYY',
-                        'D-MMM-YY',
-                        'D-MMM-YYYY',
-                        'MMM D YYYY',
-                        'MMM DD YYYY',
-                        'MMMM D YYYY',
-                        'DD.MM.YYYY',
-                        'D.MM.YYYY',
-                        'D MMMM YYYY'
-                    ]).format('YYYY-MM-DD');
+                } else {
+                    value = value.replace(/[“”]/g, '');
+                    if (/\bSept\./i.test(value)) {
+                        value = value.replace(/\bSept\./gi, 'Sep.');
+                    }
+                    if (moment(value, [
+                        'MMMM D, YYYY','YYYY-MM-DD','MM/DD/YYYY','DD/MM/YYYY','MM-DD-YYYY','DD-MM-YYYY',
+                        'YYYY/MM/DD','D MMM YYYY','MMM D, YYYY','MMM. D, YYYY','MMMM. D, YYYY',
+                        'Sept. D, YYYY','MMM DD, YYYY','D-MMM-YY','D-MMM-YYYY','MMM D YYYY',
+                        'MMM DD YYYY','MMMM D YYYY','DD.MM.YYYY','D.MM.YYYY','D MMMM YYYY'
+                    ], true).isValid()) {
+                        value = moment(value).format('YYYY-MM-DD');
+                    }
                 }
 
-                // Handle decimal/numeric fields
-                if (column.toLowerCase().includes('amount') || column.toLowerCase().includes('price') || column.toLowerCase().includes('cost') || column.toLowerCase().includes('rate')) {
-                    if (value === null || value === "" || isNaN(parseFloat(value))) {
-                        console.log(`Skipping column ${column} due to invalid or null decimal value.`);
+                if (column.toLowerCase().includes('amount') || 
+                    column.toLowerCase().includes('price') ||
+                    column.toLowerCase().includes('cost') || 
+                    column.toLowerCase().includes('rate')) {
+                    if (value === null || isNaN(parseFloat(value))) {
+                        console.log(`Skipping column ${column} due to invalid numeric value.`);
                         return;
                     } else {
                         value = parseFloat(value).toFixed(2);
                     }
                 }
 
-                // Only include the value in the update if it's not null or invalid
                 if (value !== null) {
                     updatedData[column] = value;
-                } else {
-                    console.log(`Skipping column ${column} due to invalid or null value.`);
                 }
             });
 
-            // Send AJAX request to update the row
             $.ajax({
-                url: `{% url 'edit_row' 'table_name_placeholder' 0 %}`.replace('table_name_placeholder', tableName).replace('0', rowId),
+                url: `{% url 'edit_row' 'table_name_placeholder' 0 %}`
+                     .replace('table_name_placeholder', tableName)
+                     .replace('0', rowId),
                 method: 'POST',
                 data: {
                     'csrfmiddlewaretoken': '{{ csrf_token }}',
@@ -301,13 +329,11 @@
                         row.find('.editable-field').each(function() {
                             const cell = $(this);
                             const input = cell.find('input');
-                            const value = input.val().trim();
-
-                            // Handle None and date formats for display
-                            if (value === "" || value.toLowerCase() === "none") {
+                            const newValue = input.val().trim();
+                            if (!newValue || newValue.toLowerCase() === "none") {
                                 cell.text("None");
                             } else {
-                                cell.text(value);
+                                cell.text(newValue);
                             }
                         });
                         row.find('.edit-row, .delete-row').removeClass('d-none');
@@ -316,14 +342,12 @@
                         alert('Error: ' + response.error);
                     }
                 },
-                error: function(xhr, status, error) {
-                    console.log(xhr.responseText);
+                error: function(xhr) {
                     alert('Error updating the row: ' + xhr.responseText);
                 }
             });
         });
 
-        // Cancel editing
         $(document).on('click', '.cancel-row', function() {
             const row = $(this).closest('tr');
             row.find('.editable-field').each(function() {
@@ -335,103 +359,112 @@
             row.find('.save-row, .cancel-row').addClass('d-none');
         });
 
-        // Filter dropdown functionality
+        // ------------------------- Filtering & Sorting -------------------------
         window.filterDropdown = function(column) {
             const input = document.getElementById("searchInput" + column);
             const filter = input.value.toLowerCase();
             const checkboxes = document.querySelectorAll(`#dropdownMenu${column} .form-check`);
-
             checkboxes.forEach((checkbox) => {
-                const label = checkbox.querySelector(".form-check-label").innerText;
-                if (label.toLowerCase().includes(filter)) {
-                    checkbox.style.display = "";
-                } else {
-                    checkbox.style.display = "none";
-                }
+                const label = checkbox.querySelector(".form-check-label").innerText.toLowerCase();
+                checkbox.style.display = label.includes(filter) ? "" : "none";
             });
-        }
+        };
 
-        // Select all checkboxes in the dropdown
         window.selectAllCheckboxes = function(column, selectAllCheckbox) {
             const checkboxes = document.querySelectorAll(`#dropdownMenu${column} .form-check-input`);
             checkboxes.forEach((checkbox) => {
                 checkbox.checked = selectAllCheckbox.checked;
             });
-        }
+        };
 
-        // Apply filters
         window.applyFilters = function(column) {
-        console.log(`applyFilters triggered for column: ${column}`);
-        
-        const selectedValues = [];
-        document.querySelectorAll(`#dropdownMenu${column} .form-check-input:checked`).forEach((checkbox) => {
-            if (checkbox.value !== "(Select All)") {
-                selectedValues.push(checkbox.value);
+            const selectedValues = [];
+            document.querySelectorAll(`#dropdownMenu${column} .form-check-input:checked`).forEach((checkbox) => {
+                if (checkbox.value !== "(Select All)") {
+                    selectedValues.push(checkbox.value);
+                }
+            });
+
+            if (selectedValues.length === 0) {
+                alert('Please select at least one value to filter.');
+                return;
             }
-        });
 
-        console.log(`Selected values: ${selectedValues}`);
-
-        if (selectedValues.length > 0) {
             const tableName = "{{ table_name }}";
-            if (tableName) {
-                // Build the URL with query parameters
-                const url = "{% url 'filter_table' %}";
-                const urlParams = new URLSearchParams();
-                urlParams.set('table_name', tableName);  // Pass table_name as a query parameter
-                urlParams.set('filter_column', column);
-                urlParams.set('filter_values', selectedValues.join(','));
-
-                console.log(`Redirecting to: ${url}?${urlParams.toString()}`);
-                window.location.href = `${url}?${urlParams.toString()}`;
-            } else {
-                alert('Error: Table name is not available.');
+            const ficMisDate = "{{ fic_mis_date }}";
+            if (!tableName || !ficMisDate) {
+                alert('Error: Missing table or date.');
+                return;
             }
-        } else {
-            alert('Please select at least one value to filter.');
-        }
-    }
-       // Sort table functionality
-window.sortTable = function(column, order) {
-    console.log(`Sorting column: ${column}, order: ${order}`);
 
-    const tableName = "{{ table_name }}";
-    if (tableName) {
-        // Use the URL for 'filter_table' without table_name as an argument
-        const url = "{% url 'filter_table' %}";
-        const urlParams = new URLSearchParams();
-        urlParams.set('table_name', tableName);  // Pass table_name as a query parameter
-        urlParams.set('filter_column', column);
-        urlParams.set('sort_order', order);
+            const url = "{% url 'filter_table' %}";
+            const urlParams = new URLSearchParams();
+            urlParams.set('table_name', tableName);
+            urlParams.set('fic_mis_date', ficMisDate);
+            urlParams.set('filter_column', column);
+            urlParams.set('filter_values', selectedValues.join(','));
+            urlParams.set('page', '1');
 
-        console.log(`Redirecting to: ${url}?${urlParams.toString()}`);
-        window.location.href = `${url}?${urlParams.toString()}`;
-    } else {
-        alert('Error: Table name is not available.');
-    }
-}
+            window.location.href = `${url}?${urlParams.toString()}`;
+        };
 
-        // Adjust dropdown based on available space
-        $(document).on('shown.bs.dropdown', function (event) {
+        window.sortTable = function(column, order) {
+            const tableName = "{{ table_name }}";
+            const ficMisDate = "{{ fic_mis_date }}";
+            if (!tableName || !ficMisDate) {
+                alert('Error: Missing table or date.');
+                return;
+            }
+
+            const url = "{% url 'filter_table' %}";
+            const urlParams = new URLSearchParams();
+            urlParams.set('table_name', tableName);
+            urlParams.set('fic_mis_date', ficMisDate);
+            urlParams.set('filter_column', column);
+            urlParams.set('sort_order', order);
+            urlParams.set('page', '1');
+
+            window.location.href = `${url}?${urlParams.toString()}`;
+        };
+
+        window.clearAllFilters = function() {
+            const tableName = "{{ table_name }}";
+            const ficMisDate = "{{ fic_mis_date }}";
+            if (!tableName || !ficMisDate) {
+                alert('Error: Missing table or date.');
+                return;
+            }
+
+            const url = "{% url 'filter_table' %}";
+            const urlParams = new URLSearchParams();
+            urlParams.set('table_name', tableName);
+            urlParams.set('fic_mis_date', ficMisDate);
+            urlParams.set('page', '1');
+
+            window.location.href = `${url}?${urlParams.toString()}`;
+        };
+
+        $(document).on('shown.bs.dropdown', function(event) {
             const dropdownMenu = $(event.target).find('.dropdown-menu');
             const windowHeight = $(window).height();
             const dropdownOffset = dropdownMenu.offset().top;
             const dropdownHeight = dropdownMenu.outerHeight();
             const spaceBelow = windowHeight - (dropdownOffset + dropdownHeight);
-            
+
             if (spaceBelow < 0) {
                 dropdownMenu.css({
                     "position": "fixed",
                     "top": windowHeight - dropdownHeight - 20 + "px",
-                    "z-index": 1060,
+                    "z-index": 1060
                 });
             } else {
                 dropdownMenu.css({
                     "position": "absolute",
-                    "z-index": 1060,
+                    "z-index": 1060
                 });
             }
         });
     </script>
 </div>
+
 {% endblock %}

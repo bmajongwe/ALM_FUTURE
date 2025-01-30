@@ -1,4 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.utils.timezone import now  # For timestamping
+
+from User.models import AuditTrail
 from ..models import *
 from ..forms import *
 import pandas as pd
@@ -17,6 +20,8 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import IntegrityError, DatabaseError as DBError
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
+
 from django.views import View
 import pandas as pd
 
@@ -61,8 +66,9 @@ class FileUploadView(LoginRequiredMixin, View):
                     return render(request, self.template_name, {'form': form, 'stg_tables': TableMetadata.objects.filter(table_type='STG')})
 
                 # Convert Timestamps to strings for JSON serialization
-                df = df.applymap(lambda x: x.isoformat()
-                                 if isinstance(x, pd.Timestamp) else x)
+                df = df.applymap(lambda x: None if pd.isnull(x)
+                                 else x.date().isoformat() if isinstance(x, pd.Timestamp)
+                                 else x)
 
                 # Store the data, column names, and selected table in session for later steps
                 # Save the full data in session
@@ -94,22 +100,19 @@ class FileUploadView(LoginRequiredMixin, View):
         })
 
 
-class ColumnSelectionView(LoginRequiredMixin, View):
+class ColumnSelectionView(LoginRequiredMixin,View):
     template_name = 'load_data/file_upload_step2.html'
 
     def get(self, request):
         columns = request.session.get('columns', [])
         if not columns:
-            messages.error(
-                request, "No columns found. Please upload a file first.")
+            messages.error(request, "No columns found. Please upload a file first.")
             return redirect('file_upload')
-        form = ColumnSelectionForm(columns=columns, initial={
-                                   'selected_columns': columns})
+        form = ColumnSelectionForm(columns=columns, initial={'selected_columns': columns})
         return render(request, self.template_name, {'form': form, 'columns': columns})
 
     def post(self, request):
-        selected_columns = request.POST.get(
-            'selected_columns_hidden').split(',')
+        selected_columns = request.POST.get('selected_columns_hidden').split(',')
         if selected_columns:
             request.session['selected_columns'] = selected_columns
             return redirect('map_columns')
@@ -130,8 +133,8 @@ class ColumnMappingView(LoginRequiredMixin, View):
 
         # Get the model class dynamically based on the selected table
         try:
-            # Replace 'ALM' with your actual app name
-            model_class = apps.get_model('ALM', selected_table)
+            # Replace 'ALM_APP' with your actual app name
+            model_class = apps.get_model('ALM_APP', selected_table)
         except LookupError:
             messages.error(
                 request, "Error: The selected table does not exist.")
@@ -174,8 +177,8 @@ class ColumnMappingView(LoginRequiredMixin, View):
 
         # Get the model class dynamically based on the selected table
         try:
-            # Replace 'ALM' with your actual app name
-            model_class = apps.get_model('ALM', selected_table)
+            # Replace 'ALM_APP' with your actual app name
+            model_class = apps.get_model('ALM_APP', selected_table)
         except LookupError:
             messages.error(
                 request, "Error: The selected table does not exist.")
@@ -246,11 +249,34 @@ class SubmitToDatabaseView(LoginRequiredMixin, View):
             # Convert date columns to YYYY-MM-DD format
             for column in df.columns:
                 if 'date' in column.lower():
-                    df[column] = pd.to_datetime(
-                        df[column], errors='coerce').dt.strftime('%Y-%m-%d').astype(str)
+                    # 1) First try parsing with the format YYYY-MM-DD
+                    df_ymd = pd.to_datetime(
+                        df[column],
+                        format='%Y-%m-%d',
+                        errors='coerce'
+                    )
+
+                    # 2) For rows that failed, try DD-MM-YYYY
+                    df_dmy = pd.to_datetime(
+                        df[column],
+                        format='%d/%m/%Y',
+                        errors='coerce'
+                    )
+
+                    # 3) Where df_ymd is NaT, fill with df_dmy
+                    parsed_dates = df_ymd.fillna(df_dmy)
+
+                     # 4) If any rows are still NaT, raise an error
+                    if parsed_dates.isna().any():
+                        raise ValueError("Some dates do not match YYYY-MM-DD or DD/MM/YYYY formats.")
+
+                    # 4) Convert all valid dates to YYYY-MM-DD string
+                    df[column] = parsed_dates.dt.strftime('%Y-%m-%d').astype(str)
+
+
 
             # Retrieve the model class dynamically
-            model_class = apps.get_model('ALM', selected_table)
+            model_class = apps.get_model('ALM_APP', selected_table)
 
             # Define chunk size for bulk insert
             chunk_size = 5000
@@ -275,8 +301,15 @@ class SubmitToDatabaseView(LoginRequiredMixin, View):
                 except IntegrityError as e:
                     return JsonResponse({'status': 'error', 'message': f'Integrity error: {str(e)}'}, status=400)
                 except ValidationError as e:
-                    error_messages = "; ".join(f"{field}: {', '.join(
-                        errors)}" for field, errors in e.message_dict.items())
+                    error_messages = ""
+                    if hasattr(e, 'message_dict'):
+                        error_messages = "; ".join(
+                            f"{field}: {', '.join(errors)}" for field, errors in e.message_dict.items()
+                        )
+                    elif hasattr(e, 'messages'):
+                        error_messages = "; ".join(e.messages)
+                    else:
+                        error_messages = str(e)
                     return JsonResponse({'status': 'error', 'message': f'Validation error: {error_messages}'}, status=400)
                 except DBError as e:
                     return JsonResponse({'status': 'error', 'message': f'Database error: {str(e)}'}, status=400)
@@ -284,6 +317,17 @@ class SubmitToDatabaseView(LoginRequiredMixin, View):
                 # Update progress in session after each chunk
                 request.session['progress'] = int((i / total_chunks) * 100)
                 request.session.modified = True
+
+            # Log the successful upload in the AuditTrail
+            AuditTrail.objects.create(
+                user=request.user,
+                model_name=selected_table,
+                action='upload',
+                object_id=None,  # No specific object ID since multiple records are uploaded
+                change_description=f"Uploaded {
+                    success_count} records to the {selected_table} table.",
+                timestamp=now(),
+            )
 
             # Mark completion and return success message with count of records uploaded
             request.session['progress'] = 100
@@ -308,16 +352,30 @@ class SubmitToDatabaseView(LoginRequiredMixin, View):
         # Convert all text to uppercase
         for column in df.select_dtypes(include=['object']).columns:
             df[column] = df[column].str.upper()
-        # Additional cleaning steps can be added here, such as:
+
+        # Convert common "nan" strings to None after converting to uppercase
+        # This will catch values like 'NAN' that resulted from uppercase conversion
+        # Replace any "NAN" string globally with None
+
+        df.replace(to_replace=['NAN', 'NaN', 'nan',
+                   'None'], value="", inplace=True)
+
         # Drop rows where all values are NaN
         df.dropna(how='all', inplace=True)
-        # Drop duplicates
+
+        # Drop duplicate rows
         df.drop_duplicates(inplace=True)
+
+        return df
 
         return df
 
 
 class CheckProgressView(LoginRequiredMixin, View):
+    def get(self, request):
+        progress = request.session.get('progress', 0)
+        return JsonResponse({'progress': progress})
+
     def get(self, request):
         progress = request.session.get('progress', 0)
         return JsonResponse({'progress': progress})
@@ -654,14 +712,18 @@ def delete_row(request, table_name, row_id):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
-# INSERT INTO `tablemetadata` (`table_name`, `description`, `table_type`) VALUES
-# ('Ldn_Bank_Product_Info', 'Information about bank products offered.', 'STG'),
+# INSERT INTO `tablemetadata` (table_name, description, table_type) VALUES
+# ('Ldn_Product_Master', 'Information about bank products offered.', 'STG'),
 # ('Ldn_Customer_Info', 'Details about customers including personal and contact information.', 'STG'),
-# ('Ldn_Customer_Rating_Detail', 'Customer credit ratings and assessment details.', 'STG'),
+# ('Ldn_Common_Coa_Master', 'Information about the banks  charts of accounts.', 'STG'),
 # ('Ldn_Exchange_Rate', 'Exchange rates for various currencies.', 'STG'),
-# ('Ldn_Expected_Cashflow', 'Expected cash flows based on financial models.', 'STG'),
 # ('Ldn_Financial_Instrument', 'Details of financial instruments used in transactions.', 'STG'),
-# ('Ldn_LGD_Term_Structure', 'Loss Given Default (LGD) term structure details.', 'STG'),
-# ('Ldn_PD_Term_Structure', 'Probability of Default (PD) term structure details.', 'STG'),
-# ('Ldn_PD_Term_Structure_Dtl', 'Detailed probability of default term structures.', 'STG'),
+# ('Ldn_Payment_Schedule', 'Schedule of payments related to financial products.', 'STG');
+
+# INSERT INTO public."TableMetadata" (table_name, description, table_type) VALUES
+# ('Ldn_Product_Master', 'Information about bank products offered.', 'STG'),
+# ('Ldn_Customer_Info', 'Details about customers including personal and contact information.', 'STG'),
+# ('Ldn_Common_Coa_Master', 'Information about the banks  charts of accounts.', 'STG'),
+# ('Ldn_Exchange_Rate', 'Exchange rates for various currencies.', 'STG'),
+# ('Ldn_Financial_Instrument', 'Details of financial instruments used in transactions.', 'STG'),
 # ('Ldn_Payment_Schedule', 'Schedule of payments related to financial products.', 'STG');

@@ -263,12 +263,12 @@ def populate_liquidity_gap_results_base(fic_mis_date, process_name):
                         logger_message = f"Inserted record for {product_code}, party {party_type_code}, bucket {bucket.bucket_number}"
                         logger.info(logger_message)
                         print(logger_message)
-                        Log.objects.create(
-                            function_name='populate_liquidity_gap_results_base',
-                            log_level='INFO',
-                            message=logger_message,
-                            status='SUCCESS'
-                        )
+                        # Log.objects.create(
+                        #     function_name='populate_liquidity_gap_results_base',
+                        #     log_level='INFO',
+                        #     message=logger_message,
+                        #     status='SUCCESS'
+                        # )
                     except Exception as e:
                         error_message = f"Insert error for {product_code}, party {party_type_code}, bucket {bucket.bucket_number}: {e}"
                         logger.error(error_message)

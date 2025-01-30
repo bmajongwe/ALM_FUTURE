@@ -3435,7 +3435,7 @@ def project_cash_flows_view(request):
     fic_mis_date = '2024-08-31'
     # status = populate_dim_dates_from_time_buckets(fic_mis_date)
     # status=populate_dim_product(fic_mis_date)
-    status= aggregate_by_prod_code(fic_mis_date, process_name)
+    # status= aggregate_by_prod_code(fic_mis_date, process_name)
     # status=update_date(fic_mis_date)
     # status = populate_liquidity_gap_results_base(fic_mis_date, process_name)
     # status= calculate_time_buckets_and_spread(process_name, fic_mis_date)
@@ -3446,7 +3446,7 @@ def project_cash_flows_view(request):
 
     
 
-    # status= project_cash_flows(fic_mis_date)
+    status= project_cash_flows(fic_mis_date)
 
 
 

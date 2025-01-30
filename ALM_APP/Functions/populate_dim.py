@@ -182,12 +182,12 @@ def populate_dim_product(fic_mis_date):
                         f"for fic_mis_date {fic_mis_date}."
                     )
                     print(logger_message)
-                    Log.objects.create(
-                        function_name='populate_dim_product',
-                        log_level='INFO',
-                        message=logger_message,
-                        status='SUCCESS'
-                    )
+                    # Log.objects.create(
+                    #     function_name='populate_dim_product',
+                    #     log_level='INFO',
+                    #     message=logger_message,
+                    #     status='SUCCESS'
+                    # )
                     continue
 
                 # Create the new Dim_Product record with cleaned string values
@@ -218,12 +218,12 @@ def populate_dim_product(fic_mis_date):
                     f"flow type: {clean_string(v_flow_type) if v_flow_type else 'None'}."
                 )
                 print(logger_message)
-                Log.objects.create(
-                    function_name='populate_dim_product',
-                    log_level='INFO',
-                    message=logger_message,
-                    status='SUCCESS'
-                )
+                # Log.objects.create(
+                #     function_name='populate_dim_product',
+                #     log_level='INFO',
+                #     message=logger_message,
+                #     status='SUCCESS'
+                # )
 
         logger_message = f"Dim_Product population completed. {new_records_count} new records inserted with f_latest_record_indicator='Y'."
         print(logger_message)

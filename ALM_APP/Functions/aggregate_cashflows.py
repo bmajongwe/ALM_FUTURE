@@ -59,7 +59,7 @@ def aggregate_cashflows_to_product_level(fic_mis_date, chunk_size=100):
         # Step 2: Aggregate the cashflows by product code, account number, and cashflow date
         cashflow_data = (
             FSI_Expected_Cashflow.objects.filter(fic_mis_date=fic_mis_date)
-            .values('v_account_number', 'fic_mis_date', 'd_cash_flow_date', 'n_cash_flow_bucket', 'V_CCY_CODE', 'v_loan_type', 'v_party_type_code', 'V_CASH_FLOW_TYPE')
+            .values('v_account_number', 'fic_mis_date', 'd_cash_flow_date', 'n_cash_flow_bucket', 'v_ccy_code', 'v_loan_type', 'v_party_type_code', 'v_cash_flow_type')
             .annotate(
                 n_total_cash_flow_amount=Sum('n_cash_flow_amount'),
                 n_total_principal_payment=Sum('n_principal_payment'),
@@ -100,10 +100,10 @@ def aggregate_cashflows_to_product_level(fic_mis_date, chunk_size=100):
                         'n_total_principal_payment': cashflow['n_total_principal_payment'],
                         'n_total_interest_payment': cashflow['n_total_interest_payment'],
                         'n_total_balance': cashflow['n_total_balance'],
-                        'v_ccy_code': cashflow['V_CCY_CODE'],
+                        'v_ccy_code': cashflow['v_ccy_code'],
                         'v_party_type_code': cashflow['v_party_type_code'],
                         'v_loan_type': cashflow['v_loan_type'],
-                        'V_CASH_FLOW_TYPE': cashflow['V_CASH_FLOW_TYPE'],
+                        'V_CASH_FLOW_TYPE': cashflow['v_cash_flow_type'],
                     })
                 else:
                     logger_message = f"No matching product found for account number: {cashflow['v_account_number']}"

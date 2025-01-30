@@ -1,62 +1,130 @@
 {% extends 'base.html' %}
 
 {% block content %}
-
 <div class="bg-light py-3 shadow-sm border-bottom">
-
-
     <div class="container">
-        <ul class="nav nav-pills justify-content-center">
-            <li class="nav-item">
-                <a class="nav-link custom-link" href="{% url 'file_upload' %}">Data Upload as File</a>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link custom-link" href="{% url 'view_data' %}">View Data</a>
-            </li>
-        </ul>
+        
     </div>
 </div>
-<!-- Back Button -->
-<div class="d-flex justify-content-start mb-4">
-    <a href="{% url 'ALM_home' %}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left"></i> Back
-    </a>
-</div>
 
+
+<!-- Content Section -->
 <div class="container mt-4">
-    <div class="row">
+    <div class="row justify-content-center">
+        <!-- Data Upload Card -->
+        {% if perms.ALM_APP.can_load_data %}
         <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-body text-center">
-                    <h5 class="card-title">Data Upload as File</h5>
-                    <p class="card-text">Upload data through a file (CSV, Excel).</p>
-                    <a href="{% url 'file_upload' %}" class="btn btn-primary custom-link">Upload File</a>
+            <div class="card border-0 shadow-lg h-100">
+                <div class="card-body text-center d-flex flex-column justify-content-between">
+                    <div class="icon-circle bg-primary mx-auto mb-3">
+                        <i class="fas fa-file-upload fa-2x text-white"></i>
+                    </div>
+                    <h5 class="card-title text-primary">Data Upload as File</h5>
+                    <p class="card-text text-muted">Upload data through a file (CSV, Excel).</p>
+                    <a href="{% url 'file_upload' %}" class="btn btn-primary mt-3 w-100">Upload File</a>
                 </div>
             </div>
         </div>
-
-
+        {% else %}
+        <!-- Message for users without permission (optional) -->
         <div class="col-lg-4 col-md-6 mb-4">
-            <div class="card shadow-sm h-100">
-                <div class="card-body text-center">
-                    <h5 class="card-title">View Data</h5>
-                    <p class="card-text">View the uploaded data.</p>
-                    <a href="{% url 'view_data' %}" class="btn btn-info custom-link">View Data</a>
+            <div class="card border-0 shadow-lg h-100">
+                <div class="card-body text-center d-flex flex-column justify-content-between">
+                    <div class="icon-circle bg-secondary mx-auto mb-3">
+                        <i class="fas fa-lock fa-2x text-white"></i>
+                    </div>
+                    <h5 class="card-title text-secondary">Access Restricted</h5>
+                    <p class="card-text text-muted">You do not have permission to upload files.</p>
                 </div>
             </div>
         </div>
+        {% endif %}
+
+        {% if perms.ALM_APP.can_view_edit_data %}
+        <!-- View Data Card -->
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card border-0 shadow-lg h-100">
+                <div class="card-body text-center d-flex flex-column justify-content-between">
+                    <div class="icon-circle bg-info mx-auto mb-3">
+                        <i class="fas fa-database fa-2x text-white"></i>
+                    </div>
+                    <h5 class="card-title text-info">View Data</h5>
+                    <p class="card-text text-muted">View the uploaded data in a structured format.</p>
+                    <a href="#" class="btn btn-info mt-3 w-100">View Data</a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Restricted Access Card -->
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card border-0 shadow-lg h-100">
+                <div class="card-body text-center d-flex flex-column justify-content-between">
+                    <div class="icon-circle bg-secondary mx-auto mb-3">
+                        <i class="fas fa-lock fa-2x text-white"></i>
+                    </div>
+                    <h5 class="card-title text-secondary">Access Restricted</h5>
+                    <p class="card-text text-muted">You do not have permission to view or edit data.</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
     </div>
 </div>
 
+<!-- Custom Styling -->
 <style>
     .custom-link {
-        font-weight: bold;
-        color: darkblue;
+        font-weight: 600;
+        color: #0056b3;
     }
 
-    .custom-link:hover {
-        color: darkblue;
+    .custom-link:hover,
+    .nav-link.active {
+        color: #ffffff !important;
+        background-color: #0056b3 !important;
+    }
+
+    .icon-circle {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-title {
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+
+    .card-text {
+        font-size: 0.9rem;
+    }
+
+    .btn {
+        font-weight: 600;
+        padding: 0.6rem 1.2rem;
+    }
+
+    .btn-primary {
+        background-color: #0056b3;
+        border: none;
+    }
+
+    .btn-primary:hover {
+        background-color: #003f7f;
+    }
+
+    .btn-info {
+        background-color: #17a2b8;
+        border: none;
+    }
+
+    .btn-info:hover {
+        background-color: #117a8b;
     }
 </style>
 {% endblock %}

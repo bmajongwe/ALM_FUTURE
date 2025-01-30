@@ -114,12 +114,12 @@ def aggregate_by_prod_code(process_name, fic_mis_date):
         for idx, record in enumerate(grouped_data, start=1):
             try:
                 logger.debug(f"Processing record {idx}/{grouped_data.count()} for v_prod_code='{record['v_prod_code']}'.")
-                Log.objects.create(
-                    function_name='aggregate_by_prod_code',
-                    log_level='DEBUG',
-                    message=f"Processing record {idx}/{grouped_data.count()} for v_prod_code='{record['v_prod_code']}'.",
-                    status='SUCCESS'
-                )
+                # Log.objects.create(
+                #     function_name='aggregate_by_prod_code',
+                #     log_level='DEBUG',
+                #     message=f"Processing record {idx}/{grouped_data.count()} for v_prod_code='{record['v_prod_code']}'.",
+                #     status='SUCCESS'
+                # )
 
                 # Retrieve related AggregatedCashflowByBuckets and TimeBucketMaster
                 cashflow_by_bucket = AggregatedCashflowByBuckets.objects.filter(
@@ -173,12 +173,12 @@ def aggregate_by_prod_code(process_name, fic_mis_date):
                 )
                 inserted_records += 1
                 logger.debug(f"Successfully inserted Aggregated_Prod_Cashflow_Base record for v_prod_code='{record['v_prod_code']}', financial_element='{record['financial_element']}'.")
-                Log.objects.create(
-                    function_name='aggregate_by_prod_code',
-                    log_level='DEBUG',
-                    message=f"Successfully inserted Aggregated_Prod_Cashflow_Base record for v_prod_code='{record['v_prod_code']}', financial_element='{record['financial_element']}'.",
-                    status='SUCCESS'
-                )
+                # Log.objects.create(
+                #     function_name='aggregate_by_prod_code',
+                #     log_level='DEBUG',
+                #     message=f"Successfully inserted Aggregated_Prod_Cashflow_Base record for v_prod_code='{record['v_prod_code']}', financial_element='{record['financial_element']}'.",
+                #     status='SUCCESS'
+                # )
             except Exception as e:
                 error_message = f"Error inserting record for v_prod_code='{record['v_prod_code']}', financial_element='{record['financial_element']}': {e}"
                 logger.error(error_message)

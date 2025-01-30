@@ -212,6 +212,9 @@ class TableMetadata(models.Model):
 
     class Meta:
         db_table = "TableMetadata"
+        
+
+
 class FunctionExecutionStatus(models.Model):
     process = models.ForeignKey(Process_Rn, on_delete=models.CASCADE)
     function = models.ForeignKey(Function, on_delete=models.CASCADE)
@@ -384,9 +387,9 @@ class FSI_Expected_Cashflow(models.Model):
     n_balance = models.DecimalField(max_digits=20, decimal_places=2)
     n_accrued_interest = models.DecimalField(max_digits=22, decimal_places=3, null=True, blank=True)  # Accrued interest
     n_exposure_at_default = models.DecimalField(max_digits=22, decimal_places=3, null=True, blank=True) 
-    V_CASH_FLOW_TYPE = models.CharField(max_length=10)
+    v_cash_flow_type = models.CharField(max_length=10)
     management_fee_added = models.DecimalField(max_digits=20, decimal_places=2)
-    V_CCY_CODE = models.CharField(max_length=3)
+    v_ccy_code = models.CharField(max_length=3)
 
     class Meta:
         db_table = 'FSI_Expected_Cashflow'

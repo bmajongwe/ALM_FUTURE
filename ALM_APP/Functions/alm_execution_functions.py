@@ -11,6 +11,10 @@ from ALM_APP.Functions.Aggregated_Prod_Cashflow_Base import aggregate_by_prod_co
 from ALM_APP.Functions.populate_dim import populate_dim_product
 from ALM_APP.Functions.Dim_dates import populate_dim_dates_from_time_buckets
 from ALM_APP.Functions.populate_liquidity_gap_results_base import populate_liquidity_gap_results_base
+from ALM_APP.Functions.ldn_update import update_date
+from ALM_APP.Functions.cashflow import project_cash_flows
+from ALM_APP.Functions.aggregate_cashflows import aggregate_cashflows_to_product_level
+
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +54,60 @@ def execute_alm_process_logic(process_name, fic_mis_date):
             status='FAILURE'
         )
         raise ValueError(error_message) from e
+
+    # --- NEW STEP: Call your three functions first ---
+    try:
+        logger.debug("Starting update_date...")
+        update_date(fic_mis_date)
+        logger.debug("Completed update_date successfully.")
+        Log.objects.create(
+            function_name='execute_alm_process_logic',
+            log_level='DEBUG',
+            message=f"update_date finished for fic_mis_date='{fic_mis_date}'.",
+            status='SUCCESS'
+        )
+
+        logger.debug("Starting project_cash_flows...")
+        project_cash_flows(fic_mis_date)
+        logger.debug("Completed project_cash_flows successfully.")
+        Log.objects.create(
+            function_name='execute_alm_process_logic',
+            log_level='DEBUG',
+            message=f"project_cash_flows finished for fic_mis_date='{fic_mis_date}'.",
+            status='SUCCESS'
+        )
+
+        logger.debug("Starting aggregate_cashflows_to_product_level...")
+        aggregate_cashflows_to_product_level(fic_mis_date)
+        logger.debug("Completed aggregate_cashflows_to_product_level successfully.")
+        Log.objects.create(
+            function_name='execute_alm_process_logic',
+            log_level='DEBUG',
+            message=f"aggregate_cashflows_to_product_level finished for fic_mis_date='{fic_mis_date}'.",
+            status='SUCCESS'
+        )
+
+        logger.info("All initial functions (update_date, project_cash_flows, aggregate_cashflows_to_product_level) executed successfully.")
+        Log.objects.create(
+            function_name='execute_alm_process_logic',
+            log_level='INFO',
+            message=(
+                f"All initial functions executed successfully for fic_mis_date='{fic_mis_date}'."
+            ),
+            status='SUCCESS'
+        )
+    except Exception as e:
+        error_message = f"Error in initial processing steps (update_date, project_cash_flows, aggregate_cashflows_to_product_level): {e}"
+        logger.error(error_message)
+        Log.objects.create(
+            function_name='execute_alm_process_logic',
+            log_level='ERROR',
+            message=error_message,
+            detailed_error=traceback.format_exc(),
+            status='FAILURE'
+        )
+        raise RuntimeError(error_message) from e
+    # --- END NEW STEP ---
 
     # Step 2: Fetch the process by process_name in Process_Rn
     try:
