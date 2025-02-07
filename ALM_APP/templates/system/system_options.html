@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Main Content -->
+        <main class="col-12 px-md-4">
+            <!-- Back Button Section -->
+            <div class="d-flex justify-content-between mb-4">
+                <!-- Back Button 1 (Home) -->
+                <a href="{% url 'ALM_home' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left"></i> Back to Home
+                </a>
+
+                <!-- Dynamic Back Button (Context-sensitive Navigation) -->
+                <a href="{% if request.resolver_match.url_name == 'process_detail' or request.resolver_match.url_name == 'create_process' or request.resolver_match.url_name == 'edit_process' %}
+                            {% url 'process_list' %}
+                         {% elif request.resolver_match.url_name == 'monitor_specific_process' %}
+                            {% url 'execute_process_view' %}
+                         {% elif request.resolver_match.url_name == 'check_missing_customers' or request.resolver_match.url_name == 'check_missing_products' or request.resolver_match.url_name == 'check_cashflow_data' %}
+                            {% url 'data_quality_check' %}
+                         {% else %}
+                            {% url 'ALM_home' %}
+                         {% endif %}"
+                    class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            </div>
+
+            <section class="mt-5">
+                <h1 class="text-center mb-4">Configurations Management</h1>
+                <div class="row g-4">
+
+                    <!-- Card 1: Check Missing Customers -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card text-white bg-dark-blue shadow-lg h-100">
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title">Assign Customers splits </h5>
+                                <p class="card-text">Ensure all customer have its products category splits.</p>
+                                <a href="{% url 'party_type_list' %}" class="btn btn-outline-light mt-auto">Go Now</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Check Missing Products -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card text-white bg-dark-blue shadow-lg h-100">
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title">Interest Method</h5>
+                                <p class="card-text">Give detailed information for cashflow projections.</p>
+                                <a href="{% url 'cashflow_projections' %}" class="btn btn-outline-light mt-auto">Go Now</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Check Cashflow Data -->
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card text-white bg-dark-blue shadow-lg h-100">
+                            <div class="card-body d-flex flex-column">
+                                <h5 class="card-title">Exchange Rates</h5>
+                                <p class="card-text">It manages the exchange rates.</p>
+                                <a href="{% url 'currency_status' %}" class="btn btn-outline-light mt-auto">Go Now</a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+
+<style>
+    /* Custom Styles */
+
+    /* General Colors */
+    h1.text-center {
+        color: #4a5568; /* Muted gray */
+        font-weight: bold;
+    }
+
+    .bg-dark-blue {
+        background-color: #2a3f5f; /* Muted dark blue */
+    }
+
+    /* Buttons */
+    .btn-outline-primary {
+        color: #003366;
+        border-color: #003366;
+        font-weight: 600;
+    }
+
+    .btn-outline-primary:hover {
+        background-color: #003366;
+        color: #ffffff;
+    }
+
+    .btn-outline-light {
+        border-color: #e2e8f0;
+        color: #e2e8f0;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .btn-outline-light:hover {
+        background-color: #e2e8f0;
+        color: #2a3f5f;
+    }
+
+    /* Card Shadows */
+    .card {
+        border: none;
+    }
+
+    .shadow-lg {
+        box-shadow: 0px 6px 10px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Adjust layout for a polished look */
+    .row.g-4 {
+        margin-top: 1rem;
+    }
+
+    /* Card Spacing */
+    .col-md-6 {
+        margin-bottom: 20px;
+    }
+
+    /* Responsive Card Layout */
+    @media (max-width: 768px) {
+        .col-md-6 {
+            margin-bottom: 15px;
+        }
+
+        .col-lg-4 {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,84 @@
+<!-- Sidebar -->
+<nav id="operations-sidebar" class="col-md-3 col-lg-2 d-md-block sidebar">
+    <div class="position-sticky pt-3">
+        <ul class="nav flex-column">
+            <!-- Back Button -->
+            <li class="nav-item mb-4">
+                <a href="{% url 'ALM_home' %}" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            </li>
+            <!-- Back Button -->
+            <li class="nav-item mb-4">
+                <a href="{% if request.resolver_match.url_name == 'process_detail' or request.resolver_match.url_name == 'create_process'  or request.resolver_match.url_name == 'edit_process'  %} 
+                            {% url 'process_list' %}
+                         {% elif request.resolver_match.url_name == 'monitor_specific_process' %} 
+                            {% url 'execute_process_view' %}
+                         {% elif request.resolver_match.url_name == 'check_missing_customers' or request.resolver_match.url_name == 'check_missing_products'  or request.resolver_match.url_name == 'check_cashflow_data'  %}
+                            {% url 'data_quality_check' %}
+                         {% else %} 
+                            {% url 'ALM_home' %} 
+                         {% endif %}"
+                   class="btn btn-outline-primary w-100">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+<style>
+    /* Remove background color */
+    #operations-sidebar {
+        height: 100vh;
+        position: fixed;
+        top: 0;
+        left: 0;
+        background-color: transparent; /* No background */
+        color: #ffffff;
+        box-shadow: none; /* No box-shadow */
+        width: 250px;
+        z-index: 1000;
+    }
+
+    /* Back button styling */
+    #operations-sidebar .btn-outline-primary {
+        color: #003366; /* Dark color for visibility */
+        border-color: #003366; /* Dark border */
+    }
+
+    #operations-sidebar .btn-outline-primary:hover {
+        background-color: #003366; /* Dark background on hover */
+        color: #ffffff; /* White text on hover */
+    }
+
+    /* Remove extra sidebar styling */
+    #operations-sidebar .nav-link, 
+    #operations-sidebar .btn-outline-light {
+        background-color: transparent; /* No background for links and buttons */
+        color: #003366; /* Set reasonable text color */
+    }
+
+    /* Hover effect for Back button */
+    #operations-sidebar .btn-outline-light:hover {
+        background-color: #ffffff;
+        color: #003366;
+    }
+
+    /* No hover background for sidebar links */
+    #operations-sidebar .nav-link:hover {
+        background-color: transparent;
+        color: #003366; /* Keep text color visible */
+        border-left-color: transparent;
+    }
+
+    /* No active link background or color change */
+    #operations-sidebar .nav-link.active {
+        background-color: transparent;
+        color: #003366;
+        border-left-color: transparent;
+    }
+
+</style>

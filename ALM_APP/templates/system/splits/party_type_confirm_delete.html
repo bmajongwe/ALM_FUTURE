@@ -1,0 +1,16 @@
+{% extends "system/splits/base2.html" %}
+{% block content %}
+<div class="container mt-2">
+    <h2 class="text-center mb-4">Confirm Delete</h2>
+    <div class="card">
+        <div class="card-body">
+            <p>Are you sure you want to delete the party type mapping <strong>{{ party_type.v_party_type_code }}</strong>?</p>
+            <form method="post" action="{% url 'party_type_delete' party_type.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">Yes, Delete</button>
+                <a href="{% url 'party_type_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

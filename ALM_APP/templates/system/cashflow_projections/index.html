@@ -1,0 +1,46 @@
+{% extends 'system/cashflow_projections/base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="h3 text-primary">Cashflow Projections</h1>
+
+   
+
+    <div class="row">
+        <!-- Documentation Card -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-book fa-3x text-info mb-3"></i> <!-- Icon for Documentation -->
+                    <h5 class="card-title">Documentation</h5>
+                    <a href="{% url 'cashflow_projections_documentation' %}" class="btn btn-primary">
+                        View Documentation
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interest Method Card -->
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="fas fa-percentage fa-3x text-warning mb-3"></i> <!-- Icon for Interest Method -->
+                    <h5 class="card-title">Interest Method</h5>
+                    <a href="{% url 'interest_method_list' %}" class="btn btn-primary">
+                        View Interest Method
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card-title {
+        font-weight: bold;
+    }
+    .btn {
+        padding: 0.5rem 1.5rem;
+    }
+</style>
+{% endblock %}

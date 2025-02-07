@@ -1,0 +1,104 @@
+{% extends "system/splits/base2.html" %}
+
+{% block content %}
+<div class="container-fluid mt-2">
+    <!-- Page Heading -->
+    <h2 class="text-center mb-5" style="font-size: 2rem; font-weight: 700; color: #004085;">
+        Add Party Type Mapping
+    </h2>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-lg border-0">
+                <div class="card-header text-center" style="background-color: #004085; color: #ffffff; font-size: 1.125rem; font-weight: 600;">
+                    Create New Party Type Mapping
+                </div>
+                <div class="card-body p-5">
+                    <form method="post" action="{% url 'party_type_add' %}" onsubmit="return validateForm()">
+                        {% csrf_token %}
+
+                        <!-- Party Type Code Input -->
+                        <div class="form-group mb-4">
+                            <label for="v_party_type_code" style="font-size: 1rem; font-weight: 600;">
+                                Party Type Code
+                            </label>
+                            <input type="text" id="v_party_type_code" name="v_party_type_code" class="form-control" placeholder="Enter party type code" required style="font-size: 1rem;">
+                            <!-- Front-End Error Message -->
+                            <small id="partyTypeCodeError" class="form-text text-danger" style="display: none;">
+                                Please enter a party type code.
+                            </small>
+                            <!-- Django Form Error (if any) -->
+                            {% if form.v_party_type_code.errors %}
+                                <small class="form-text text-danger">
+                                    {{ form.v_party_type_code.errors.0 }}
+                                </small>
+                            {% endif %}
+                        </div>
+
+                        <!-- Description Input -->
+                        <div class="form-group mb-4">
+                            <label for="description" style="font-size: 1rem; font-weight: 600;">
+                                Description
+                            </label>
+                            <input type="text" id="description" name="description" class="form-control" placeholder="Enter description" required style="font-size: 1rem;">
+                            <!-- Front-End Error Message -->
+                            <small id="descriptionError" class="form-text text-danger" style="display: none;">
+                                Please enter a description.
+                            </small>
+                            <!-- Django Form Error (if any) -->
+                            {% if form.description.errors %}
+                                <small class="form-text text-danger">
+                                    {{ form.description.errors.0 }}
+                                </small>
+                            {% endif %}
+                        </div>
+
+                        <!-- Save and Back Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary px-4" style="font-size: 1rem; border-radius: 30px;">
+                                <i class="fas fa-save"></i> Save Party Type
+                            </button>
+                            <a href="{% url 'party_type_list' %}" class="btn btn-outline-secondary px-4" style="font-size: 1rem; border-radius: 30px;">
+                                <i class="fas fa-arrow-left"></i> Back to List
+                            </a>
+                        </div>
+                    </form>
+                </div> <!-- /card-body -->
+            </div> <!-- /card -->
+        </div> <!-- /col -->
+    </div> <!-- /row -->
+</div> <!-- /container-fluid -->
+
+<!-- JavaScript for Front-End Validation -->
+<script>
+function validateForm() {
+    let isValid = true;
+
+    // Get input fields
+    const partyTypeCode = document.getElementById("v_party_type_code");
+    const description   = document.getElementById("description");
+
+    // Get error display elements
+    const partyTypeCodeError = document.getElementById("partyTypeCodeError");
+    const descriptionError   = document.getElementById("descriptionError");
+
+    // Validate Party Type Code
+    if (partyTypeCode.value.trim() === "") {
+        partyTypeCodeError.style.display = "block";
+        isValid = false;
+    } else {
+        partyTypeCodeError.style.display = "none";
+    }
+
+    // Validate Description
+    if (description.value.trim() === "") {
+        descriptionError.style.display = "block";
+        isValid = false;
+    } else {
+        descriptionError.style.display = "none";
+    }
+
+    return isValid;  // Form will only submit if isValid remains true
+}
+</script>
+{% endblock %}

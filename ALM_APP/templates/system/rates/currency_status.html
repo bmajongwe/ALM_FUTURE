@@ -1,0 +1,104 @@
+{% extends "system/rates/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-0">
+    <h2 class="mb-4">Manage Currencies</h2>
+
+    {% if messages %}
+    <div class="mb-2">
+        {% for message in messages %}
+        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="mb-3">
+        <a href="{% url 'add_currency' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> Add Currency
+        </a>
+    </div>
+
+    <!-- Table displaying all currencies -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Currency Code</th>
+                <th>Currency Name</th>
+                <th>Status</th>
+                <th>Reporting Currency</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for currency in currencies %}
+            <tr id="currency-row-{{ currency.pk }}">
+                <td>{{ currency.code }}</td>
+                <td>{{ currency.currency_name }}</td>
+                <td>{{ currency.status }}</td>
+                <td>{{ currency.reporting_currency }}</td>
+                <td>
+                    <a href="{% url 'currency_status_edit' currency.pk %}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    <button class="btn btn-danger btn-sm" onclick="confirmDelete({{ currency.pk }}, '{{ currency.code }}')">
+                        <i class="fas fa-trash-alt"></i> Delete
+                    </button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center text-muted">
+                    No currencies found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        function confirmDelete(currencyId, currencyCode) {
+            if (confirm(`Are you sure you want to delete the currency: ${currencyCode}?`)) {
+                deleteCurrency(currencyId);
+            }
+        }
+
+        function deleteCurrency(currencyId) {
+            fetch(`/currency/delete/${currencyId}/`, {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRFToken": getCSRFToken()  // Get CSRF token
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message); // Show success message
+                    document.getElementById(`currency-row-${currencyId}`).remove(); // Remove row dynamically
+                } else {
+                    alert("Error: " + data.message);
+                }
+            })
+            .catch(error => console.error("Error:", error));
+        }
+
+        // Get CSRF Token from cookies
+        function getCSRFToken() {
+            let cookieValue = null;
+            let cookies = document.cookie.split(";");
+            for (let i = 0; i < cookies.length; i++) {
+                let cookie = cookies[i].trim();
+                if (cookie.startsWith("csrftoken=")) {
+                    cookieValue = cookie.substring("csrftoken=".length, cookie.length);
+                    break;
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</div>
+{% endblock %}

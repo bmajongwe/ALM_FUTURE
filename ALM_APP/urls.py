@@ -1,11 +1,18 @@
 # ALM_APP/urls.py
 from django.urls import path
+
+from ALM_APP.Functions.Cashflow_projections import *
+from ALM_APP.functions_view.rates import add_currency_view, currency_status_edit_view, currency_status_view, delete_currency_view, fetch_currency_list
+from ALM_APP.functions_view import configurations_management
 from . import views
 from .views import *
 from .views import *
 from .Functions.data import *
 
 from .Functions.Operations import *
+from .functions_view.configurations_management import *
+
+
 
 
 urlpatterns = [
@@ -135,7 +142,37 @@ urlpatterns = [
     # path('check-missing-fields/', views.check_missing_fields, name='check_missing_fields'),
 
 
+    #system management
+    path('configurations/', configurations_management, name='configurations_management'),
+    path('party-type/add/', party_type_add_view, name='party_type_add'),
+    path('party-type/list/', party_type_list_view, name='party_type_list'),
+    path('party-type/detail/<int:pk>/', party_type_detail_view, name='party_type_detail'),
+    path('party-type/update/<int:pk>/', party_type_update_view, name='party_type_update'),
+    path('party-type/delete/<int:pk>/', party_type_delete_view, name='party_type_delete'),
 
+
+#     intrests
+
+    path('cashflow-projections/', cashflow_projections, name='cashflow_projections'),
+    path('cashflow-projections/documentation/', cashflow_projections_documentation, name='cashflow_projections_documentation'),
+    path('interest-methods/', InterestMethodListView.as_view(), name='interest_method_list'),
+    path('interest-methods/add/', InterestMethodCreateView.as_view(), name='interest_method_add'),
+    path('interest-methods/<int:pk>/edit/', InterestMethodUpdateView.as_view(), name='interest_method_edit'),
+    path('interest-methods/<int:pk>/delete/', InterestMethodDeleteView.as_view(), name='interest_method_delete'),
+    
+    path('currency/status/edit/<int:pk>/', currency_status_edit_view, name='currency_status_edit'),
+    path('currency/status/', currency_status_view, name='currency_status'),
+    path('currency/add/', add_currency_view, name='add_currency'),
+    path('currency/list/', fetch_currency_list, name='fetch_currency_list'),
+    path("currency/delete/<int:pk>/", delete_currency_view, name="delete_currency"),
+
+
+
+
+
+ 
+
+  
 
 
 ]

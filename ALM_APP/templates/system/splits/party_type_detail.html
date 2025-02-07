@@ -1,0 +1,13 @@
+{% extends "system/splits/base2.html" %}
+{% block content %}
+<div class="container mt-2">
+    <h2 class="text-center mb-4">Party Type Mapping Details</h2>
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">{{ party_type.v_party_type_code }}</h5>
+            <p class="card-text">{{ party_type.description }}</p>
+            <a href="{% url 'party_type_list' %}" class="btn btn-secondary">Back to List</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,7 +1,105 @@
 # forms.py
 from django import forms
 from .models import *
+from django import forms
+from django.forms import modelformset_factory, BaseModelFormSet
+from django import forms
+from .models import DimCurrency
 
+class DimCurrencyCreateForm(forms.ModelForm):
+    class Meta:
+        model = DimCurrency
+        fields = ['code', 'currency_name']  # Only input fields
+
+
+
+
+def deactivate_other_active_currencies(current_currency):
+    """
+    Deactivates other currencies when a new currency is set as Active and Reporting = Yes.
+    """
+    DimCurrency.objects.filter(status="Active", reporting_currency="Yes").exclude(pk=current_currency.pk).update(
+        status="Inactive", reporting_currency="No"
+    )
+
+class DimCurrencyForm(forms.ModelForm):
+    class Meta:
+        model = DimCurrency
+        fields = ['status', 'reporting_currency']  # Only allow editing these fields
+
+    def clean(self):
+        """
+        Ensures only one currency can be set as (Active, Yes).
+        """
+        cleaned_data = super().clean()
+        status = cleaned_data.get("status")
+        reporting_currency = cleaned_data.get("reporting_currency")
+
+        if status == "Active" and reporting_currency == "Yes":
+            # Check if another currency is already set as (Active, Yes)
+            existing_active = DimCurrency.objects.filter(status="Active", reporting_currency="Yes").exclude(pk=self.instance.pk)
+            if existing_active.exists():
+                raise forms.ValidationError("Only one currency can be Active and Reporting = Yes.")
+        
+        return cleaned_data
+
+
+class BaseDimCurrencyFormSet(BaseModelFormSet):
+    def clean(self):
+        """
+        Enforces that only one currency can be Active & Reporting=Yes.
+        Prevents setting Reporting=Yes if Status=Inactive.
+        """
+        super().clean()
+        active_reporting_count = 0
+
+        for form in self.forms:
+            if not form.cleaned_data:
+                continue  # Skip invalid forms
+            
+            status = form.cleaned_data.get('status')
+            reporting = form.cleaned_data.get('reporting_currency')
+
+            # Prevent Inactive currencies from being set as Reporting=Yes
+            if status == 'Inactive' and reporting == 'Yes':
+                form.add_error(
+                    'reporting_currency',
+                    "Cannot set Reporting=Yes when Status is Inactive."
+                )
+
+            # Enforce only one (Active, Yes)
+            if status == 'Active' and reporting == 'Yes':
+                active_reporting_count += 1
+                if active_reporting_count > 1:
+                    raise forms.ValidationError(
+                        "Only one currency can be Active and Reporting=Yes."
+                    )
+
+DimCurrencyFormSet = modelformset_factory(
+    DimCurrency,
+    form=DimCurrencyForm,
+    formset=BaseDimCurrencyFormSet,
+    extra=0,  # No extra empty forms
+    can_delete=False  # Prevent deletion
+)
+
+
+class PartyTypeMappingForm(forms.ModelForm):
+    class Meta:
+        model = PartyTypeMapping
+        fields = ['v_party_type_code', 'description']
+
+    def clean_v_party_type_code(self):
+        code = self.cleaned_data.get("v_party_type_code")
+        # When updating an instance, exclude the current record:
+        qs = PartyTypeMapping.objects.filter(v_party_type_code=code)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError("A party type mapping with this code already exists.")
+        return code
+
+        
 class TimeBucketsForm(forms.ModelForm):
     class Meta:
         model = TimeBuckets

@@ -432,16 +432,7 @@ class Process(models.Model):
     def __str__(self):
         return self.name
     
-# class Process(models.Model):
-#     name = models.CharField(max_length=100)
-#     filters = models.ManyToManyField(ProductFilter, related_name='processes')
-#     created_by = models.CharField(max_length=50, default='System')
-#     created_at = models.DateTimeField(default=timezone.now)
-#     modified_by = models.CharField(max_length=50, default='System')
-#     modified_at = models.DateTimeField(auto_now=True)
 
-#     def __str__(self):
-#         return self.name
 
 
 class Ldn_Customer_Info(models.Model):
@@ -477,6 +468,97 @@ class Ldn_Product_Master(models.Model):  # Class name with underscores
     def __str__(self):
         return self.v_prod_code
     
+ 
+
+class DimCurrencyMaster(models.Model):
+    code = models.CharField(max_length=3, unique=True, verbose_name="Currency Code")
+    name = models.CharField(max_length=255, verbose_name="Currency Name")
+
+    class Meta:
+        db_table = "dim_currency_master"
+        verbose_name = "Currency Master"
+        verbose_name_plural = "Currencies Master"
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+   
+
+class DimCurrency(models.Model):
+    STATUS_CHOICES = [
+        ('Active', 'Active'),
+        ('Inactive', 'Inactive'),
+    ]
+    
+    REPORTING_CHOICES = [
+        ('Yes', 'Yes'),
+        ('No', 'No'),
+    ]
+
+    code = models.CharField(
+        max_length=3, 
+        unique=True, 
+        verbose_name="Currency Code"
+    )
+    currency_name = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True, 
+        verbose_name="Currency Name"
+    )
+    reference_interest_rate_code = models.CharField(
+        max_length=50, 
+        blank=True, 
+        null=True, 
+        verbose_name="Reference Interest Rate Code"
+    )
+    reporting_currency = models.CharField(
+        max_length=3,
+        choices=REPORTING_CHOICES,
+        default='No',
+        verbose_name="Reporting Currency"
+    )
+    status = models.CharField(
+        max_length=8, 
+        choices=STATUS_CHOICES, 
+        default='Inactive',
+        verbose_name="Status"
+    )
+
+    class Meta:
+        db_table = 'dim_currency'
+        verbose_name = "Currency"
+        verbose_name_plural = "Currencies"
+
+    def __str__(self):
+        return f"{self.code} - {self.currency_name or 'No Name'}"
+
+
+class LdnExchangeRate(models.Model):
+    fic_mis_date = models.DateField()
+    v_from_ccy_code = models.CharField(max_length=3)
+    v_to_ccy_code = models.CharField(max_length=3)
+    n_exchange_rate = models.DecimalField(max_digits=15, decimal_places=6)
+    d_last_updated = models.DateField(default=timezone.now)
+
+    class Meta:
+        db_table = 'ldn_exchange_rate'  # or 'Ldn_exchange_rate' if you prefer
+        unique_together = ('fic_mis_date', 'v_from_ccy_code', 'v_to_ccy_code')
+        ordering = ['fic_mis_date']
+
+    def __str__(self):
+        return f"{self.fic_mis_date}: {self.v_from_ccy_code} -> {self.v_to_ccy_code} @ {self.n_exchange_rate}"
+
+
+class DimExchangeRateConf(models.Model):
+    exchange_rate_api_key = models.CharField(max_length=255)
+    use_on_exchange_rates = models.BooleanField(default=False)
+    use_latest_exchange_rates = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'dim_exchange_rate_conf'
+
+    def __str__(self):
+        return f"Exchange Rate Conf (API Key: {self.exchange_rate_api_key})"
 
 
 class Ldn_Common_Coa_Master(models.Model):  # Class with underscores in the name

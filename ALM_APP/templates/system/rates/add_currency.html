@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Add New Currency</h2>
+
+    {% if messages %}
+    <div class="mb-2">
+        {% for message in messages %}
+        <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="POST">
+        {% csrf_token %}
+        
+        <!-- Currency Code Dropdown (Populated from API) -->
+        <div class="mb-3">
+            <label for="currency_code" class="form-label">Currency Code</label>
+            <select id="currency_code" name="code" class="form-control" required>
+                <option value="" disabled selected>-- Select Currency Code --</option>
+            </select>
+            {% if form.code.errors %}
+                <div class="text-danger">
+                    {% for error in form.code.errors %}
+                        <div>- {{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Currency Name (Auto-Filled) -->
+        <div class="mb-3">
+            <label for="currency_name" class="form-label">Currency Name</label>
+            <input type="text" id="currency_name" name="currency_name" class="form-control" readonly required>
+            {% if form.currency_name.errors %}
+                <div class="text-danger">
+                    {% for error in form.currency_name.errors %}
+                        <div>- {{ error }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+
+        <button type="submit" class="btn btn-success">Save Currency</button>
+        <a href="{% url 'currency_status' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+
+<!-- JavaScript for Fetching Currency List & Auto-Filling Currency Name -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const currencyCodeSelect = document.getElementById("currency_code");
+        const currencyNameInput = document.getElementById("currency_name");
+    
+        // Fetch currency codes from the internal API
+        fetch("{% url 'fetch_currency_list' %}")
+            .then(response => response.json())
+            .then(data => {
+                if (data.currencies) {
+                    data.currencies.forEach(currency => {
+                        const option = document.createElement("option");
+                        option.value = currency.code;
+                        option.textContent = currency.code + " - " + currency.name;
+                        currencyCodeSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => console.error("Error fetching currencies:", error));
+    
+        // Auto-fill currency name based on selection
+        currencyCodeSelect.addEventListener("change", function() {
+            const selectedText = this.options[this.selectedIndex].text.split(" - ")[1];
+            currencyNameInput.value = selectedText || "";
+        });
+    });
+    </script>
+    
+
+{% endblock %}

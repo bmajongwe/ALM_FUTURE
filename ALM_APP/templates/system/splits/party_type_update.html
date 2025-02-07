@@ -1,0 +1,26 @@
+{% extends "system/splits/base2.html" %}
+{% block content %}
+<div class="container mt-2">
+    <h2 class="text-center mb-4">Update Party Type Mapping</h2>
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-lg border-0">
+                <div class="card-header text-center" style="background-color: #004085; color: #ffffff;">
+                    Update Party Type Mapping
+                </div>
+                <div class="card-body p-5">
+                    <form method="post" action="{% url 'party_type_update' party_type.id %}">
+                        {% csrf_token %}
+                        <!-- Render the form fields (you can also render them individually for custom styling) -->
+                        {{ form.as_p }}
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary">Update</button>
+                            <a href="{% url 'party_type_list' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

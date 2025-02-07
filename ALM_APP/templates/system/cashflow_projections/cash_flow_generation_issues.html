@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 text-primary">{{ title }}</h1>
+        <a href="{% url 'cashflow_projections' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back 
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title text-danger">Challenges in Cash Flow Generation</h5>
+            <p class="card-text">This guide outlines common challenges that can disrupt the cash flow generation process and provides strategies to address them effectively.</p>
+
+            <div class="mb-4">
+                <h6 class="text-primary">1. Data-Related Issues</h6>
+                <ul>
+                    <li><strong>Missing or Incorrect Dates:</strong> Cash flow calculations rely on accurate dates, such as payment dates, next payment dates, and maturity dates. If these dates are missing or incorrect, the calculations may fail or produce incorrect results.
+                        <br><em>Solution:</em> Ensure that all date fields (e.g., <code>d_next_payment_date</code>, <code>d_maturity_date</code>, <code>d_payment_schedule</code>) are present and correctly formatted before starting the cash flow generation process.</li>
+                    
+                    <li><strong>Unrealistic Balances:</strong> If the loan’s balance is zero or negative, it may lead to illogical cash flow projections.
+                        <br><em>Solution:</em> Validate that the loan balance (<code>n_eop_bal</code>) is positive and reflects the actual financial situation before proceeding with calculations.</li>
+                    
+                    <li><strong>Missing or Incorrect Interest Rates:</strong> Incorrect or missing interest rates can cause skewed financial projections, leading to misleading results.
+                        <br><em>Solution:</em> Ensure that the interest rate (<code>n_curr_interest_rate</code>) is accurate and appropriate for the loan type. Also, ensure that the interest method (e.g., <code>Simple</code>, <code>Amortized</code>, <code>Floating</code>) is well-defined.</li>
+                    
+                    <li><strong>Inconsistent Data:</strong> Inconsistent data in financial schedules, such as out-of-order payment dates or mismatched amounts, can disrupt the cash flow calculation process.
+                        <br><em>Solution:</em> Perform consistency checks on the payment schedules and verify that all related data is logically ordered and accurate before using it in calculations.</li>
+                </ul>
+            </div>
+
+            <div class="mb-4">
+                <h6 class="text-primary">2. Logical Challenges in Cash Flow Calculations</h6>
+                <ul>
+                    <li><strong>Payment Frequency Mismatch:</strong> Cash flow projections can be inaccurate if the frequency of payments (e.g., daily, monthly, quarterly, yearly) is misaligned with the actual loan terms.
+                        <br><em>Solution:</em> Clearly define and verify the payment frequency (<code>v_amrt_term_unit</code>) and day count convention (<code>v_day_count_ind</code>) for each loan to ensure the cash flow projections align with the loan terms.</li>
+                    
+                    <li><strong>Repayment Type Mismanagement:</strong> Different repayment structures, such as <code>amortized</code> vs <code>bullet</code> payments, require specific handling to generate accurate cash flows.
+                        <br><em>Solution:</em> Properly define and manage each repayment type within the cash flow generation logic to ensure accurate financial projections. For example, amortized loans involve regular payments over time, while bullet loans require a single payment at maturity.</li>
+                    
+                    <li><strong>Edge Cases:</strong> Unusual scenarios, such as loans with very short terms, zero or one payment date, or highly variable interest rates, may not be correctly handled, leading to inaccurate projections.
+                        <br><em>Solution:</em> Identify potential edge cases and ensure the cash flow generation process includes logic to handle these scenarios effectively.</li>
+                </ul>
+            </div>
+
+            <div class="mb-4">
+                <h6 class="text-primary">3. Strategies to Overcome These Challenges</h6>
+                <ul>
+                    <li><strong>Data Validation:</strong> Validate all necessary financial data, such as dates, balances, interest rates, and repayment structures, before running projections. This helps ensure that the input data is accurate and complete, reducing the likelihood of errors during cash flow generation.</li>
+                    
+                    <li><strong>Error Handling and Monitoring:</strong> Implement robust error-checking procedures to catch and address issues as they arise. Continuous monitoring of the cash flow generation process can help identify and resolve problems early, preventing disruptions.</li>
+                    
+                </ul>
+            </div>
+
+            <div class="alert alert-info">
+                <strong>Conclusion:</strong> By focusing on accurate data management, clear definitions of repayment structures, and comprehensive testing, you can significantly reduce the risk of failures in cash flow generation. Regular updates, error-handling mechanisms, and proactive management are essential for maintaining the integrity of financial projections, ensuring they support sound business decisions.
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
