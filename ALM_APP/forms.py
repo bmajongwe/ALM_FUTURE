@@ -6,6 +6,30 @@ from django.forms import modelformset_factory, BaseModelFormSet
 from django import forms
 from .models import DimCurrency
 
+
+
+class ProcessNameForm(forms.Form):
+    process_name_choices = forms.MultipleChoiceField(
+        required=False,
+        widget=forms.SelectMultiple(attrs={'size': '10'}),
+        choices=[]
+    )
+
+class ProductTypeForm(forms.Form):
+    product_type_choices = forms.MultipleChoiceField(
+        required=False,
+        widget=forms.SelectMultiple(attrs={'size': '10'}),
+        choices=[]
+    )
+
+class TimeHorizonForm(forms.Form):
+    TIME_RANGES = [
+        ('0-30', '0–30 Days'),
+        ('31-60', '31–60 Days'),
+    ]
+    time_range = forms.ChoiceField(choices=TIME_RANGES)
+    
+
 class DimCurrencyCreateForm(forms.ModelForm):
     class Meta:
         model = DimCurrency

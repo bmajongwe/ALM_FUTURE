@@ -2,15 +2,21 @@
 from django.urls import path
 
 from ALM_APP.Functions.Cashflow_projections import *
+from ALM_APP.functions_view.alm_lrm import LRM_ALM
+from ALM_APP.functions_view.alm_reports import export_liquidity_gap_cons_to_excel, export_liquidity_gap_to_excel, liquidity_gap_report_base, liquidity_gap_report_cons
+from ALM_APP.functions_view.behavioral_pattern import *
+from ALM_APP.functions_view.load_lrm import  edit_selection, list_selections, retrieve_data, select_process_name, select_product_type, select_purpose, select_time_horizon, view_selection
+from ALM_APP.functions_view.party_splits import configurations_management, party_type_add_view, party_type_delete_view, party_type_detail_view, party_type_list_view, party_type_update_view
+from ALM_APP.functions_view.proccess import *
+from ALM_APP.functions_view.product_filter import ProductFilterCreateView, ProductFilterDeleteView, ProductFilterDetailView, ProductFilterListView, ProductFilterUpdateView
 from ALM_APP.functions_view.rates import add_currency_view, currency_status_edit_view, currency_status_view, delete_currency_view, fetch_currency_list
-from ALM_APP.functions_view import configurations_management
+from ALM_APP.functions_view.time_bucket import *
 from . import views
 from .views import *
 from .views import *
 from .Functions.data import *
 
 from .Functions.Operations import *
-from .functions_view.configurations_management import *
 
 
 
@@ -25,27 +31,27 @@ urlpatterns = [
     # path('create_behavioral_pattern/', liquidity_gap_results_view, name='create_behavioral_pattern'),
 
     # behavioural patterns URLs
-    path('create_behavioral_pattern/', views.create_behavioral_pattern,
+    path('create_behavioral_pattern/', create_behavioral_pattern,
          name='create_behavioral_pattern'),
-    path('behavioral_patterns_list/', views.behavioral_patterns_list,
+    path('behavioral_patterns_list/', behavioral_patterns_list,
          name='behavioral_patterns_list'),
     path('edit_behavioral_pattern/<int:id>/',
-         views.edit_behavioral_pattern, name='edit_behavioral_pattern'),
+         edit_behavioral_pattern, name='edit_behavioral_pattern'),
     path('delete_behavioral_pattern/<int:id>/',
-         views.delete_behavioral_pattern, name='delete_behavioral_pattern'),
+         delete_behavioral_pattern, name='delete_behavioral_pattern'),
     path('view_behavioral_patterns/<int:id>/',
-         views.view_behavioral_pattern, name='view_behavioral_pattern'),
+         view_behavioral_pattern, name='view_behavioral_pattern'),
 
     # Time buckets URLs
-    path('time_bucket_list/', views.time_buckets_list, name='time_bucket_list'),
-    path('create_time_bucket/', views.create_time_bucket,
+    path('time_bucket_list/', time_buckets_list, name='time_bucket_list'),
+    path('create_time_bucket/', create_time_bucket,
          name='create_time_bucket'),
     path('edit_time_bucket/<int:id>/',
-         views.edit_time_bucket, name='edit_time_bucket'),
+         edit_time_bucket, name='edit_time_bucket'),
     path('delete_time_buckets/<int:id>/',
-         views.delete_time_bucket, name='delete_time_bucket'),
+         delete_time_bucket, name='delete_time_bucket'),
     path('view_time_bucket/<int:id>/',
-         views.view_time_bucket, name='view_time_bucket'),
+         view_time_bucket, name='view_time_bucket'),
 
     # ProductFilter URLs
     path('filters/', ProductFilterListView.as_view(), name='product_filter_list'),
@@ -56,13 +62,13 @@ urlpatterns = [
          name='product_filter_update'),
     path('filters/<int:pk>/delete/', ProductFilterDeleteView.as_view(),
          name='product_filter_delete'),
-    path('filters/<int:pk>/', views.ProductFilterDetailView.as_view(),
+    path('filters/<int:pk>/', ProductFilterDetailView.as_view(),
          name='product_filter_detail'),
 
     # Process URLs
      path('processes/', ProcessListView.as_view(), name='processes_list'),
-     path('processes/create/', views.process_create_view, name='process_create'),
-     path('processes/execute/', views.execute_alm_process_view,
+     path('processes/create/', process_create_view, name='process_create'),
+     path('processes/execute/', execute_alm_process_view,
          name='execute_process'),
 #     path('processes/<int:pk>/edit/',
 #          ProcessUpdateView.as_view(), name='process_update'),
@@ -76,7 +82,7 @@ urlpatterns = [
 #          name='liquidity_gap_report'),
     path('export/liquidity-gap/', export_liquidity_gap_to_excel,
          name='export_liquidity_gap_to_excel'),
-    path('export/liquidity-gap-cons/', views.export_liquidity_gap_cons_to_excel,
+    path('export/liquidity-gap-cons/', export_liquidity_gap_cons_to_excel,
          name='export_liquidity_gap_cons_to_excel'),
      path('liquidity-gap/base/', liquidity_gap_report_base, name='liquidity_gap_report_base'),
     path('liquidity-gap/cons/', liquidity_gap_report_cons, name='liquidity_gap_report_cons'),
@@ -165,6 +171,25 @@ urlpatterns = [
     path('currency/add/', add_currency_view, name='add_currency'),
     path('currency/list/', fetch_currency_list, name='fetch_currency_list'),
     path("currency/delete/<int:pk>/", delete_currency_view, name="delete_currency"),
+
+
+
+
+
+#     LRM
+    path('ALM_LRM/', LRM_ALM, name='LRM_ALM'),
+
+
+     path('select_purpose/', select_purpose, name='select_purpose'),
+    path('select_process_name/', select_process_name, name='select_process_name'),
+    path('select_product_type/', select_product_type, name='select_product_type'),
+    path('select_time_horizon/', select_time_horizon, name='select_time_horizon'),
+    path('retrieve_data/', retrieve_data, name='retrieve_data'),
+    path('selections/', list_selections, name='list_selections'),
+    path('selections/<int:id>/', view_selection, name='view_selection'),
+    path('selections/<int:id>/edit/', edit_selection, name='edit_selection'),
+
+
 
 
 

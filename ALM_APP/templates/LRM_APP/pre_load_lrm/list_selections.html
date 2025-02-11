@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}LCR & NSFR Selections{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">LCR & NSFR Selections</h2>
+    
+    <table class="table table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Selection Purpose</th>
+                <th>Process Names</th>
+                <th>Product Types</th>
+                <th>Time Horizons</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for selection in selections %}
+                <tr>
+                    <td>{{ selection.selection_purpose }}</td>
+                    <td>{{ selection.selected_process_names|join:", " }}</td>
+                    <td>{{ selection.selected_product_types|join:", " }}</td>
+                    <td>{{ selection.selected_time_horizons|join:", " }}</td>
+                    <td>
+                        <a href="{% url 'view_selection' selection.id %}" class="btn btn-info btn-sm">View</a>
+                        <a href="{% url 'edit_selection' selection.id %}" class="btn btn-warning btn-sm">Edit</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center">No selections found.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

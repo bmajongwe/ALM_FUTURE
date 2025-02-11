@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}View Selection{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Selection Details</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title fw-bold">{{ selection.selection_purpose }}</h5>
+            
+            <h6 class="fw-bold mt-3">Process Names:</h6>
+            <p>{{ selection.selected_process_names|join:", " }}</p>
+
+            <h6 class="fw-bold">Product Types:</h6>
+            <p>{{ selection.selected_product_types|join:", " }}</p>
+
+            <h6 class="fw-bold">Time Horizons:</h6>
+            <p>{{ selection.selected_time_horizons|join:", " }}</p>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="{% url 'list_selections' %}" class="btn btn-secondary">Back</a>
+        <a href="{% url 'edit_selection' selection.id %}" class="btn btn-warning">Edit</a>
+    </div>
+</div>
+{% endblock %}

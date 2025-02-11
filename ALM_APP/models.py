@@ -447,6 +447,31 @@ class Ldn_Customer_Info(models.Model):
     class Meta:
         db_table = 'Ldn_Customer_Info'
 
+
+from django.db import models
+
+class Ldn_HQLA_Asset(models.Model):
+    v_prod_code = models.CharField(max_length=20, null=False)  # Product Code
+    fic_mis_date = models.DateField(null=False)  # MIS Reporting Date
+    v_prod_name = models.CharField(max_length=255, null=True)  # Product Name
+    v_prod_type = models.CharField(max_length=255, null=True)  # Product Type
+    v_prod_group_desc = models.CharField(max_length=255, null=True)  # Product Group Description
+    v_common_coa_code = models.CharField(max_length=20, null=True)  # Common COA Code
+    v_balance_sheet_category = models.CharField(max_length=20, null=True)  # Balance Sheet Category
+    v_prod_type_desc = models.CharField(max_length=255, null=True)  # Product Type Description
+    v_load_type = models.CharField(max_length=20, null=True)  # Load Type
+    v_lob_code = models.CharField(max_length=20, null=True)  # LOB Code
+    v_prod_desc = models.CharField(max_length=255, null=True)  # Product Description
+    v_hqla_level = models.CharField(max_length=10, null=True)  # HQLA Level (Level 1, 2A, 2B)
+    f_haircut_percentage = models.FloatField(null=True)  # Haircut Percentage
+    f_market_value = models.DecimalField(max_digits=15, decimal_places=2, null=True)  # Market Value
+
+    def __str__(self):
+        return f"{self.v_prod_name} - {self.v_hqla_level} (Haircut: {self.f_haircut_percentage}%)"
+
+    class Meta:
+        db_table = 'LDN_HQLA_ASSET'  # Explicitly set the table name
+
 class Ldn_Product_Master(models.Model):  # Class name with underscores
     v_prod_code = models.CharField(max_length=20, null=False)  # VARCHAR2(20)
     fic_mis_date = models.DateField(null=False)  # DATE
@@ -1021,6 +1046,67 @@ class LiquidityGapResultsCons(models.Model):
 
     class Meta:
         db_table = 'liquidity_gap_results_cons'
+
+class ExtractedLiquidityData(models.Model):
+    fic_mis_date = models.DateField()  # Reporting Date
+    process_name = models.CharField(max_length=100)  # Ensure this exists
+    time_horizon_label = models.CharField(max_length=50, null=True, blank=True)
+    bucket_start_date = models.DateField()
+    bucket_end_date = models.DateField()
+    account_type = models.CharField(max_length=50)  # Inflow, Outflow
+    v_prod_type = models.CharField(max_length=255)  # Product Type
+    v_prod_code = models.CharField(max_length=50)  # Product Code
+    v_product_name = models.CharField(max_length=255, null=True, blank=True)  # Product Name
+    v_product_splits = models.CharField(max_length=255, null=True, blank=True)  # Product Splits
+    v_prod_type_desc = models.CharField(max_length=255, null=True, blank=True)  # Product Type Description
+    v_ccy_code = models.CharField(max_length=10)  # Currency
+    inflows = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)  # Extracted inflows
+    outflows = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)  # Extracted outflows
+    
+    # Additional fields for deeper analysis
+    
+    n_total_cash_flow_amount = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)  # Total Cash Flow
+    n_total_principal_payment = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)  # Total Principal Payment
+    n_total_interest_payment = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)  # Total Interest Payment
+    
+    class Meta:
+        db_table = "liquidity_data"
+
+
+from django.db import models
+
+from django.db import models
+
+class LrmSelectionConfig(models.Model):
+    selection_purpose = models.CharField(max_length=50, choices=[
+        ('LCR', 'Liquidity Coverage Ratio'),
+        ('NSFR', 'Net Stable Funding Ratio')
+    ], 
+    unique=True 
+    )
+    selected_process_names = models.JSONField()  # Stores selected process names as a list
+    selected_product_types = models.JSONField()  # Stores selected product types as a list
+    selected_time_horizons = models.JSONField()  # Stores selected time ranges as a list
+    created_at = models.DateTimeField(auto_now_add=True)  # Timestamp when saved
+
+    class Meta:
+        db_table = "lrm_selection_config"
+
+
+class LrmTimeHorizonConfig(models.Model):
+    label = models.CharField(max_length=50, unique=True)  # e.g., "< 6 months", "1-30 Days"
+    start_days = models.IntegerField(null=True, blank=True)  # Start range in days (e.g., 1 for 1-30 Days)
+    end_days = models.IntegerField(null=True, blank=True)  # End range in days (e.g., 30 for 1-30 Days)
+    start_months = models.IntegerField(null=True, blank=True)  # Start range in months (e.g., 0 for <6 months)
+    end_months = models.IntegerField(null=True, blank=True)  # End range in months (e.g., 6 for 6-12 months; NULL for >12 months)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "lrm_time_horizon_config"
+
+    
+    def __str__(self):
+        return self.label
 
 
 

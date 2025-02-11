@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Select Time Horizon{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Select Time Horizon</h2>
+    <form method="POST">
+        {% csrf_token %}
+        <div class="row">
+            <!-- Available Time Horizons -->
+            <div class="col-md-5">
+                <h5>Available Time Horizons</h5>
+                <select id="availableTimeRanges" class="form-control" multiple size="10">
+                    {% for horizon in time_horizons %}
+                        <option value="{{ horizon.label }}">{{ horizon.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Buttons -->
+            <div class="col-md-2 text-center align-self-center">
+                <button type="button" class="btn btn-primary mb-2 w-100" id="moveRight">&gt;&gt;</button>
+                <button type="button" class="btn btn-primary w-100" id="moveLeft">&lt;&lt;</button>
+            </div>
+
+            <!-- Selected Time Horizons -->
+            <div class="col-md-5">
+                <h5>Selected Time Horizons</h5>
+                <select id="selectedTimeRanges" class="form-control" name="time_range_choices" multiple size="10">
+                </select>
+            </div>
+        </div>
+
+        <div class="mt-3">
+            <button type="button" class="btn btn-secondary" onclick="history.back()">Back</button>
+            <button type="submit" class="btn btn-primary">Next</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const moveRight = document.getElementById("moveRight");
+        const moveLeft = document.getElementById("moveLeft");
+        const availableList = document.getElementById("availableTimeRanges");
+        const selectedList = document.getElementById("selectedTimeRanges");
+
+        moveRight.addEventListener("click", function() {
+            moveSelected(availableList, selectedList);
+        });
+        moveLeft.addEventListener("click", function() {
+            moveSelected(selectedList, availableList);
+        });
+
+        function moveSelected(source, target) {
+            Array.from(source.selectedOptions).forEach(option => {
+                target.add(option);
+            });
+        }
+    });
+</script>
+{% endblock %}

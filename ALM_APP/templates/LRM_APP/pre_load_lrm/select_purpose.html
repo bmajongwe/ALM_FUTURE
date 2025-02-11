@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Select Purpose{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Select Purpose</h2>
+    <form method="POST">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label class="form-label fw-bold">Choose Extraction Purpose:</label>
+            <select name="selection_purpose" class="form-select">
+                <option value="LCR" {% if 'LCR' in existing_purposes %}disabled{% endif %}>Liquidity Coverage Ratio (LCR)</option>
+                <option value="NSFR" {% if 'NSFR' in existing_purposes %}disabled{% endif %}>Net Stable Funding Ratio (NSFR)</option>
+            </select>
+        </div>
+        <div class="mt-3">
+            <button type="submit" class="btn btn-primary">Next</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

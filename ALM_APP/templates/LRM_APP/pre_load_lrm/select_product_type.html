@@ -1,0 +1,66 @@
+<!-- select_product_type.html -->
+{% extends "base.html" %}
+{% block title %}Select Product Type{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Select Product Type</h2>
+    <form method="POST" class="needs-validation">
+        {% csrf_token %}
+        <div class="row">
+            <!-- Available -->
+            <div class="col-md-5">
+                <h5>Available Product Types</h5>
+                <select id="availableProductTypes" class="form-control" multiple size="10">
+                    {% for pt in form.product_type_choices.field.choices %}
+                        <option value="{{ pt.0 }}">{{ pt.1 }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Buttons -->
+            <div class="col-md-2 text-center align-self-center">
+                <button type="button" class="btn btn-primary mb-2 w-100" id="moveRight">&gt;&gt;</button>
+                <button type="button" class="btn btn-primary w-100" id="moveLeft">&lt;&lt;</button>
+            </div>
+
+            <!-- Selected -->
+            <div class="col-md-5">
+                <h5>Selected Product Types</h5>
+                <select id="selectedProductTypes" class="form-control" name="product_type_choices" multiple size="10">
+                </select>
+            </div>
+        </div>
+
+        <!-- Hidden field if needed -->
+        <!-- <input type="hidden" name="selected_product_types" id="selectedProductTypesHidden"> -->
+
+        <div class="mt-3">
+            <button type="button" class="btn btn-secondary" onclick="history.back()">Back</button>
+            <button type="submit" class="btn btn-primary">Next</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const moveRight = document.getElementById("moveRight");
+        const moveLeft = document.getElementById("moveLeft");
+        const availableList = document.getElementById("availableProductTypes");
+        const selectedList = document.getElementById("selectedProductTypes");
+        // const hiddenSelected = document.getElementById("selectedProductTypesHidden");
+
+        moveRight.addEventListener("click", function() {
+            moveSelected(availableList, selectedList);
+        });
+        moveLeft.addEventListener("click", function() {
+            moveSelected(selectedList, availableList);
+        });
+
+        function moveSelected(source, target) {
+            Array.from(source.selectedOptions).forEach(option => {
+                target.add(option);
+            });
+        }
+    });
+</script>
+{% endblock %}

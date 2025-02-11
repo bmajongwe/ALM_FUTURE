@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Review and Finalize Selection{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Review and Finalize Your Selections</h2>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <!-- Selection Purpose -->
+        <div class="mb-4">
+            <h5 class="fw-bold">Selection Purpose</h5>
+            <p class="form-control">{{ selection_purpose }}</p>
+        </div>
+
+        <!-- Selected Process Names -->
+        <div class="mb-4">
+            <h5 class="fw-bold">Selected Process Names</h5>
+            <ul class="list-group">
+                {% for process in selected_process_names %}
+                    <li class="list-group-item">{{ process }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Selected Product Types -->
+        <div class="mb-4">
+            <h5 class="fw-bold">Selected Product Types</h5>
+            <ul class="list-group">
+                {% for product in selected_product_types %}
+                    <li class="list-group-item">{{ product }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Selected Time Horizons -->
+        <div class="mb-4">
+            <h5 class="fw-bold">Selected Time Horizons</h5>
+            <ul class="list-group">
+                {% for time in selected_time_horizons %}
+                    <li class="list-group-item">{{ time }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="mt-4">
+            <button type="button" class="btn btn-secondary" onclick="history.back()">Back</button>
+            <button type="submit" class="btn btn-success px-4">Finalize & Save</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

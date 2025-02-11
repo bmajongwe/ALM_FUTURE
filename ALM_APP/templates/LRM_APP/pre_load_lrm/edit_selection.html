@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Edit Selection{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">Edit Selection</h2>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <!-- Selection Purpose -->
+        <div class="mb-4">
+            <label class="form-label fw-bold">Selection Purpose:</label>
+            <select name="selection_purpose" class="form-select">
+                <option value="LCR" {% if selection.selection_purpose == "LCR" %}selected{% endif %}>Liquidity Coverage Ratio (LCR)</option>
+                <option value="NSFR" {% if selection.selection_purpose == "NSFR" %}selected{% endif %}>Net Stable Funding Ratio (NSFR)</option>
+            </select>
+        </div>
+
+        <!-- Process Names -->
+        <div class="mb-4">
+            <label class="form-label fw-bold">Process Names:</label>
+            <select name="selected_process_names" class="form-control" multiple>
+                {% for process in available_processes %}
+                    <option value="{{ process }}" {% if process in selection.selected_process_names %}selected{% endif %}>{{ process }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Product Types -->
+        <div class="mb-4">
+            <label class="form-label fw-bold">Product Types:</label>
+            <select name="selected_product_types" class="form-control" multiple>
+                {% for product in available_products %}
+                    <option value="{{ product }}" {% if product in selection.selected_product_types %}selected{% endif %}>{{ product }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Time Horizons -->
+        <div class="mb-4">
+            <label class="form-label fw-bold">Time Horizons:</label>
+            <select name="selected_time_horizons" class="form-control" multiple>
+                {% for time in time_horizons %}
+                    <option value="{{ time.label }}" {% if time.label in selection.selected_time_horizons %}selected{% endif %}>{{ time.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="mt-4">
+            <a href="{% url 'view_selection' selection.id %}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-success">Save Changes</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
