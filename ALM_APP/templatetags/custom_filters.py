@@ -4,6 +4,17 @@ from django import template
 
 register = template.Library()
 
+@register.filter(name='dictvalue')
+def dictvalue(d, key):
+    """
+    Safely returns the value for 'key' in dictionary 'd'
+    """
+    if d is None:
+        return None
+    return d.get(key, [])
+
+
+
 @register.filter
 def get_item(list_data, index):
     try:

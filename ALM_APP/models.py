@@ -1073,9 +1073,7 @@ class ExtractedLiquidityData(models.Model):
         db_table = "liquidity_data"
 
 
-from django.db import models
 
-from django.db import models
 
 class LrmSelectionConfig(models.Model):
     selection_purpose = models.CharField(max_length=50, choices=[
@@ -1110,3 +1108,62 @@ class LrmTimeHorizonConfig(models.Model):
 
 
 
+
+class HQLAConfig(models.Model):
+    """
+    Stores haircut percentages and caps for Level 2A and Level 2B dynamically.
+    This allows configuration from the database instead of hardcoded values.
+    """
+
+    label = models.CharField(max_length=50, unique=True, default="HQLA_Default")  # Unique identifier for config
+    level_2a_haircut = models.DecimalField(max_digits=5, decimal_places=2, default=15.00)  # 15% Haircut
+    level_2b_haircut = models.DecimalField(max_digits=5, decimal_places=2, default=50.00)  # 50% Haircut
+    level_2a_cap = models.DecimalField(max_digits=5, decimal_places=2, default=40.00)  # 40% Cap
+    level_2b_cap = models.DecimalField(max_digits=5, decimal_places=2, default=15.00)  # 15% Cap
+
+    last_updated = models.DateTimeField(auto_now=True)  # Timestamp of last update
+
+    def __str__(self):
+        return f"{self.label} (Updated: {self.last_updated})"
+
+    class Meta:
+        db_table = "hqla_config"
+
+class HQLAClassification(models.Model):
+    fic_mis_date = models.DateField()  # Reporting Date
+    v_prod_type = models.CharField(max_length=255 )  # Product Type from ExtractedLiquidityData
+    v_prod_code = models.CharField(max_length=50, unique=True)  # Product Code
+    hqla_level = models.CharField(max_length=10, choices=[
+        ("Level 1", "Level 1"), 
+        ("Level 2A", "Level 2A"), 
+        ("Level 2B", "Level 2B")
+    ])
+    ratings = models.CharField(max_length=50, null=True, blank=True)  # Ratings (Sovereign, Corporate, etc.)
+    risk_weight = models.DecimalField(max_digits=5, decimal_places=2, default=1.00)  # HQLA weighting
+    haircut = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)  # Haircut %
+    max_hqla_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=100.00)  # Max % of HQLA
+
+    def __str__(self):
+        return f"{self.v_prod_type} - {self.hqla_level} (Risk: {self.risk_weight}%, Haircut: {self.haircut}%)"
+
+    class Meta:
+        db_table = "hqla_classification"
+
+
+class HQLAStock(models.Model):
+    fic_mis_date = models.DateField()  # Reporting Date
+    v_prod_type = models.CharField(max_length=255)  # Product Type from ExtractedLiquidityData
+    v_prod_code = models.CharField(max_length=50)  # Product Code
+    v_product_name = models.CharField(max_length=255)  # Stores selected process names as a list
+    ratings = models.CharField(max_length=50, null=True, blank=True)  # Ratings (Sovereign, Corporate, etc.)
+    hqla_level = models.CharField(max_length=10)  # Level 1, 2A, or 2B
+    n_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)  # Market Value from extracted data
+    v_ccy_code = models.CharField(max_length=10)  # Currency
+    risk_weight = models.DecimalField(max_digits=5, decimal_places=2, default=1.00)  # Basel II Risk Weight %
+    weighted_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)  # Adjusted for weighting
+    adjusted_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)  # Market Value after Haircut
+    account_type = models.CharField(max_length=50)  # Inflow, Outflow
+    
+
+    class Meta:
+        db_table = "hqla_stock"

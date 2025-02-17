@@ -1,3 +1,4 @@
+from ALM_APP.Functions.classify_and_store_hqla import classify_and_store_hqla_multi_ccy
 from ALM_APP.Functions.alm_execution_functions import execute_alm_process_logic
 from ALM_APP.Functions.pre_load_lrm import transfer_lrm_data
 from .models import LiquidityGapResultsCons
@@ -71,7 +72,9 @@ def project_cash_flows_view(request):
     # status=execute_alm_process_logic(process_name, fic_mis_date)
 
 
-    status=transfer_lrm_data(fic_mis_date)
+    # status=transfer_lrm_data(fic_mis_date)
+
+    status=classify_and_store_hqla_multi_ccy(fic_mis_date)
 
 
     # status= project_cash_flows(fic_mis_date)
