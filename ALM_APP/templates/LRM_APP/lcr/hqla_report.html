@@ -1,244 +1,272 @@
+{% extends "base.html" %}
 {% load custom_filters %}
-<!DOCTYPE html>
-<html>
-<head>
-  <title>HQLA Report</title>
-  <style>
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 2rem;
-    }
-    th, td {
-      border: 1px solid #aaa;
-      padding: 6px 8px;
-      text-align: left;
-    }
-    h2, h3 {
-      margin-top: 1.5rem;
-    }
-  </style>
-</head>
-<body>
-  <h1>HQLA Report</h1>
 
-  <!-- (A) Optional Filter Form -->
-  <form method="get" action="">
-    <label for="fic_mis_date">FIC MIS Date:</label>
-    <input
-      type="date"
-      name="fic_mis_date"
-      id="fic_mis_date"
-      value="{{ fic_mis_date_selected|default_if_none:'' }}"
-    />
-    <label for="currency">Currency:</label>
-    <input
-      type="text"
-      name="currency"
-      id="currency"
-      value="{{ currency_selected|default_if_none:'' }}"
-      placeholder="e.g. USD"
-    />
-    <button type="submit">Filter</button>
-  </form>
+{% block content %}
+<div class="container my-5">
+  <div class="row mb-4">
+    <div class="col">
+      <h1 class="mb-4">HQLA Report</h1>
+    </div>
+  </div>
+
+   <!-- (A) Filter Form with Dropdowns -->
+   <div class="row mb-4">
+    <div class="col">
+      <form method="get" action="" class="row g-3 align-items-end">
+        <!-- FIC MIS Date -->
+        <div class="col-md-3">
+          <label for="fic_mis_date" class="form-label">FIC MIS Date:</label>
+          <select name="fic_mis_date" id="fic_mis_date" class="form-select">
+            <!-- Optional "All" or placeholder -->
+            <option value="">--- All Dates ---</option>
+
+            {% for dateval in all_mis_dates %}
+              {# Compare dateval to the selected param #}
+              <option value="{{ dateval|date:'Y-m-d' }}"
+                {% if dateval|date:'Y-m-d' == fic_mis_date_selected %}
+                  selected
+                {% endif %}
+              >
+                {{ dateval|date:'Y-m-d' }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- Currency -->
+        <div class="col-md-3">
+          <label for="currency" class="form-label">Currency:</label>
+          <select name="currency" id="currency" class="form-select">
+            <!-- Optional "All" or placeholder -->
+            <option value="">--- All Currencies ---</option>
+
+            {% for cur in all_currencies %}
+              <option value="{{ cur }}"
+                {% if cur == currency_selected %}
+                  selected
+                {% endif %}
+              >
+                {{ cur }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary">Filter</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <hr />
 
+  <!-- (B) If No Data -->
   {% if currencies|length == 0 %}
-    <p><em>No records found for the specified filter.</em></p>
+    <p class="text-muted"><em>No records found for the specified filter.</em></p>
   {% endif %}
 
-  <!-- (B) Loop over each currency -->
+  <!-- (C) Loop over each currency block -->
   {% for ccy in currencies %}
-    <h2>HQLA for Currency: {{ ccy }}</h2>
+    <div class="my-5">
+      <h2 class="mb-4">HQLA for Currency: {{ ccy }}</h2>
 
-    <!-- ================== LEVEL 1 ================== -->
-    <h3>1.1 Level 1 Assets</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Reference</th>
-          <th>Item</th>
-          <th>N_Amount</th>
-          <th>Risk_Weight</th>
-          <th>Weighted_Amount</th>
-          <th>Adjusted_Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% with l1_dict=level_1_assets|dictvalue:ccy %}
-          <!-- Detail items for Level 1 -->
-          {% regroup l1_dict.items by v_prod_type as l1_by_type %}
-          {% for group in l1_by_type %}
+      <!-- 1.1 LEVEL 1 ASSETS -->
+      <h3 class="mb-3">1.1 Level 1 Assets</h3>
+      <div class="table-responsive mb-4">
+        <table class="table table-bordered table-striped">
+          <thead class="table-light">
             <tr>
-              <td>1.1</td>
-              <td><strong>{{ group.grouper }}</strong></td>
-              <td></td>
-              <td></td>
-              <td></td>
-              <td></td>
+              <th>Reference</th>
+              <th>Item</th>
+              <th>Amount</th>
+              <th>Risk Weight</th>
+              <th>Weighted Amount</th>
+              <th>Adjusted Amount</th>
             </tr>
-            {% for item in group.list %}
+          </thead>
+          <tbody>
+            {% with base="1.1" %}
+              {% with l1_dict=level_1_assets|dictvalue:ccy %}
+                {% regroup l1_dict.items by v_prod_type as l1_by_type %}
+                {% for group in l1_by_type %}
+                  <!-- Parent row: product type -->
+                  <tr class="table-secondary">
+                    <td>{{ base }}.{{ forloop.counter }}</td>
+                    <td><strong>{{ group.grouper }}</strong></td>
+                    <td colspan="4"></td>
+                  </tr>
+
+                  <!-- Child rows: each product name under that product type -->
+                  {% for item in group.list %}
+                  <tr>
+                    <td>{{ base }}.{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
+                    <td>{{ item.v_product_name }}</td>
+                    <td>{{ item.n_amount }}</td>
+                    <td>{{ item.risk_weight }}</td>
+                    <td>{{ item.weighted_amount }}</td>
+                    <td>{{ item.adjusted_amount }}</td>
+                  </tr>
+                  {% endfor %}
+                {% endfor %}
+
+                <!-- Totals at the bottom for Level 1 -->
+                {% for tot in l1_dict.totals %}
+                  <tr class="fw-bold">
+                    <td>{{ base }}.T{{ forloop.counter }}</td>
+                    <td>{{ tot.v_product_name }}</td>
+                    <td>{{ tot.n_amount }}</td>
+                    <td>{{ tot.risk_weight }}</td>
+                    <td>{{ tot.weighted_amount }}</td>
+                    <td>{{ tot.adjusted_amount }}</td>
+                  </tr>
+                {% endfor %}
+              {% endwith %}
+            {% endwith %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 1.2 LEVEL 2A ASSETS -->
+      <h3 class="mb-3">1.2 Level 2A Assets</h3>
+      <div class="table-responsive mb-4">
+        <table class="table table-bordered table-striped">
+          <thead class="table-light">
             <tr>
-              <td>1.1.x</td>
-              <td>{{ item.v_product_name }}</td>
-              <td>{{ item.n_amount }}</td>
-              <td>{{ item.risk_weight }}</td>
-              <td>{{ item.weighted_amount }}</td>
-              <td>{{ item.adjusted_amount }}</td>
+              <th>Reference</th>
+              <th>Item</th>
+              <th>N_Amount</th>
+              <th>Risk_Weight</th>
+              <th>Weighted_Amount</th>
+              <th>Adjusted_Amount</th>
             </tr>
-            {% endfor %}
-          {% endfor %}
+          </thead>
+          <tbody>
+            {% with base="1.2" %}
+              {% with l2a_dict=level_2a_assets|dictvalue:ccy %}
+                {% regroup l2a_dict.items by v_prod_type as l2a_by_type %}
+                {% for group in l2a_by_type %}
+                  <tr class="table-secondary">
+                    <td>{{ base }}.{{ forloop.counter }}</td>
+                    <td><strong>{{ group.grouper }}</strong></td>
+                    <td colspan="4"></td>
+                  </tr>
+                  {% for item in group.list %}
+                  <tr>
+                    <td>{{ base }}.{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
+                    <td>{{ item.v_product_name }}</td>
+                    <td>{{ item.n_amount }}</td>
+                    <td>{{ item.risk_weight }}</td>
+                    <td>{{ item.weighted_amount }}</td>
+                    <td>{{ item.adjusted_amount }}</td>
+                  </tr>
+                  {% endfor %}
+                {% endfor %}
 
-          <!-- Totals for Level 1 -->
-          {% for tot in l1_dict.totals %}
-            <tr style="font-weight: bold;">
-              <td></td>
-              <td>{{ tot.v_prod_type }}</td>
-              <td>{{ tot.n_amount }}</td>
-              <td>{{ tot.risk_weight }}</td>
-              <td>{{ tot.weighted_amount }}</td>
-              <td>{{ tot.adjusted_amount }}</td>
-            </tr>
-          {% endfor %}
-        {% endwith %}
-      </tbody>
-    </table>
+                <!-- Totals for Level 2A -->
+                {% for tot in l2a_dict.totals %}
+                  <tr class="fw-bold">
+                    <td>{{ base }}.T{{ forloop.counter }}</td>
+                    <td>{{ tot.v_product_name }}</td>
+                    <td>{{ tot.n_amount }}</td>
+                    <td>{{ tot.risk_weight }}</td>
+                    <td>{{ tot.weighted_amount }}</td>
+                    <td>{{ tot.adjusted_amount }}</td>
+                  </tr>
+                {% endfor %}
+              {% endwith %}
+            {% endwith %}
+          </tbody>
+        </table>
+      </div>
 
-    <!-- ================== LEVEL 2A ================== -->
-    <h3>1.2 Level 2A Assets</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Reference</th>
-          <th>Item</th>
-          <th>N_Amount</th>
-          <th>Risk_Weight</th>
-          <th>Weighted_Amount</th>
-          <th>Adjusted_Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% with l2a_dict=level_2a_assets|dictvalue:ccy %}
-          {% regroup l2a_dict.items by v_prod_type as l2a_by_type %}
-          {% for group in l2a_by_type %}
+      <!-- 1.3 LEVEL 2B ASSETS -->
+      <h3 class="mb-3">1.3 Level 2B Assets</h3>
+      <div class="table-responsive mb-4">
+        <table class="table table-bordered table-striped">
+          <thead class="table-light">
             <tr>
-              <td>1.2</td>
-              <td><strong>{{ group.grouper }}</strong></td>
-              <td></td>
-              <td></td>
-              <td></td>
-              <td></td>
+              <th>Reference</th>
+              <th>Item</th>
+              <th>N_Amount</th>
+              <th>Risk_Weight</th>
+              <th>Weighted_Amount</th>
+              <th>Adjusted_Amount</th>
             </tr>
-            {% for item in group.list %}
+          </thead>
+          <tbody>
+            {% with base="1.3" %}
+              {% with l2b_dict=level_2b_assets|dictvalue:ccy %}
+                {% regroup l2b_dict.items by v_prod_type as l2b_by_type %}
+                {% for group in l2b_by_type %}
+                  <tr class="table-secondary">
+                    <td>{{ base }}.{{ forloop.counter }}</td>
+                    <td><strong>{{ group.grouper }}</strong></td>
+                    <td colspan="4"></td>
+                  </tr>
+                  {% for item in group.list %}
+                  <tr>
+                    <td>{{ base }}.{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
+                    <td>{{ item.v_product_name }}</td>
+                    <td>{{ item.n_amount }}</td>
+                    <td>{{ item.risk_weight }}</td>
+                    <td>{{ item.weighted_amount }}</td>
+                    <td>{{ item.adjusted_amount }}</td>
+                  </tr>
+                  {% endfor %}
+                {% endfor %}
+
+                <!-- Totals for Level 2B -->
+                {% for tot in l2b_dict.totals %}
+                  <tr class="fw-bold">
+                    <td>{{ base }}.T{{ forloop.counter }}</td>
+                    <td>{{ tot.v_product_name }}</td>
+                    <td>{{ tot.n_amount }}</td>
+                    <td>{{ tot.risk_weight }}</td>
+                    <td>{{ tot.weighted_amount }}</td>
+                    <td>{{ tot.adjusted_amount }}</td>
+                  </tr>
+                {% endfor %}
+              {% endwith %}
+            {% endwith %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 1.4 TOTAL HQLA (Overall) -->
+      <h3 class="mb-3">1.4 Stock of HQLA</h3>
+      <div class="table-responsive mb-4">
+        <table class="table table-bordered table-striped">
+          <thead class="table-light">
             <tr>
-              <td>1.2.x</td>
-              <td>{{ item.v_product_name }}</td>
-              <td>{{ item.n_amount }}</td>
-              <td>{{ item.risk_weight }}</td>
-              <td>{{ item.weighted_amount }}</td>
-              <td>{{ item.adjusted_amount }}</td>
+              <th>Reference</th>
+              <th>Item</th>
+              <th>N_Amount</th>
+              <th>Risk_Weight</th>
+              <th>Weighted_Amount</th>
+              <th>Adjusted_Amount</th>
             </tr>
-            {% endfor %}
-          {% endfor %}
-
-          <!-- Totals for Level 2A -->
-          {% for tot in l2a_dict.totals %}
-            <tr style="font-weight: bold;">
-              <td></td>
-              <td>{{ tot.v_product_name }}</td>
-              <td>{{ tot.n_amount }}</td>
-              <td>{{ tot.risk_weight }}</td>
-              <td>{{ tot.weighted_amount }}</td>
-              <td>{{ tot.adjusted_amount }}</td>
-            </tr>
-          {% endfor %}
-        {% endwith %}
-      </tbody>
-    </table>
-
-    <!-- ================== LEVEL 2B ================== -->
-    <h3>1.3 Level 2B Assets</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Reference</th>
-          <th>Item</th>
-          <th>N_Amount</th>
-          <th>Risk_Weight</th>
-          <th>Weighted_Amount</th>
-          <th>Adjusted_Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% with l2b_dict=level_2b_assets|dictvalue:ccy %}
-          {% regroup l2b_dict.items by v_prod_type as l2b_by_type %}
-          {% for group in l2b_by_type %}
-            <tr>
-              <td>1.3</td>
-              <td><strong>{{ group.grouper }}</strong></td>
-              <td></td>
-              <td></td>
-              <td></td>
-              <td></td>
-            </tr>
-            {% for item in group.list %}
-            <tr>
-              <td>1.3.x</td>
-              <td>{{ item.v_product_name }}</td>
-              <td>{{ item.n_amount }}</td>
-              <td>{{ item.risk_weight }}</td>
-              <td>{{ item.weighted_amount }}</td>
-              <td>{{ item.adjusted_amount }}</td>
-            </tr>
-            {% endfor %}
-          {% endfor %}
-
-          <!-- Totals for Level 2B -->
-          {% for tot in l2b_dict.totals %}
-            <tr style="font-weight: bold;">
-              <td></td>
-              <td>{{ tot.v_product_name }}</td>
-              <td>{{ tot.n_amount }}</td>
-              <td>{{ tot.risk_weight }}</td>
-              <td>{{ tot.weighted_amount }}</td>
-              <td>{{ tot.adjusted_amount }}</td>
-            </tr>
-          {% endfor %}
-        {% endwith %}
-      </tbody>
-    </table>
-
-    <!-- ================== TOTAL HQLA (Overall) ================== -->
-    <h3>1.4 Stock of HQLA</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Reference</th>
-          <th>Item</th>
-          <th>N_Amount</th>
-          <th>Risk_Weight</th>
-          <th>Weighted_Amount</th>
-          <th>Adjusted_Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in hqla_totals|dictvalue:ccy %}
-          {% if "HQLA_TOTAL_" in item.v_prod_code %}
-          <tr>
-            <td>1.4</td>
-            <td>{{ item.v_product_name }}</td>
-            <td>{{ item.n_amount|default_if_none:"-" }}</td>
-            <td>{{ item.risk_weight|default_if_none:"-" }}</td>
-            <td>{{ item.weighted_amount }}</td>
-            <td>{{ item.adjusted_amount }}</td>
-          </tr>
-          {% endif %}
-        {% endfor %}
-      </tbody>
-    </table>
-
-    <hr />
+          </thead>
+          <tbody>
+            {% with base="1.4" %}
+              {% for item in hqla_totals|dictvalue:ccy %}
+                {% if "HQLA_TOTAL_" in item.v_prod_code %}
+                <tr>
+                  <td>{{ base }}.{{ forloop.counter }}</td>
+                  <td>{{ item.v_product_name }}</td>
+                  <td>{{ item.n_amount|default_if_none:"-" }}</td>
+                  <td>{{ item.risk_weight|default_if_none:"-" }}</td>
+                  <td>{{ item.weighted_amount }}</td>
+                  <td>{{ item.adjusted_amount }}</td>
+                </tr>
+                {% endif %}
+              {% endfor %}
+            {% endwith %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <hr>
   {% endfor %}
-</body>
-</html>
+</div>
+{% endblock %}

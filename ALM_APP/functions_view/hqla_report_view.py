@@ -2,24 +2,43 @@
 
 from django.shortcuts import render
 from ALM_APP.models import HQLAStock
+from django.shortcuts import render
+from ALM_APP.models import HQLAStockOutflow
 
 def hqla_report_view(request):
-    # OPTIONAL filters
-    mis_date_param = request.GET.get('fic_mis_date')  # e.g. "2023-01-15"
-    currency_param = request.GET.get('currency')      # e.g. "USD"
+    mis_date_param = request.GET.get('fic_mis_date')
+    currency_param = request.GET.get('currency')
 
-    # Base QuerySet
+    # 1) Base QuerySet
     stocks = HQLAStock.objects.all()
 
-    # Apply filters if provided
+    # 2) Gather distinct FIC MIS dates (order by date ascending)
+    all_mis_dates = (
+        HQLAStock.objects.values_list('fic_mis_date', flat=True)
+                        .distinct()
+                        .order_by('fic_mis_date')
+    )
+
+    # 3) Gather distinct Currencies
+    all_currencies = (
+        HQLAStock.objects.values_list('v_ccy_code', flat=True)
+                        .distinct()
+                        .order_by('v_ccy_code')
+    )
+
+    # 4) Apply filters if provided
     if mis_date_param:
         stocks = stocks.filter(fic_mis_date=mis_date_param)
     if currency_param:
         stocks = stocks.filter(v_ccy_code=currency_param)
 
-    # Distinct currencies from the filtered set
+    # 5) Determine the filtered currencies present in the final result
     currencies = list(stocks.values_list('v_ccy_code', flat=True).distinct())
 
+    # 6) Build your dictionary groupings (Level 1, Level 2A, etc.)
+    # (same grouping logic as before...)
+
+    # For example:
     level_1_assets = {}
     level_2a_assets = {}
     level_2b_assets = {}
@@ -28,50 +47,31 @@ def hqla_report_view(request):
     for ccy in currencies:
         currency_stocks = stocks.filter(v_ccy_code=ccy)
 
-        # ---------------------------
-        # Level 1
-        # ---------------------------
         l1_all = currency_stocks.filter(hqla_level="Level 1")
-        # Identify total rows by checking if they start with "Total Level 1" or any known pattern
         l1_totals = l1_all.filter(v_prod_type__startswith="Total Level 1")
         l1_items = l1_all.exclude(v_prod_type__startswith="Total Level 1")
 
-        # ---------------------------
-        # Level 2A
-        # ---------------------------
         l2a_all = currency_stocks.filter(hqla_level="Level 2A")
         l2a_totals = l2a_all.filter(v_prod_type__icontains="Level 2A")
         l2a_items = l2a_all.exclude(v_prod_type__icontains="Level 2A")
 
-        # ---------------------------
-        # Level 2B
-        # ---------------------------
         l2b_all = currency_stocks.filter(hqla_level="Level 2B")
         l2b_totals = l2b_all.filter(v_prod_type__icontains="Level 2B")
         l2b_items = l2b_all.exclude(v_prod_type__icontains="Level 2B")
 
-        # If you have an overall "Total HQLA" row for the currency (e.g. "HQLA_TOTAL_"),
-        # you can keep that separate.
         currency_totals = currency_stocks.filter(v_prod_code__startswith="HQLA_TOTAL_")
 
-        # Now store them in dictionaries
-        level_1_assets[ccy] = {
-            "items":  l1_items,
-            "totals": l1_totals,
-        }
-        level_2a_assets[ccy] = {
-            "items":  l2a_items,
-            "totals": l2a_totals,
-        }
-        level_2b_assets[ccy] = {
-            "items":  l2b_items,
-            "totals": l2b_totals,
-        }
-        hqla_totals[ccy] = currency_totals
+        level_1_assets[ccy] = {"items": l1_items, "totals": l1_totals}
+        level_2a_assets[ccy] = {"items": l2a_items, "totals": l2a_totals}
+        level_2b_assets[ccy] = {"items": l2b_items, "totals": l2b_totals}
+        hqla_totals[ccy]     = currency_totals
 
+    # 7) Build context for the template
     context = {
         "fic_mis_date_selected": mis_date_param,
         "currency_selected": currency_param,
+        "all_mis_dates": all_mis_dates,       # For the dropdown
+        "all_currencies": all_currencies,     # For the dropdown
         "currencies": currencies,
         "level_1_assets": level_1_assets,
         "level_2a_assets": level_2a_assets,
@@ -79,3 +79,176 @@ def hqla_report_view(request):
         "hqla_totals": hqla_totals,
     }
     return render(request, "LRM_APP/lcr/hqla_report.html", context)
+
+
+
+#####################################################3##########################
+from django.shortcuts import render
+from ALM_APP.models import HQLAStockOutflow
+
+def lcr_outflows_view(request):
+    """
+    Displays LCR Outflows as stored by the classification function.
+    The records are organized into a structured dictionary as follows:
+      - Top-level keys: each distinct currency (v_ccy_code).
+      - For each currency, two keys:
+          "hqla_levels": a dict keyed by hqla_level (e.g., Retail Deposits, Wholesale Funding)
+                        Each hqla_level contains:
+                           • "aggregated": a dict of detail rows (those NOT starting with "Total")
+                              grouped by secondary_grouping; each secondary group is a dict
+                              keyed by product type (v_prod_type) with aggregated sums:
+                                  - n_amount
+                                  - weighted_amount
+                                  - adjusted_amount
+                                  - risk_weight (assumed constant for that product type)
+                           • "total": the pre‐calculated total row for that hqla_level 
+                              (record whose v_prod_type starts with "Total")
+      - "overall_total": the overall total row for the currency (record with v_prod_type starting with "Total Cash Outflows")
+    """
+    fic_mis_date_selected = request.GET.get("fic_mis_date", "")
+    currency_selected = request.GET.get("currency", "")
+
+    qs = HQLAStockOutflow.objects.all()
+    if fic_mis_date_selected:
+        qs = qs.filter(fic_mis_date=fic_mis_date_selected)
+    if currency_selected:
+        qs = qs.filter(v_ccy_code=currency_selected)
+
+    # For dropdown menus
+    all_mis_dates = HQLAStockOutflow.objects.values_list("fic_mis_date", flat=True).distinct()
+    all_currencies = HQLAStockOutflow.objects.values_list("v_ccy_code", flat=True).distinct()
+
+    structured_data = {}
+
+    for record in qs:
+        currency = record.v_ccy_code
+        if currency not in structured_data:
+            structured_data[currency] = {"hqla_levels": {}, "overall_total": None}
+
+        # Identify overall total record (Total Cash Outflows)
+        if record.v_prod_type.startswith("Total Cash Outflows"):
+            structured_data[currency]["overall_total"] = record
+
+        # Identify per-level total rows (those with v_prod_type starting with "Total")
+        elif record.v_prod_type.startswith("Total"):
+            hqla_level = record.hqla_level or "Undefined"
+            if hqla_level not in structured_data[currency]["hqla_levels"]:
+                structured_data[currency]["hqla_levels"][hqla_level] = {"aggregated": {}, "total": None}
+            structured_data[currency]["hqla_levels"][hqla_level]["total"] = record
+
+        # Detail rows: aggregate by hqla_level and secondary_grouping, then by product type
+        else:
+            hqla_level = record.hqla_level or "Undefined"
+            secondary = record.secondary_grouping or ""
+            if hqla_level not in structured_data[currency]["hqla_levels"]:
+                structured_data[currency]["hqla_levels"][hqla_level] = {"aggregated": {}, "total": None}
+            agg = structured_data[currency]["hqla_levels"][hqla_level]["aggregated"]
+            if secondary not in agg:
+                agg[secondary] = {}
+            prod_type = record.v_prod_type
+            if prod_type not in agg[secondary]:
+                agg[secondary][prod_type] = {
+                    "n_amount": 0,
+                    "risk_weight": record.risk_weight,  # assumed constant for a product type
+                    "weighted_amount": 0,
+                    "adjusted_amount": 0,
+                }
+            agg[secondary][prod_type]["n_amount"] += record.n_amount
+            agg[secondary][prod_type]["weighted_amount"] += record.weighted_amount
+            agg[secondary][prod_type]["adjusted_amount"] += record.adjusted_amount
+
+    context = {
+        "structured_data": structured_data,
+        "all_mis_dates": all_mis_dates,
+        "all_currencies": all_currencies,
+        "fic_mis_date_selected": fic_mis_date_selected,
+        "currency_selected": currency_selected,
+    }
+    return render(request, "LRM_APP/lcr/lcr_outflows.html", context)
+
+
+
+######################################################################################################
+
+from django.shortcuts import render
+from ALM_APP.models import HQLAStockInflow
+
+def lcr_inflows_view(request):
+    """
+    Displays LCR Inflows as stored by the classification function.
+    The records are organized into a structured dictionary as follows:
+      - Top-level keys: each distinct currency (`v_ccy_code`).
+      - For each currency, two keys:
+          "hqla_levels": a dict keyed by `hqla_level` (e.g., Loan Repayments, Depositor Inflows)
+                        Each `hqla_level` contains:
+                           • "aggregated": a dict of detail rows (those NOT starting with "Total")
+                              grouped by `secondary_grouping`; each secondary group is a dict
+                              keyed by product type (`v_prod_type`) with aggregated sums:
+                                  - `n_amount`
+                                  - `weighted_amount`
+                                  - `adjusted_amount`
+                                  - `risk_weight` (assumed constant for that product type)
+                           • "total": the pre‐calculated total row for that `hqla_level` 
+                              (record whose `v_prod_type` starts with "Total")
+      - "overall_total": the overall total row for the currency (record with `v_prod_type` starting with "Total Cash Inflows")
+    """
+    fic_mis_date_selected = request.GET.get("fic_mis_date", "")
+    currency_selected = request.GET.get("currency", "")
+
+    qs = HQLAStockInflow.objects.all()
+    if fic_mis_date_selected:
+        qs = qs.filter(fic_mis_date=fic_mis_date_selected)
+    if currency_selected:
+        qs = qs.filter(v_ccy_code=currency_selected)
+
+    # For dropdown menus
+    all_mis_dates = HQLAStockInflow.objects.values_list("fic_mis_date", flat=True).distinct()
+    all_currencies = HQLAStockInflow.objects.values_list("v_ccy_code", flat=True).distinct()
+
+    structured_data = {}
+
+    for record in qs:
+        currency = record.v_ccy_code
+        if currency not in structured_data:
+            structured_data[currency] = {"hqla_levels": {}, "overall_total": None}
+
+        # Identify overall total record (Total Cash Inflows)
+        if record.v_prod_type.startswith("Total Cash Inflows"):
+            structured_data[currency]["overall_total"] = record
+
+        # Identify per-level total rows (those with v_prod_type starting with "Total")
+        elif record.v_prod_type.startswith("Total"):
+            hqla_level = record.hqla_level or "Undefined"
+            if hqla_level not in structured_data[currency]["hqla_levels"]:
+                structured_data[currency]["hqla_levels"][hqla_level] = {"aggregated": {}, "total": None}
+            structured_data[currency]["hqla_levels"][hqla_level]["total"] = record
+
+        # Detail rows: aggregate by hqla_level and secondary_grouping, then by product type
+        else:
+            hqla_level = record.hqla_level or "Undefined"
+            secondary = record.secondary_grouping or ""
+            if hqla_level not in structured_data[currency]["hqla_levels"]:
+                structured_data[currency]["hqla_levels"][hqla_level] = {"aggregated": {}, "total": None}
+            agg = structured_data[currency]["hqla_levels"][hqla_level]["aggregated"]
+            if secondary not in agg:
+                agg[secondary] = {}
+            prod_type = record.v_prod_type
+            if prod_type not in agg[secondary]:
+                agg[secondary][prod_type] = {
+                    "n_amount": 0,
+                    "risk_weight": record.risk_weight,  # assumed constant for a product type
+                    "weighted_amount": 0,
+                    "adjusted_amount": 0,
+                }
+            agg[secondary][prod_type]["n_amount"] += record.n_amount
+            agg[secondary][prod_type]["weighted_amount"] += record.weighted_amount
+            agg[secondary][prod_type]["adjusted_amount"] += record.adjusted_amount
+
+    context = {
+        "structured_data": structured_data,
+        "all_mis_dates": all_mis_dates,
+        "all_currencies": all_currencies,
+        "fic_mis_date_selected": fic_mis_date_selected,
+        "currency_selected": currency_selected,
+    }
+    return render(request, "LRM_APP/lcr/lcr_inflows.html", context)

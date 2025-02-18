@@ -1133,15 +1133,22 @@ class HQLAClassification(models.Model):
     fic_mis_date = models.DateField()  # Reporting Date
     v_prod_type = models.CharField(max_length=255 )  # Product Type from ExtractedLiquidityData
     v_prod_code = models.CharField(max_length=50, unique=True)  # Product Code
-    hqla_level = models.CharField(max_length=10, choices=[
+    hqla_level = models.CharField(max_length=100, choices=[
         ("Level 1", "Level 1"), 
         ("Level 2A", "Level 2A"), 
         ("Level 2B", "Level 2B")
     ])
+    secondary_grouping = models.CharField(max_length=100, null=True, blank=True)  # NEW: Stable vs Less Stable Deposits
     ratings = models.CharField(max_length=50, null=True, blank=True)  # Ratings (Sovereign, Corporate, etc.)
     risk_weight = models.DecimalField(max_digits=5, decimal_places=2, default=1.00)  # HQLA weighting
     haircut = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)  # Haircut %
     max_hqla_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=100.00)  # Max % of HQLA
+    outflow_factor = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)  # Outflow Factor (%)
+    is_outflow = models.CharField(max_length=1, choices=[("Y", "Yes"), ("N", "No")], default="N")  # NEW FIELD to indicate outflows
+    is_inflow = models.CharField(max_length=1, choices=[("Y", "Yes"), ("N", "No")], default="N")  # Indicates if this is classified as an inflow
+
+    def __str__(self):
+        return f"{self.v_prod_type} - {self.hqla_level} (Outflow: {self.is_outflow})"
 
     def __str__(self):
         return f"{self.v_prod_type} - {self.hqla_level} (Risk: {self.risk_weight}%, Haircut: {self.haircut}%)"
@@ -1167,3 +1174,46 @@ class HQLAStock(models.Model):
 
     class Meta:
         db_table = "hqla_stock"
+
+
+from django.db import models
+
+class HQLAStockOutflow(models.Model):
+    fic_mis_date = models.DateField()
+    v_prod_type = models.CharField(max_length=255)  # Product Type
+    v_prod_code = models.CharField(max_length=50)   # Product Code
+    v_product_name = models.CharField(max_length=255, null=True, blank=True)
+    ratings = models.CharField(max_length=50, null=True, blank=True)
+    hqla_level = models.CharField(max_length=100)  # Level 1, 2A, 2B
+    secondary_grouping = models.CharField(max_length=100, null=True, blank=True)  # NEW: Stable vs Less Stable Deposits
+    n_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0)  # Original amount
+    v_ccy_code = models.CharField(max_length=10, null=True, blank=True)  # Currency
+    risk_weight = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)  # Outflow rate (was risk weight)
+    weighted_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0)  # Weighted value
+    adjusted_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0)  # Final after cap
+
+    class Meta:
+        db_table = "hqla_stock_outflow"
+
+    def __str__(self):
+        return f"{self.v_prod_type} ({self.v_ccy_code}) - {self.hqla_level} (Outflow: {self.risk_weight}%)"
+
+
+from django.db import models
+
+class HQLAStockInflow(models.Model):
+    fic_mis_date = models.DateField()  # Reporting date
+    v_prod_type = models.CharField(max_length=255)  # Product type
+    v_prod_code = models.CharField(max_length=50)  # Product code
+    v_product_name = models.CharField(max_length=255, null=True, blank=True)  # Product name
+    ratings = models.CharField(max_length=50, null=True, blank=True)  # Ratings if applicable
+    hqla_level = models.CharField(max_length=100)  # Grouping (e.g., "Loan Repayments", "Depositor Inflows")
+    secondary_grouping = models.CharField(max_length=100, null=True, blank=True)  # Sub-grouping (e.g., "Stable Inflows")
+    n_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)  # Original amount
+    v_ccy_code = models.CharField(max_length=10)  # Currency
+    risk_weight = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)  # Risk weight applied
+    weighted_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)  # Weighted value
+    adjusted_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)  # Adjusted for LCR inflow
+    
+    class Meta:
+        db_table = "hqla_stock_inflow"

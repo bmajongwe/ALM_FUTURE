@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="container my-5">
+  <!-- Header -->
+  <div class="row mb-4">
+    <div class="col">
+      <h1 class="mb-4">LCR Inflows Report</h1>
+    </div>
+  </div>
+
+  <!-- (A) Filter Form with Dropdowns -->
+  <div class="row mb-4">
+    <div class="col">
+      <form method="get" action="" class="row g-3 align-items-end">
+        <!-- FIC MIS Date -->
+        <div class="col-md-3">
+          <label for="fic_mis_date" class="form-label">FIC MIS Date:</label>
+          <select name="fic_mis_date" id="fic_mis_date" class="form-select">
+            <option value="">--- All Dates ---</option>
+            {% for dateval in all_mis_dates %}
+              <option value="{{ dateval|date:'Y-m-d' }}"
+                {% if dateval|date:'Y-m-d' == fic_mis_date_selected %}selected{% endif %}>
+                {{ dateval|date:'Y-m-d' }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <!-- Currency -->
+        <div class="col-md-3">
+          <label for="currency" class="form-label">Currency:</label>
+          <select name="currency" id="currency" class="form-select">
+            <option value="">--- All Currencies ---</option>
+            {% for cur in all_currencies %}
+              <option value="{{ cur }}"
+                {% if cur == currency_selected %}selected{% endif %}>
+                {{ cur }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-primary">Filter</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <hr />
+
+  <!-- (B) No Data Message -->
+  {% if structured_data|length == 0 %}
+    <p class="text-muted"><em>No records found for the specified filter.</em></p>
+  {% endif %}
+
+  <!-- (C) Loop over each Currency block -->
+  {% for currency, data in structured_data.items %}
+    <div class="my-5">
+      <h2 class="mb-4">LCR Inflows for Currency: {{ currency }}</h2>
+      
+      {# Loop over each distinct hqla_level group #}
+      {% for hqla_level, details in data.hqla_levels.items %}
+        {# Use the outer loop counter as the base reference for this hqla_level #}
+        {% with base_ref=forloop.counter|stringformat:"s" %}
+        <div class="mb-4">
+          <h3 class="mb-3">{{ base_ref }}. {{ hqla_level }}</h3>
+          <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+              <thead class="table-light">
+                <tr>
+                  <th>Reference</th>
+                  <th>Item</th>
+                  <th>Amount</th>
+                  <th>Risk Weight</th>
+                  <th>Weighted Amount</th>
+                  <th>Adjusted Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {# Loop through each secondary grouping within this hqla_level #}
+                {% for secondary, agg in details.aggregated.items %}
+                  {% if secondary and secondary != "Undefined" %}
+                    {# Header row for the secondary group using its loop counter #}
+                    <tr class="table-secondary">
+                      <td>{{ base_ref }}.{{ forloop.counter }}</td>
+                      <td colspan="5"><strong>{{ secondary }}</strong></td>
+                    </tr>
+                    {# Loop through each product type row within this secondary group #}
+                    {% for prod_type, vals in agg.items %}
+                      <tr>
+                        <td>{{ base_ref }}.{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
+                        <td>{{ prod_type }}</td>
+                        <td>{{ vals.n_amount|floatformat:2 }}</td>
+                        <td>{{ vals.risk_weight|default:"-" }}</td>
+                        <td>{{ vals.weighted_amount|floatformat:2 }}</td>
+                        <td>{{ vals.adjusted_amount|floatformat:2 }}</td>
+                      </tr>
+                    {% endfor %}
+                  {% else %}
+                    {# If there is no valid secondary grouping, simply list the detail rows #}
+                    {% for prod_type, vals in agg.items %}
+                      <tr>
+                        <td>{{ base_ref }}.{{ forloop.counter }}</td>
+                        <td>{{ prod_type }}</td>
+                        <td>{{ vals.n_amount|floatformat:2 }}</td>
+                        <td>{{ vals.risk_weight|default:"-" }}</td>
+                        <td>{{ vals.weighted_amount|floatformat:2 }}</td>
+                        <td>{{ vals.adjusted_amount|floatformat:2 }}</td>
+                      </tr>
+                    {% endfor %}
+                  {% endif %}
+                {% endfor %}
+                {# Total row for this hqla_level – append ".T" to indicate a total #}
+                {% if details.total %}
+                  <tr class="fw-bold">
+                    <td>{{ base_ref }}.T</td>
+                    <td>{{ details.total.v_product_name }}</td>
+                    <td>{{ details.total.n_amount|floatformat:2 }}</td>
+                    <td>{{ details.total.risk_weight|default:"-" }}</td>
+                    <td>{{ details.total.weighted_amount|floatformat:2 }}</td>
+                    <td>{{ details.total.adjusted_amount|floatformat:2 }}</td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endwith %}
+      {% endfor %}
+      
+      {# Overall Total for the Currency – using a distinct reference marker #}
+      {% if data.overall_total %}
+        <div class="mt-4">
+          <h3 class="mb-3">Overall Total Inflows {{ currency }}</h3>
+          <div class="table-responsive">
+            <table class="table table-bordered table-striped">
+              <thead class="table-light">
+                <tr>
+                  <th>Reference</th>
+                  <th>Item</th>
+                  <th>Amount</th>
+                  <th>Risk Weight</th>
+                  <th>Weighted Amount</th>
+                  <th>Adjusted Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="fw-bold">
+                  <td>O.T</td>
+                  <td>{{ data.overall_total.v_product_name }}</td>
+                  <td>{{ data.overall_total.n_amount|floatformat:2 }}</td>
+                  <td>{{ data.overall_total.risk_weight|default:"-" }}</td>
+                  <td>{{ data.overall_total.weighted_amount|floatformat:2 }}</td>
+                  <td>{{ data.overall_total.adjusted_amount|floatformat:2 }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+    <hr>
+  {% endfor %}
+</div>
+{% endblock %}

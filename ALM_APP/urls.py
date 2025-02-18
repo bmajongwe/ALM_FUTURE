@@ -5,7 +5,7 @@ from ALM_APP.Functions.Cashflow_projections import *
 from ALM_APP.functions_view.alm_lrm import LRM_ALM
 from ALM_APP.functions_view.alm_reports import export_liquidity_gap_cons_to_excel, export_liquidity_gap_to_excel, liquidity_gap_report_base, liquidity_gap_report_cons
 from ALM_APP.functions_view.behavioral_pattern import *
-from ALM_APP.functions_view.hqla_report_view import hqla_report_view
+from ALM_APP.functions_view.hqla_report_view import hqla_report_view, lcr_inflows_view, lcr_outflows_view
 from ALM_APP.functions_view.load_lrm import  edit_selection, list_selections, retrieve_data, select_process_name, select_product_type, select_purpose, select_time_horizon, view_selection
 from ALM_APP.functions_view.party_splits import configurations_management, party_type_add_view, party_type_delete_view, party_type_detail_view, party_type_list_view, party_type_update_view
 from ALM_APP.functions_view.proccess import *
@@ -192,6 +192,10 @@ urlpatterns = [
 
     # Map /hqla-report/ to the hqla_report_view
     path('hqla-report/', hqla_report_view, name='hqla_report'),
+    path('lcr_outflows/', lcr_outflows_view, name='lcr_outflows'),
+    path('lcr_inflows/', lcr_inflows_view, name='lcr_inflows'),
+
+
 
 
 
