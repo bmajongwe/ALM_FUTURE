@@ -1,8 +1,12 @@
+from ALM_APP.Functions.LCRCalculation import calculate_and_store_lcr
 from ALM_APP.Functions.classify_and_store_hqla import classify_and_store_hqla_multi_ccy
 from ALM_APP.Functions.alm_execution_functions import execute_alm_process_logic
 from ALM_APP.Functions.classify_and_store_hqla_inflow import classify_and_store_hqla_inflow_ccy
 from ALM_APP.Functions.classify_and_store_hqla_outflow import classify_and_store_hqla_outflow_ccy
-from ALM_APP.Functions.pre_load_lrm import transfer_lrm_data
+from ALM_APP.Functions.classify_and_store_nsfr_stock import populate_nsfr_stock
+from ALM_APP.Functions.classify_and_store_nsfr_stock_summary import populate_nsfr_stock_summary
+from ALM_APP.Functions.pre_load_lcr import transfer_lrm_data
+from ALM_APP.Functions.pre_transfer_nsfr_data import transfer_nsfr_data
 from .models import LiquidityGapResultsCons
 from .Functions.liquidity_gap_utils import filter_queryset_by_form, get_date_buckets, prepare_inflow_outflow_data, calculate_totals
 from .models import LiquidityGapResultsBase
@@ -77,9 +81,18 @@ def project_cash_flows_view(request):
     # status=transfer_lrm_data(fic_mis_date)
 
     # status=classify_and_store_hqla_multi_ccy(fic_mis_date)
-    # status=classify_and_store_hqla_outflow_ccy(fic_mis_date)
-    status=classify_and_store_hqla_inflow_ccy(fic_mis_date)
+    status=classify_and_store_hqla_outflow_ccy(fic_mis_date)
+    # status=classify_and_store_hqla_inflow_ccy(fic_mis_date)
+    status=calculate_and_store_lcr(fic_mis_date)
+    # status=transfer_nsfr_data(fic_mis_date)
+    # status=populate_nsfr_stock(fic_mis_date)
+    # status=populate_nsfr_stock_summary(fic_mis_date)
+    # status=classify_and_store_hqla_multi_ccy(fic_mis_date)
 
+    
+
+
+ 
 
     # status= project_cash_flows(fic_mis_date)
 

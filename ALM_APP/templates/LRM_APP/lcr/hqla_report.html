@@ -88,7 +88,7 @@
           <tbody>
             {% with base="1.1" %}
               {% with l1_dict=level_1_assets|dictvalue:ccy %}
-                {% regroup l1_dict.items by v_prod_type as l1_by_type %}
+                {% regroup l1_dict.items by v_prod_type_level as l1_by_type %}
                 {% for group in l1_by_type %}
                   <!-- Parent row: product type -->
                   <tr class="table-secondary">
@@ -101,7 +101,7 @@
                   {% for item in group.list %}
                   <tr>
                     <td>{{ base }}.{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
-                    <td>{{ item.v_product_name }}</td>
+                    <td>{{ item.v_prod_type }}</td>
                     <td>{{ item.n_amount }}</td>
                     <td>{{ item.risk_weight }}</td>
                     <td>{{ item.weighted_amount }}</td>
@@ -114,7 +114,7 @@
                 {% for tot in l1_dict.totals %}
                   <tr class="fw-bold">
                     <td>{{ base }}.T{{ forloop.counter }}</td>
-                    <td>{{ tot.v_product_name }}</td>
+                    <td>{{ tot.v_prod_type }}</td>
                     <td>{{ tot.n_amount }}</td>
                     <td>{{ tot.risk_weight }}</td>
                     <td>{{ tot.weighted_amount }}</td>
@@ -135,16 +135,16 @@
             <tr>
               <th>Reference</th>
               <th>Item</th>
-              <th>N_Amount</th>
-              <th>Risk_Weight</th>
-              <th>Weighted_Amount</th>
-              <th>Adjusted_Amount</th>
+              <th>Amount</th>
+              <th>Risk Weight</th>
+              <th>Weighted Amount</th>
+              <th>Adjusted Amount</th>
             </tr>
           </thead>
           <tbody>
             {% with base="1.2" %}
               {% with l2a_dict=level_2a_assets|dictvalue:ccy %}
-                {% regroup l2a_dict.items by v_prod_type as l2a_by_type %}
+                {% regroup l2a_dict.items by v_prod_type_level as l2a_by_type %}
                 {% for group in l2a_by_type %}
                   <tr class="table-secondary">
                     <td>{{ base }}.{{ forloop.counter }}</td>
@@ -154,7 +154,7 @@
                   {% for item in group.list %}
                   <tr>
                     <td>{{ base }}.{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
-                    <td>{{ item.v_product_name }}</td>
+                    <td>{{ item.v_prod_type }}</td>
                     <td>{{ item.n_amount }}</td>
                     <td>{{ item.risk_weight }}</td>
                     <td>{{ item.weighted_amount }}</td>
@@ -167,7 +167,7 @@
                 {% for tot in l2a_dict.totals %}
                   <tr class="fw-bold">
                     <td>{{ base }}.T{{ forloop.counter }}</td>
-                    <td>{{ tot.v_product_name }}</td>
+                    <td>{{ tot.v_prod_type }}</td>
                     <td>{{ tot.n_amount }}</td>
                     <td>{{ tot.risk_weight }}</td>
                     <td>{{ tot.weighted_amount }}</td>
@@ -188,16 +188,16 @@
             <tr>
               <th>Reference</th>
               <th>Item</th>
-              <th>N_Amount</th>
-              <th>Risk_Weight</th>
-              <th>Weighted_Amount</th>
-              <th>Adjusted_Amount</th>
+              <th>Amount</th>
+              <th>Risk Weight</th>
+              <th>Weighted Amount</th>
+              <th>Adjusted Amount</th>
             </tr>
           </thead>
           <tbody>
             {% with base="1.3" %}
               {% with l2b_dict=level_2b_assets|dictvalue:ccy %}
-                {% regroup l2b_dict.items by v_prod_type as l2b_by_type %}
+                {% regroup l2b_dict.items by v_prod_type_level as l2b_by_type %}
                 {% for group in l2b_by_type %}
                   <tr class="table-secondary">
                     <td>{{ base }}.{{ forloop.counter }}</td>
@@ -207,7 +207,7 @@
                   {% for item in group.list %}
                   <tr>
                     <td>{{ base }}.{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
-                    <td>{{ item.v_product_name }}</td>
+                    <td>{{ item.v_prod_type }}</td>
                     <td>{{ item.n_amount }}</td>
                     <td>{{ item.risk_weight }}</td>
                     <td>{{ item.weighted_amount }}</td>
@@ -220,7 +220,7 @@
                 {% for tot in l2b_dict.totals %}
                   <tr class="fw-bold">
                     <td>{{ base }}.T{{ forloop.counter }}</td>
-                    <td>{{ tot.v_product_name }}</td>
+                    <td>{{ tot.v_prod_type }}</td>
                     <td>{{ tot.n_amount }}</td>
                     <td>{{ tot.risk_weight }}</td>
                     <td>{{ tot.weighted_amount }}</td>
@@ -241,10 +241,10 @@
             <tr>
               <th>Reference</th>
               <th>Item</th>
-              <th>N_Amount</th>
-              <th>Risk_Weight</th>
-              <th>Weighted_Amount</th>
-              <th>Adjusted_Amount</th>
+              <th>Amount</th>
+              <th>Risk Weight</th>
+              <th>Weighted Amount</th>
+              <th>Adjusted Amount</th>
             </tr>
           </thead>
           <tbody>
@@ -253,7 +253,7 @@
                 {% if "HQLA_TOTAL_" in item.v_prod_code %}
                 <tr>
                   <td>{{ base }}.{{ forloop.counter }}</td>
-                  <td>{{ item.v_product_name }}</td>
+                  <td>{{ item.v_prod_type }}</td>
                   <td>{{ item.n_amount|default_if_none:"-" }}</td>
                   <td>{{ item.risk_weight|default_if_none:"-" }}</td>
                   <td>{{ item.weighted_amount }}</td>

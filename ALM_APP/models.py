@@ -1,4 +1,5 @@
 # ALM_APP/models.py
+from decimal import Decimal
 from django.conf import settings
 from django.db import models
 from datetime import timedelta, date
@@ -1132,12 +1133,13 @@ class HQLAConfig(models.Model):
 class HQLAClassification(models.Model):
     fic_mis_date = models.DateField()  # Reporting Date
     v_prod_type = models.CharField(max_length=255 )  # Product Type from ExtractedLiquidityData
-    v_prod_code = models.CharField(max_length=50, unique=True)  # Product Code
     hqla_level = models.CharField(max_length=100, choices=[
         ("Level 1", "Level 1"), 
         ("Level 2A", "Level 2A"), 
         ("Level 2B", "Level 2B")
     ])
+    
+    v_prod_type_level = models.CharField(max_length=255)# Product type -level grouping or category
     secondary_grouping = models.CharField(max_length=100, null=True, blank=True)  # NEW: Stable vs Less Stable Deposits
     ratings = models.CharField(max_length=50, null=True, blank=True)  # Ratings (Sovereign, Corporate, etc.)
     risk_weight = models.DecimalField(max_digits=5, decimal_places=2, default=1.00)  # HQLA weighting
@@ -1159,24 +1161,55 @@ class HQLAClassification(models.Model):
 
 class HQLAStock(models.Model):
     fic_mis_date = models.DateField()  # Reporting Date
+    v_prod_type_level = models.CharField(max_length=255)# Product type -level grouping or category
     v_prod_type = models.CharField(max_length=255)  # Product Type from ExtractedLiquidityData
     v_prod_code = models.CharField(max_length=50)  # Product Code
     v_product_name = models.CharField(max_length=255)  # Stores selected process names as a list
     ratings = models.CharField(max_length=50, null=True, blank=True)  # Ratings (Sovereign, Corporate, etc.)
-    hqla_level = models.CharField(max_length=10)  # Level 1, 2A, or 2B
-    n_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)  # Market Value from extracted data
+    hqla_level = models.CharField(max_length=20)  # Level 1, 2A, or 2B
+    n_amount = models.DecimalField(max_digits=30, decimal_places=2, default=0.00)  # Market Value from extracted data
     v_ccy_code = models.CharField(max_length=10)  # Currency
-    risk_weight = models.DecimalField(max_digits=5, decimal_places=2, default=1.00)  # Basel II Risk Weight %
+    risk_weight = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)  # Basel II Risk Weight %
     weighted_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)  # Adjusted for weighting
     adjusted_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)  # Market Value after Haircut
     account_type = models.CharField(max_length=50)  # Inflow, Outflow
-    
+      # New field to indicate a total row: e.g., overall total or level total
+    is_total = models.BooleanField(default=False)
+    # Optionally, a field to indicate the type of total ("overall", "level", etc.)
+    total_type = models.CharField(max_length=50, blank=True, null=True)
 
     class Meta:
         db_table = "hqla_stock"
 
 
-from django.db import models
+
+class HQLAInflowOutflowClassification(models.Model):
+    fic_mis_date = models.DateField()  # Reporting Date
+    v_prod_type = models.CharField(max_length=255 )  # Product Type from ExtractedLiquidityData
+    hqla_level = models.CharField(max_length=100, choices=[
+        ("Level 1", "Level 1"), 
+        ("Level 2A", "Level 2A"), 
+        ("Level 2B", "Level 2B")
+    ])
+    
+    v_prod_type_level = models.CharField(max_length=255)# Product type -level grouping or category
+    secondary_grouping = models.CharField(max_length=100, null=True, blank=True)  # NEW: Stable vs Less Stable Deposits
+    ratings = models.CharField(max_length=50, null=True, blank=True)  # Ratings (Sovereign, Corporate, etc.)
+    risk_weight = models.DecimalField(max_digits=5, decimal_places=2, default=1.00)  # HQLA weighting
+    haircut = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)  # Haircut %
+    max_hqla_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=100.00)  # Max % of HQLA
+    outflow_factor = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)  # Outflow Factor (%)
+    is_outflow = models.CharField(max_length=1, choices=[("Y", "Yes"), ("N", "No")], default="N")  # NEW FIELD to indicate outflows
+    is_inflow = models.CharField(max_length=1, choices=[("Y", "Yes"), ("N", "No")], default="N")  # Indicates if this is classified as an inflow
+
+    def __str__(self):
+        return f"{self.v_prod_type} - {self.hqla_level} (Outflow: {self.is_outflow})"
+
+    def __str__(self):
+        return f"{self.v_prod_type} - {self.hqla_level} (Risk: {self.risk_weight}%, Haircut: {self.haircut}%)"
+
+    class Meta:
+        db_table = "hqla_inflow_outflow_classification"
 
 class HQLAStockOutflow(models.Model):
     fic_mis_date = models.DateField()
@@ -1191,7 +1224,10 @@ class HQLAStockOutflow(models.Model):
     risk_weight = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)  # Outflow rate (was risk weight)
     weighted_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0)  # Weighted value
     adjusted_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0)  # Final after cap
-
+  # New field to indicate a total row: e.g., overall total or level total
+    is_total = models.BooleanField(default=False)
+    # Optionally, a field to indicate the type of total ("overall", "level", etc.)
+    total_type = models.CharField(max_length=50, blank=True, null=True)
     class Meta:
         db_table = "hqla_stock_outflow"
 
@@ -1199,7 +1235,6 @@ class HQLAStockOutflow(models.Model):
         return f"{self.v_prod_type} ({self.v_ccy_code}) - {self.hqla_level} (Outflow: {self.risk_weight}%)"
 
 
-from django.db import models
 
 class HQLAStockInflow(models.Model):
     fic_mis_date = models.DateField()  # Reporting date
@@ -1214,6 +1249,283 @@ class HQLAStockInflow(models.Model):
     risk_weight = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)  # Risk weight applied
     weighted_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)  # Weighted value
     adjusted_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)  # Adjusted for LCR inflow
-    
+      # New field to indicate a total row: e.g., overall total or level total
+    is_total = models.BooleanField(default=False)
+    # Optionally, a field to indicate the type of total ("overall", "level", etc.)
+    total_type = models.CharField(max_length=50, blank=True, null=True)
     class Meta:
         db_table = "hqla_stock_inflow"
+
+
+
+
+class LCRCalculation(models.Model):
+    fic_mis_date = models.DateField()  # Reporting Date
+    category = models.CharField(max_length=50)  # HIGH-QUALITY LIQUID ASSETS, CASH OUTFLOWS, CASH INFLOWS
+    v_prod_type = models.CharField(max_length=255)  # Product type
+    v_product_name = models.CharField(max_length=255, null=True, blank=True)  # Product name
+    hqla_level = models.CharField(max_length=100)  # Grouping (e.g., "Loan Repayments", "Depositor Inflows")
+    n_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)  # Original amount
+    v_ccy_code = models.CharField(max_length=10)  # Currency
+    weighted_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)  # Weighted value
+    adjusted_amount = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)  # Adjusted for LCR inflow
+    # Final Computed Values
+    net_cash_outflows = models.DecimalField(max_digits=20, decimal_places=2, default=0.00)
+    lcr_ratio = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # Final LCR Percentage
+    total_type = models.CharField(max_length=50, blank=True, null=True)
+
+    class Meta:
+        db_table = "lcr_calculation"
+
+    def __str__(self):
+        return f"LCR Calculation for {self.fic_mis_date} ({self.v_ccy_code})"
+    
+
+
+
+
+
+
+class ExtractedNsfrData(models.Model):
+    fic_mis_date = models.DateField()  
+    bucket_start_date = models.DateField()
+    bucket_end_date = models.DateField()
+    account_type = models.CharField(max_length=50)
+    v_prod_type = models.CharField(max_length=255)
+    v_prod_code = models.CharField(max_length=50)
+    v_product_name = models.CharField(max_length=255, null=True, blank=True)
+    v_product_splits = models.CharField(max_length=255, null=True, blank=True)
+    v_prod_type_desc = models.CharField(max_length=255, null=True, blank=True)
+    v_ccy_code = models.CharField(max_length=10)
+    inflows = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    outflows = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    n_total_cash_flow_amount = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    n_total_principal_payment = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    n_total_interest_payment = models.DecimalField(max_digits=20, decimal_places=2, null=True, blank=True)
+    time_horizon_label = models.CharField(max_length=50, null=True, blank=True)
+
+    class Meta:
+        db_table = "liqudity_nsfr_data"
+
+    def __str__(self):
+        return f"{self.v_prod_type} - {self.v_ccy_code} - {self.time_horizon_label}"
+
+
+
+
+
+
+class NSFRClassification(models.Model):
+    fic_mis_date = models.DateField()  # Reporting Date
+
+    # v_nsfr_type indicates whether this classification is for
+    # Available Stable Funding (ASF) or Required Stable Funding (RSF)
+    v_nsfr_type = models.CharField(max_length=255)  # e.g., "ASF" or "RSF"
+
+    # High-level grouping or category for the product type
+    v_prod_type_level = models.CharField(max_length=255)
+
+    # Specific product type from your extracted data
+    v_prod_type = models.CharField(max_length=255)
+
+    # Example factors for each horizon—You can rename them if you prefer more descriptive names
+    funding_factor_less_6_months = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0.00,
+        help_text="ASF/RSF factor for < 6 months horizon (%)"
+    )
+    funding_factor_6_to_12_months = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0.00,
+        help_text="ASF/RSF factor for ≥6 months to <1 year (%)"
+    )
+    funding_factor_greater_1_year = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0.00,
+        help_text="ASF/RSF factor for ≥1 year (%)"
+    )
+
+    
+    class Meta:
+        db_table = "nsfr_classification"
+
+    def __str__(self):
+        return f"{self.v_prod_type} ({self.v_nsfr_type}) - <6m={self.factor_less_6_months}%"
+
+
+
+from django.db import models
+
+
+
+class NSFRStock(models.Model):
+    # Reporting Date
+    fic_mis_date = models.DateField()
+
+    # e.g., "ASF" (Available Stable Funding) or "RSF" (Required Stable Funding)
+    v_nsfr_type = models.CharField(max_length=255)
+
+    # High-level grouping or category
+    v_prod_type_level = models.CharField(max_length=255)
+
+    # Specific product type from ExtractedNsfrData / classification
+    v_prod_type = models.CharField(max_length=255)
+
+
+    v_ccy_code = models.CharField(max_length=10,default='USD')
+
+
+    # Amount columns by horizon
+    amount_less_6_months = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Amount for < 6 months horizon"
+    )
+    amount_6_to_12_months = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Amount for ≥6 months to <1 year horizon"
+    )
+    amount_greater_1_year = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Amount for ≥1 year horizon"
+    )
+
+    # Stability / weighting factors for each horizon
+    funding_factor_less_6_months = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="ASF/RSF factor (%) for < 6 months horizon"
+    )
+    funding_factor_6_to_12_months = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="ASF/RSF factor (%) for ≥6 months to <1 year horizon"
+    )
+    funding_factor_greater_1_year = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="ASF/RSF factor (%) for ≥1 year horizon"
+    )
+
+    # Calculated stable funding amounts per horizon
+    calculated_sf_less_6_months = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Calculated stable funding for < 6 months horizon"
+    )
+    calculated_sf_6_to_12_months = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Calculated stable funding for ≥6 months to <1 year horizon"
+    )
+    calculated_sf_greater_1_year = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Calculated stable funding for ≥1 year horizon"
+    )
+
+    # Sum of the above calculated stable funding amounts
+    total_calculated_sf = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Total Calculated Stable Funding"
+    )
+
+    # New column to identify the type of row
+    row_category = models.CharField(
+        max_length=50,
+        default="normal",
+        help_text="Row type: 'normal', 'level_total', or 'overall_total'"
+    )
+
+    class Meta:
+        db_table = "nsfr_stock"
+
+    def __str__(self):
+        return f"{self.v_nsfr_type} - {self.v_prod_type} on {self.fic_mis_date}"
+
+
+
+
+
+class NSFRStockSummary(models.Model):
+    # Reporting Date
+    fic_mis_date = models.DateField()
+
+    # e.g., "ASF" (Available Stable Funding) or "RSF" (Required Stable Funding)
+    v_nsfr_type = models.CharField(max_length=255)
+
+    # High-level grouping or category
+    v_prod_type_level = models.CharField(max_length=255)
+
+    # Currency code (default is USD)
+    v_ccy_code = models.CharField(max_length=10, default='USD')
+
+    # Sum of the amount_less_6_months, amount_6_to_12_months, and amount_greater_1_year
+    # from NSFRStock where row_category = 'level_total'
+    n_amount = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Sum of the three amount fields from NSFRStock (level_total rows)"
+    )
+
+    # Sum of the calculated stable funding amounts from NSFRStock (level_total rows)
+    total_calculated_sf = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Sum of the calculated stable funding amounts"
+    )
+
+    # Sum of total_calculated_sf for REQUIRED STABLE FUNDING from NSFRStock (level_total rows)
+    total_required_sf = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Calculated total (total_calculated_sf) for NSFRStock rows with v_nsfr_type = 'REQUIRED STABLE FUNDING'"
+    )
+
+    # Sum of total_calculated_sf for AVAILABLE STABLE FUNDING from NSFRStock (level_total rows)
+    total_available_sf = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Calculated total (total_calculated_sf) for NSFRStock rows with v_nsfr_type = 'AVAILABLE STABLE FUNDING'"
+    )
+
+    # Final NSFR ratio, typically calculated as (total_available_sf / total_required_sf) * 100
+    nsfr_ratio = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Final NSFR percentage calculated from overall AVAILABLE and REQUIRED stable funding"
+    )
+
+    # A field to identify the row type for the summary; in this case 'summary'
+    row_category = models.CharField(
+        max_length=50,
+        default="normal",
+        help_text="Row type: 'normal', 'level_total', 'overall_total', or 'summary'"
+    )
+
+    class Meta:
+        db_table = "nsfr_stock_summary"
+
+    def __str__(self):
+        return f"{self.v_nsfr_type} - {self.v_prod_type_level} on {self.fic_mis_date}"

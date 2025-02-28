@@ -252,3 +252,83 @@ def lcr_inflows_view(request):
         "currency_selected": currency_selected,
     }
     return render(request, "LRM_APP/lcr/lcr_inflows.html", context)
+
+
+
+
+##################################################################################################
+
+from django.shortcuts import render
+from ALM_APP.models import LCRCalculation
+
+def lcr_report_view(request):
+    """
+    Displays LCR Calculation results grouped by currency and then by category.
+    
+    The table has three columns:
+      - CATEGORY (displayed as a header for that category)
+      - SUB-CATEGORY (the record’s v_product_name)
+      - TOTAL WEIGHTED VALUE (average), which is:
+            • adjusted_amount for HQLA, CASH OUTFLOWS, and CASH INFLOWS;
+            • net_cash_outflows for NET CASH OUTFLOWS;
+            • lcr_ratio (formatted as a percentage) for LCR RATIO.
+    
+    For each currency and category:
+      - All level records (those with total_type "level" or not flagged as overall) are listed first.
+      - Then, all overall total records (those whose total_type is "overall_after" or "overall",
+        or whose v_prod_type starts with "Total") are displayed below.
+    
+    Fixed category order:
+      1. HIGH-QUALITY LIQUID ASSETS
+      2. CASH OUTFLOWS
+      3. CASH INFLOWS
+      4. NET CASH OUTFLOWS
+      5. LCR RATIO
+    """
+    fic_mis_date = request.GET.get("fic_mis_date", "").strip()
+    currency_selected = request.GET.get("currency", "").strip()
+    
+    qs = LCRCalculation.objects.all()
+    if fic_mis_date:
+        qs = qs.filter(fic_mis_date=fic_mis_date)
+    if currency_selected:
+        qs = qs.filter(v_ccy_code=currency_selected)
+    
+    category_order = [
+        "HIGH-QUALITY LIQUID ASSETS",
+        "CASH OUTFLOWS",
+        "CASH INFLOWS",
+        "NET CASH OUTFLOWS",
+        "LCR RATIO"
+    ]
+    
+    # Group records by currency and then by category.
+    # For each category, we create two lists:
+    # "level": all detail records (typically with total_type "level")
+    # "overall": records whose total_type is "overall_after" or "overall", or whose v_prod_type starts with "Total"
+    structured_data = {}
+    for rec in qs:
+        cur = rec.v_ccy_code
+        if cur not in structured_data:
+            structured_data[cur] = {cat: {"level": [], "overall": []} for cat in category_order}
+        cat = rec.category
+        if cat not in category_order:
+            continue
+        if (rec.total_type and rec.total_type.lower() in ["overall_after", "overall"]) or rec.v_prod_type.startswith("Total"):
+            structured_data[cur][cat]["overall"].append(rec)
+        else:
+            structured_data[cur][cat]["level"].append(rec)
+    
+    # For dropdown menus: get distinct MIS dates and currencies from qs.
+    all_mis_dates = qs.order_by("fic_mis_date").values_list("fic_mis_date", flat=True).distinct()
+    all_currencies = qs.order_by("v_ccy_code").values_list("v_ccy_code", flat=True).distinct()
+    
+    context = {
+        "fic_mis_date": fic_mis_date,
+        "currency_selected": currency_selected,
+        "structured_data": structured_data,
+        "category_order": category_order,
+        "all_mis_dates": all_mis_dates,
+        "all_currencies": all_currencies,
+    }
+    return render(request, "LRM_APP/lcr/lcr_report.html", context)

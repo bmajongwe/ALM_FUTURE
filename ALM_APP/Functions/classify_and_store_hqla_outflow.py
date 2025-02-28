@@ -3,7 +3,7 @@ from django.db import transaction
 from decimal import Decimal
 from ALM_APP.models import (
     ExtractedLiquidityData, 
-    HQLAClassification, 
+    HQLAInflowOutflowClassification, 
     HQLAStockOutflow
 )
 
@@ -11,9 +11,9 @@ def classify_and_store_hqla_outflow_ccy(fic_mis_date):
     """
     Classifies extracted liquidity data into HQLA outflows for LCR purposes.
     Processes only **outflows** and applies risk weight as the outflow rate.
-    Ensures only **one total per `hqla_level`** (e.g., Retail Deposits, Wholesale Funding).
+    Inserts one total per `hqla_level` (e.g., Retail Deposits, Wholesale Funding) and an
+    overall total for cash outflows. Summary rows are flagged using `is_total` and `total_type`.
     """
-
     try:
         print(f"🔍 Starting multi-currency LCR Outflow classification for {fic_mis_date}")
 
@@ -26,7 +26,7 @@ def classify_and_store_hqla_outflow_ccy(fic_mis_date):
             fic_mis_date=fic_mis_date,
             account_type="Outflow"
         )
-        classifications = HQLAClassification.objects.filter(is_outflow="Y")  # Only pick outflows
+        classifications = HQLAInflowOutflowClassification.objects.filter(is_outflow="Y")  # Only pick outflows
 
         print(f"🔹 Found {extracted_outflows.count()} extracted outflow records to classify.")
 
@@ -37,12 +37,13 @@ def classify_and_store_hqla_outflow_ccy(fic_mis_date):
         for record in extracted_outflows:
             key = (record.v_prod_type, record.v_prod_code, record.v_ccy_code)
             grouped_data[key] += Decimal(record.n_total_cash_flow_amount)
-            detail_rows[key] = record  # keep reference for product_name, etc.
+            detail_rows[key] = record  # Keep reference for product_name, etc.
 
         print(f"🔹 Grouped into {len(grouped_data)} unique product-currency combos.")
 
         # Summed outflow amounts per currency (for adjusted amounts)
         total_adjusted_outflows = defaultdict(Decimal)
+        # Store detailed (non-total) entries per currency.
         currency_to_outflow_entries = defaultdict(list)
         skipped_records = 0
 
@@ -60,14 +61,13 @@ def classify_and_store_hqla_outflow_ccy(fic_mis_date):
 
                 # Weighted amount (apply risk weight)
                 weighted_amount = original_sum_amt * (Decimal('1') - risk_weight)
-
                 # Adjusted amount is the same as weighted amount
                 adjusted_amount = weighted_amount  
 
                 # Sum total adjusted outflows per currency
                 total_adjusted_outflows[ccy] += adjusted_amount  
 
-                # Store line-by-line detail
+                # Store line-by-line detail (non-total entries)
                 currency_to_outflow_entries[ccy].append(HQLAStockOutflow(
                     fic_mis_date=sample_row.fic_mis_date,
                     v_prod_type=prod_type,
@@ -83,12 +83,13 @@ def classify_and_store_hqla_outflow_ccy(fic_mis_date):
                     adjusted_amount=adjusted_amount
                 ))
 
-            # 4️⃣ Store total outflows per currency
+            # 4️⃣ Build the output per currency with detail rows first and totals at the bottom.
             all_insertable_rows = []
-
             for ccy, entries in currency_to_outflow_entries.items():
-                # 🔹 For each HQLA level total: 
-                # n_amount is the sum of original amounts; weighted_amount/adjusted_amount are risk-adjusted sums.
+                # First add the detailed (non-total) product entries.
+                all_insertable_rows.extend(entries)
+                
+                # Then, for each distinct hqla_level total:
                 unique_hqla_levels = set(entry.hqla_level for entry in entries)
                 for main_group in unique_hqla_levels:
                     total_original_amt = sum(entry.n_amount for entry in entries if entry.hqla_level == main_group)
@@ -103,10 +104,12 @@ def classify_and_store_hqla_outflow_ccy(fic_mis_date):
                         v_ccy_code=ccy,
                         weighted_amount=total_adj_amt,
                         adjusted_amount=total_adj_amt,
-                        risk_weight=0  # Set to 0 to indicate no further risk adjustment
+                        risk_weight=0,  # No further risk adjustment
+                        is_total=True,
+                        total_type="level"
                     ))
-
-                # 🔹 For the overall cash outflows per currency:
+    
+                # Then, for the overall cash outflows per currency:
                 total_original_cash_outflow = sum(entry.n_amount for entry in entries)
                 total_adj_cash_outflow = total_adjusted_outflows[ccy]
                 all_insertable_rows.append(HQLAStockOutflow(
@@ -119,19 +122,18 @@ def classify_and_store_hqla_outflow_ccy(fic_mis_date):
                     v_ccy_code=ccy,
                     weighted_amount=total_adj_cash_outflow,
                     adjusted_amount=total_adj_cash_outflow,
-                    risk_weight=0  # Set to 0 for totals
+                    risk_weight=0,  # No risk adjustment for totals
+                    is_total=True,
+                    total_type="overall"
                 ))
-
-                # Add detailed product entries
-                all_insertable_rows.extend(entries)
-
+    
             # 5️⃣ Bulk insert everything
             HQLAStockOutflow.objects.bulk_create(all_insertable_rows)
-
+    
             inserted_count = len(all_insertable_rows)
             print(f"✅ Successfully classified {inserted_count} LCR outflow records across currencies.")
             if skipped_records > 0:
                 print(f"⚠️ Skipped {skipped_records} records with no classification.")
-
+    
     except Exception as e:
         print(f"❌ Error in classify_and_store_hqla_outflow_ccy: {e}")

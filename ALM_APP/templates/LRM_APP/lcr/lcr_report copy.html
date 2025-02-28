@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="container my-5">
+  <!-- Filter Form -->
+  <form method="get" class="row g-3 mb-4">
+    <div class="col-md-3">
+      <label for="fic_mis_date" class="form-label">FIC MIS Date:</label>
+      <select name="fic_mis_date" id="fic_mis_date" class="form-select">
+        <option value="">--- All Dates ---</option>
+        {% for dateval in all_mis_dates %}
+          <option value="{{ dateval|date:'Y-m-d' }}"
+            {% if dateval|date:'Y-m-d' == fic_mis_date %}selected{% endif %}>
+            {{ dateval|date:'Y-m-d' }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="currency" class="form-label">Currency:</label>
+      <select name="currency" id="currency" class="form-select">
+        <option value="">--- All Currencies ---</option>
+        {% for cur in all_currencies %}
+          <option value="{{ cur }}"
+            {% if cur == currency_selected %}selected{% endif %}>
+            {{ cur }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary">Filter</button>
+    </div>
+  </form>
+
+  <!-- Report Table: Grouped by Currency -->
+  {% for currency, data in structured_data.items %}
+    <div class="mb-5">
+      <h2>LCR Report for Currency: {{ currency }}</h2>
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>CATEGORY</th>
+            <th>SUB-CATEGORY</th>
+            <th>TOTAL WEIGHTED VALUE (average)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cat in category_order %}
+            {% with cat_data=data|dictvalue:cat %}
+              {% if cat_data.level or cat_data.overall %}
+                <!-- Category Header Row -->
+                <tr class="table-secondary">
+                  <td colspan="3"><strong>{{ cat }}</strong></td>
+                </tr>
+                <!-- Display level records first -->
+                {% for rec in cat_data.level %}
+                  <tr>
+                    <td></td>
+                    <td>{{ rec.v_product_name }}</td>
+                    <td>
+                      {% if cat == "NET CASH OUTFLOWS" %}
+                        {{ rec.net_cash_outflows }}
+                      {% elif cat == "LCR RATIO" %}
+                        {{ rec.lcr_ratio }}%
+                      {% else %}
+                        {{ rec.adjusted_amount }}
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+                <!-- Then display overall total record(s) below -->
+                {% for rec in cat_data.overall %}
+                  <tr class="fw-bold">
+                    <td></td>
+                    <td>{{ rec.v_product_name }}</td>
+                    <td>
+                      {% if cat == "NET CASH OUTFLOWS" %}
+                        {{ rec.net_cash_outflows }}
+                      {% elif cat == "LCR RATIO" %}
+                        {{ rec.lcr_ratio }}%
+                      {% else %}
+                        {{ rec.adjusted_amount }}
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+                <!-- Optional separator row -->
+                <tr>
+                  <td colspan="3" class="text-center">XXXXXXXXXXXXXXXXXXXXXX</td>
+                </tr>
+              {% endif %}
+            {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <hr>
+  {% endfor %}
+</div>
+{% endblock %}
