@@ -7,6 +7,7 @@ from ALM_APP.functions_view.alm_reports import export_liquidity_gap_cons_to_exce
 from ALM_APP.functions_view.behavioral_pattern import *
 from ALM_APP.functions_view.hqla_report_view import hqla_report_view, lcr_inflows_view, lcr_outflows_view, lcr_report_view
 from ALM_APP.functions_view.load_lrm import  edit_selection, list_selections, retrieve_data, select_process_name, select_product_type, select_purpose, select_time_horizon, view_selection
+from ALM_APP.functions_view.nsfr import nsfr_stock_list_view, nsfr_stock_summary_view
 from ALM_APP.functions_view.party_splits import configurations_management, party_type_add_view, party_type_delete_view, party_type_detail_view, party_type_list_view, party_type_update_view
 from ALM_APP.functions_view.proccess import *
 from ALM_APP.functions_view.product_filter import ProductFilterCreateView, ProductFilterDeleteView, ProductFilterDetailView, ProductFilterListView, ProductFilterUpdateView
@@ -195,6 +196,10 @@ urlpatterns = [
     path('lcr_outflows/', lcr_outflows_view, name='lcr_outflows'),
     path('lcr_inflows/', lcr_inflows_view, name='lcr_inflows'),
     path('lcr-report/', lcr_report_view, name='lcr_report'),
+
+
+    path('nsfr-stocks/', nsfr_stock_list_view, name='nsfr_stock_list'),
+    path('nsfr-stocks-summary/', nsfr_stock_summary_view, name='nsfr_stock_summary'),
 
 
 

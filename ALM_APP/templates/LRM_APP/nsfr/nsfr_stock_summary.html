@@ -1,0 +1,190 @@
+{% load custom_filters %}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>NSFR Stock Summary</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5em;
+    }
+
+    /* Filter Form Styling */
+    .filter-form {
+      margin-bottom: 1.5em;
+      display: flex;
+      gap: 1rem;
+      align-items: flex-end;
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .filter-group label {
+      font-weight: bold;
+      margin-bottom: 0.3em;
+    }
+    .filter-form select {
+      padding: 4px 8px;
+    }
+    .filter-form button {
+      height: 38px;
+      padding: 0 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* Table Styling */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5em;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px 12px;
+    }
+    thead th {
+      background-color: #f1f1f1;
+      text-align: center;
+    }
+    .numeric-col {
+      text-align: right;
+    }
+    .id-col {
+      width: 60px;
+      text-align: center;
+    }
+    .item-col {
+      width: 300px;
+      text-align: left;
+      vertical-align: top;
+    }
+    /* Styling for the item column divisions */
+    .item-main {
+      font-weight: bold;
+      font-size: 1rem;
+      border-bottom: 1px dashed #ccc;
+      padding-bottom: 2px;
+      margin-bottom: 2px;
+    }
+    .item-sub {
+      font-style: italic;
+      font-size: 0.9rem;
+      color: #555;
+    }
+    .item-tot {
+      font-style: italic;
+      font-size: 0.9rem;
+      color: #6b6b7c;
+    }
+    .total-row {
+      font-weight: bold;
+      background-color: #fafafa;
+    }
+    /* Main category row styling */
+    .category-row {
+      font-weight: bold;
+      background-color: #e6e6e6;
+    }
+    /* Sub-row styling */
+    .sub-row {
+      font-style: italic;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>NSFR Stock Summary</h1>
+
+  <!-- Filter Form: FIC MIS Date & Currency -->
+  <form method="get" action="" class="filter-form">
+    <div class="filter-group">
+      <label for="fic_mis_date">FIC MIS Date:</label>
+      <select name="fic_mis_date" id="fic_mis_date">
+        <option value="">--- All Dates ---</option>
+        {% for dateval in all_mis_dates %}
+          <option value="{{ dateval|date:'Y-m-d' }}" {% if dateval|date:'Y-m-d' == fic_mis_date_selected %}selected{% endif %}>
+            {{ dateval|date:'Y-m-d' }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="filter-group">
+      <label for="currency">Currency:</label>
+      <select name="currency" id="currency">
+        <option value="">--- All Currencies ---</option>
+        {% for cur in all_currencies %}
+          <option value="{{ cur }}" {% if cur == currency_selected %}selected{% endif %}>
+            {{ cur }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit">Filter</button>
+  </form>
+
+  <!-- Single Table with Two-Row Header -->
+  <table>
+    <thead>
+      <tr>
+        <!-- ID & Item span two rows -->
+        <th rowspan="2" class="id-col">ID</th>
+        <th rowspan="2" class="item-col">Item</th>
+        <th colspan="1">Amount</th>
+        <th colspan="1">Required stable funding</th>
+        <th colspan="1">Available stable funding</th>
+        <th colspan="1">Ratio</th>
+      </tr>
+      <!-- <tr>
+        <th>0010</th>
+        <th>0020</th>
+        <th>0030</th>
+        <th>0040</th>
+      </tr> -->
+    </thead>
+    <tbody>
+      {% if grouped_data %}
+        <!-- Loop over the ordered types -->
+        {% for main_type in ordered_types %}
+          {% if main_type in grouped_data %}
+            <!-- Main Category Row -->
+            <tr class="category-row">
+              <td class="id-col">{{ forloop.counter }}</td>
+              <td class="item-col">{{ main_type }}</td>
+              <td class="numeric-col"></td>
+              <td class="numeric-col"></td>
+              <td class="numeric-col"></td>
+              <td class="numeric-col"></td>
+            </tr>
+            <!-- Sub-rows for each record under this main type -->
+            {% for row in grouped_data|get_itemm:main_type %}
+              <tr class="sub-row">
+                <td class="id-col">{{ forloop.parentloop.counter }}.{{ forloop.counter }}</td>
+                <td class="item-col">{{ row.v_prod_type_level }}</td>
+                <td class="numeric-col">{{ row.n_amount }}</td>
+                <td class="numeric-col">{{ row.total_required_sf }}</td>
+                <td class="numeric-col">{{ row.total_available_sf }}</td>
+                <td class="numeric-col">
+                  {% if row.nsfr_ratio %}
+                    {{ row.nsfr_ratio }}%
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="6" style="text-align:center;">No records found for the specified filter.</td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+</body>
+</html>

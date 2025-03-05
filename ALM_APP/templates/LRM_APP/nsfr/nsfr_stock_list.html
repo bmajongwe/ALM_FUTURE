@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>NSFR Stock Results</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    h1 {
+      margin-bottom: 0.5em;
+      font-size: 1.5rem;
+    }
+    .nsfr-type-heading {
+      margin-top: 2em;
+      margin-bottom: 1em;
+      font-size: 1.3rem;
+      font-weight: bold;
+    }
+    /* Filter Form Styling */
+    .filter-form {
+      margin-bottom: 1.5em;
+    }
+    .filter-form label {
+      font-weight: bold;
+      margin-right: 8px;
+    }
+    .filter-form select {
+      padding: 4px 8px;
+      margin-right: 20px;
+    }
+    /* Table Styling */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 1.5em;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px 12px;
+    }
+    th {
+      text-align: center;
+      background-color: #f1f1f1;
+    }
+    .numeric-col {
+      text-align: right;
+    }
+    .id-col {
+      width: 60px;
+      text-align: center;
+    }
+    .tot {
+      width: 60px;
+      text-align: center;
+      color: #555;
+    }
+    .item-col {
+      width: 300px;
+      text-align: left;
+      vertical-align: top;
+    }
+    /* Category (main row) styling */
+    .category-row {
+      font-weight: bold;
+      background-color: #e6e6e6;
+    }
+    /* Sub-row styling */
+    .sub-row {
+      font-style: italic;
+      color: #555;
+    }
+    /* Total row styling */
+    .total-row {
+      font-weight: bold;
+      background-color: #fafafa;
+    }
+  </style>
+</head>
+<body>
+  <h1>NSFR Stock Results</h1>
+
+  <!-- Filter Form: FIC MIS Date and Currency -->
+  <form method="get" action="" class="filter-form">
+    <label for="fic_mis_date">FIC MIS Date:</label>
+    <select name="fic_mis_date" id="fic_mis_date">
+      <option value="">--- All Dates ---</option>
+      {% for dateval in all_mis_dates %}
+        <option value="{{ dateval|date:'Y-m-d' }}" {% if dateval|date:'Y-m-d' == fic_mis_date_selected %}selected{% endif %}>
+          {{ dateval|date:'Y-m-d' }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <label for="currency">Currency:</label>
+    <select name="currency" id="currency">
+      <option value="">--- All Currencies ---</option>
+      {% for cur in all_currencies %}
+        <option value="{{ cur }}" {% if cur == currency_selected %}selected{% endif %}>
+          {{ cur }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <button type="submit">Filter</button>
+  </form>
+
+  {% for group in grouped_data %}
+    <!-- Show v_nsfr_type once -->
+    <table>
+      <thead>
+        <tr>
+          <!-- ID, Subcategory, Product each span 2 rows -->
+          <th rowspan="2" class="id-col">ID</th>
+          <th rowspan="2" class="subcategory-col">Item</th>
+          <th rowspan="2" class="product-col">Categories</th>
+          <!-- "Amount" group (3 columns) -->
+          <th colspan="3">Amount</th>
+          <!-- "Standard ASF Factor" group (3 columns) -->
+          <th colspan="3">Standard ASF Factor</th>
+          <!-- "Calculated ASF Factor" group (3 columns) -->
+          <th colspan="3">Calculated ASF Factor</th>
+          <!-- "Available stable funding" spans 2 rows -->
+          <th rowspan="2">Available stable funding</th>
+        </tr>
+        <tr>
+          <!-- Sub-columns for each group -->
+          <th>&lt; 6 months</th>
+          <th>≥6 months to &lt;1 year</th>
+          <th>≥1 year</th>
+
+          <th>&lt; 6 months</th>
+          <th>≥6 months to &lt;1 year</th>
+          <th>≥1 year</th>
+
+          <th>&lt; 6 months</th>
+          <th>≥6 months to &lt;1 year</th>
+          <th>≥1 year</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Main Category Row -->
+        <tr class="category-row">
+          <td class="id-col">{{ forloop.counter }}</td>
+          <td class="item-col" colspan="2">{{ group.v_nsfr_type }}</td>
+          <td class="numeric-col"></td>
+          <td class="numeric-col"></td>
+          <td class="numeric-col"></td>
+          <td class="numeric-col"></td>
+          <td class="numeric-col"></td>
+          <td class="numeric-col"></td>
+          <td class="numeric-col"></td>
+          <td class="numeric-col"></td>
+          <td class="numeric-col"></td>
+          <td class="numeric-col"></td>
+        </tr>
+
+        <!-- Sub-Rows for each subcategory -->
+        {% for subcat in group.subcategories %}
+          {% if subcat.normal_rows %}
+            {% for product in subcat.normal_rows %}
+              <tr class="sub-row">
+                <td class="id-col">
+                  {{ forloop.parentloop.counter }}.{{ forloop.counter }}
+                </td>
+                {% if forloop.first %}
+                  <td class="subcategory-col" rowspan="{{ subcat.normal_rows|length }}">
+                    {{ subcat.v_prod_type_level }}
+                  </td>
+                {% endif %}
+                <td class="product-col">{{ product.v_prod_type }}</td>
+                <td class="numeric-col">{{ product.amount_less_6_months }}</td>
+                <td class="numeric-col">{{ product.amount_6_to_12_months }}</td>
+                <td class="numeric-col">{{ product.amount_greater_1_year }}</td>
+                <td class="numeric-col">{{ product.funding_factor_less_6_months }}%</td>
+                <td class="numeric-col">{{ product.funding_factor_6_to_12_months }}%</td>
+                <td class="numeric-col">{{ product.funding_factor_greater_1_year }}%</td>
+                <td class="numeric-col">{{ product.calculated_sf_less_6_months }}</td>
+                <td class="numeric-col">{{ product.calculated_sf_6_to_12_months }}</td>
+                <td class="numeric-col">{{ product.calculated_sf_greater_1_year }}</td>
+                <td class="numeric-col">{{ product.total_calculated_sf }}</td>
+              </tr>
+            {% endfor %}
+          {% endif %}
+
+          <!-- LEVEL TOTAL row, if present -->
+          {% if subcat.level_total_row %}
+            <tr class="total-row">
+              <td class="id-col"   >-</td>
+              <td colspan="2"  >TOTAL for {{ subcat.v_prod_type_level }}</td>
+              <td class="numeric-col">{{ subcat.level_total_row.amount_less_6_months }}</td>
+              <td class="numeric-col">{{ subcat.level_total_row.amount_6_to_12_months }}</td>
+              <td class="numeric-col">{{ subcat.level_total_row.amount_greater_1_year }}</td>
+              <td class="numeric-col">{{ subcat.level_total_row.funding_factor_less_6_months }}%</td>
+              <td class="numeric-col">{{ subcat.level_total_row.funding_factor_6_to_12_months }}%</td>
+              <td class="numeric-col">{{ subcat.level_total_row.funding_factor_greater_1_year }}%</td>
+              <td class="numeric-col">{{ subcat.level_total_row.calculated_sf_less_6_months }}</td>
+              <td class="numeric-col">{{ subcat.level_total_row.calculated_sf_6_to_12_months }}</td>
+              <td class="numeric-col">{{ subcat.level_total_row.calculated_sf_greater_1_year }}</td>
+              <td class="numeric-col">{{ subcat.level_total_row.total_calculated_sf }}</td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+
+        <!-- OVERALL TOTAL row for this group, if present -->
+        {% if group.overall_total_row %}
+          <tr class="total-row">
+            <td class="id-col">-</td>
+            <td colspan="2">OVERALL TOTAL for {{ group.v_nsfr_type }}</td>
+            <td class="numeric-col">{{ group.overall_total_row.amount_less_6_months }}</td>
+            <td class="numeric-col">{{ group.overall_total_row.amount_6_to_12_months }}</td>
+            <td class="numeric-col">{{ group.overall_total_row.amount_greater_1_year }}</td>
+            <td class="numeric-col">{{ group.overall_total_row.funding_factor_less_6_months }}%</td>
+            <td class="numeric-col">{{ group.overall_total_row.funding_factor_6_to_12_months }}%</td>
+            <td class="numeric-col">{{ group.overall_total_row.funding_factor_greater_1_year }}%</td>
+            <td class="numeric-col">{{ group.overall_total_row.calculated_sf_less_6_months }}</td>
+            <td class="numeric-col">{{ group.overall_total_row.calculated_sf_6_to_12_months }}</td>
+            <td class="numeric-col">{{ group.overall_total_row.calculated_sf_greater_1_year }}</td>
+            <td class="numeric-col">{{ group.overall_total_row.total_calculated_sf }}</td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  {% endfor %}
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>NSFR Stock Results</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            margin-bottom: 0.5em;
+            font-size: 1.5rem;
+        }
+        .nsfr-type-heading {
+            margin-top: 2em;
+            margin-bottom: 1em;
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5em;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 8px 12px;
+        }
+        th {
+            text-align: center;
+            background-color: #f1f1f1;
+        }
+        .numeric-col {
+            text-align: right;
+        }
+        .id-col {
+            width: 40px;
+            text-align: center;
+        }
+        .subcategory-col {
+            width: 220px;
+            font-weight: bold;
+            vertical-align: top;
+        }
+        .product-col {
+            width: 180px;
+            font-style: italic;
+            color: #555;
+        }
+        .total-row {
+            font-weight: bold;
+            background-color: #fafafa;
+        }
+        /* Styling for the filter form */
+        .filter-form {
+            margin-bottom: 1.5em;
+        }
+        .filter-form label {
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .filter-form select {
+            padding: 4px 8px;
+            margin-right: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>NSFR Stock Results</h1>
+
+    <form method="get" action="" class="filter-form">
+        <label for="fic_mis_date">FIC MIS Date:</label>
+        <select name="fic_mis_date" id="fic_mis_date">
+            <option value="">--- All Dates ---</option>
+            {% for dateval in all_mis_dates %}
+                <option value="{{ dateval|date:'Y-m-d' }}" {% if dateval|date:'Y-m-d' == fic_mis_date_selected %}selected{% endif %}>
+                    {{ dateval|date:'Y-m-d' }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="currency">Currency:</label>
+        <select name="currency" id="currency">
+            <option value="">--- All Currencies ---</option>
+            {% for cur in all_currencies %}
+                <option value="{{ cur }}" {% if cur == currency_selected %}selected{% endif %}>
+                    {{ cur }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <button type="submit">Filter</button>
+    </form>
+
+    {% for group in grouped_data %}
+        <h2 class="nsfr-type-heading">{{ group.v_nsfr_type }}</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th rowspan="2" class="id-col">ID</th>
+                    <th rowspan="2" class="subcategory-col">Subcategory</th>
+                    <th rowspan="2" class="product-col">Product</th>
+
+                    <th colspan="3">Amount</th>
+
+                    <th colspan="3">Standard ASF Factor</th>
+
+                    <th colspan="3">Calculated ASF Factor</th>
+
+                    <th rowspan="2">Available stable funding</th>
+                </tr>
+                <tr>
+                    <th>&lt; 6 months</th>
+                    <th>≥6 months to &lt;1 year</th>
+                    <th>≥1 year</th>
+
+                    <th>&lt; 6 months</th>
+                    <th>≥6 months to &lt;1 year</th>
+                    <th>≥1 year</th>
+
+                    <th>&lt; 6 months</th>
+                    <th>≥6 months to &lt;1 year</th>
+                    <th>≥1 year</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for subcat in group.subcategories %}
+                    {% if subcat.normal_rows %}
+                        {% for product in subcat.normal_rows %}
+                            <tr>
+                                <td class="id-col">
+                                    {{ forloop.parentloop.counter0|add:forloop.counter }}
+                                </td>
+
+                                {% if forloop.first %}
+                                    <td class="subcategory-col" rowspan="{{ subcat.normal_rows|length }}">
+                                        {{ subcat.v_prod_type_level }}
+                                    </td>
+                                {% endif %}
+
+                                <td class="product-col">{{ product.v_prod_type }}</td>
+
+                                <td class="numeric-col">{{ product.amount_less_6_months }}</td>
+                                <td class="numeric-col">{{ product.amount_6_to_12_months }}</td>
+                                <td class="numeric-col">{{ product.amount_greater_1_year }}</td>
+
+                                <td class="numeric-col">{{ product.funding_factor_less_6_months }}%</td>
+                                <td class="numeric-col">{{ product.funding_factor_6_to_12_months }}%</td>
+                                <td class="numeric-col">{{ product.funding_factor_greater_1_year }}%</td>
+
+                                <td class="numeric-col">{{ product.calculated_sf_less_6_months }}</td>
+                                <td class="numeric-col">{{ product.calculated_sf_6_to_12_months }}</td>
+                                <td class="numeric-col">{{ product.calculated_sf_greater_1_year }}</td>
+
+                                <td class="numeric-col">{{ product.total_calculated_sf }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% endif %}
+
+                    {% if subcat.level_total_row %}
+                        <tr class="total-row">
+                            <td class="id-col">-</td>
+                            <td colspan="2">TOTAL for {{ subcat.v_prod_type_level }}</td>
+
+                            <td class="numeric-col">{{ subcat.level_total_row.amount_less_6_months }}</td>
+                            <td class="numeric-col">{{ subcat.level_total_row.amount_6_to_12_months }}</td>
+                            <td class="numeric-col">{{ subcat.level_total_row.amount_greater_1_year }}</td>
+
+                            <td class="numeric-col">{{ subcat.level_total_row.funding_factor_less_6_months }}%</td>
+                            <td class="numeric-col">{{ subcat.level_total_row.funding_factor_6_to_12_months }}%</td>
+                            <td class="numeric-col">{{ subcat.level_total_row.funding_factor_greater_1_year }}%</td>
+
+                            <td class="numeric-col">{{ subcat.level_total_row.calculated_sf_less_6_months }}</td>
+                            <td class="numeric-col">{{ subcat.level_total_row.calculated_sf_6_to_12_months }}</td>
+                            <td class="numeric-col">{{ subcat.level_total_row.calculated_sf_greater_1_year }}</td>
+
+                            <td class="numeric-col">{{ subcat.level_total_row.total_calculated_sf }}</td>
+                        </tr>
+                    {% endif %}
+                {% endfor %}
+
+                {% if group.overall_total_row %}
+                    <tr class="total-row">
+                        <td class="id-col">-</td>
+                        <td colspan="2">OVERALL TOTAL for {{ group.v_nsfr_type }}</td>
+
+                        <td class="numeric-col">{{ group.overall_total_row.amount_less_6_months }}</td>
+                        <td class="numeric-col">{{ group.overall_total_row.amount_6_to_12_months }}</td>
+                        <td class="numeric-col">{{ group.overall_total_row.amount_greater_1_year }}</td>
+
+                        <td class="numeric-col">{{ group.overall_total_row.funding_factor_less_6_months }}%</td>
+                        <td class="numeric-col">{{ group.overall_total_row.funding_factor_6_to_12_months }}%</td>
+                        <td class="numeric-col">{{ group.overall_total_row.funding_factor_greater_1_year }}%</td>
+
+                        <td class="numeric-col">{{ group.overall_total_row.calculated_sf_less_6_months }}</td>
+                        <td class="numeric-col">{{ group.overall_total_row.calculated_sf_6_to_12_months }}</td>
+                        <td class="numeric-col">{{ group.overall_total_row.calculated_sf_greater_1_year }}</td>
+
+                        <td class="numeric-col">{{ group.overall_total_row.total_calculated_sf }}</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    {% endfor %}
+</div>
+</body>
+</html>
+ -->

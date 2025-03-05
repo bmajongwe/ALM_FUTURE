@@ -29,7 +29,9 @@ def get_item(list_data, index):
     except IndexError:
         return None
     
-    from django import template
+@register.filter
+def get_itemm(dictionary, key):
+    return dictionary.get(key)
 
 @register.filter
 def lookup(dict_data, key):
